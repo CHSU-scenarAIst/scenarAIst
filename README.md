@@ -64,3 +64,5 @@ for model in models.data:
 ## Источники
 
 [^1]: https://habr.com/ru/articles/891614/
+
+[^2]: https://docs.langchain.com/oss/python/langgraph/quickstart

@@ -1,68 +1,84 @@
-# О проекте
+# scenarAIst
 
 ...
 
-## Начало работы
+## Getting Started
+
+### Prerequisites
+
+- [uv](https://docs.astral.sh/uv/) (recommended) or pip
+- Python 3.14+
+- GigaChat API credentials ([obtain here](https://developers.sber.ru/gigachat))
+
+### Installation
 
 ```sh
+# Clone the repository
+git clone https://github.com/example/scenaraist.git
+cd scenaraist
+
+rm -rf ./.venv/
+uv venv --python 3.14
+uv sync
+
+# Copy and configure environment variables
 cp .env.example .env
 ```
 
-...
-
-### Модели
-
-```
-GigaChat (owned_by=salutedevices)
-GigaChat-2 (owned_by=salutedevices)
-GigaChat-2-Max (owned_by=salutedevices)
-GigaChat-2-Pro (owned_by=salutedevices)
-GigaChat-Max (owned_by=salutedevices)
-GigaChat-Max-preview (owned_by=salutedevices)
-GigaChat-Plus (owned_by=salutedevices)
-GigaChat-Pro (owned_by=salutedevices)
-GigaChat-Pro-preview (owned_by=salutedevices)
-GigaChat-preview (owned_by=salutedevices)
-Embeddings (owned_by=salutedevices)
-Embeddings-2 (owned_by=salutedevices)
-EmbeddingsGigaR (owned_by=salutedevices)
-GigaEmbeddings-3B-2025-09 (owned_by=salutedevices)
-```
-
-...
-
-## Dev
-
-### Установка
+### Usage
 
 ```sh
-uv add langchain_gigachat python-dotenv langgraph langchain
-uv init
-
-uv python install 3.13
-rm -rf .venv
-uv venv --python 3.13
-uv sync
+scenaraist
+uv run scenaraist
+python -m scenaraist
 ```
 
-...
+## Development
 
-```py
-from dotenv import load_dotenv
-from langchain_gigachat.chat_models import GigaChat
+### Environment Setup
 
-load_dotenv()
-
-llm = GigaChat()
-
-# список моделей
-models = llm.get_models()
-for model in models.data:
-    print(f"{model.id_} (owned_by={model.owned_by})")
+```sh
+# Install development dependencies
+uv sync --dev
 ```
 
-## Источники
+### Development Commands
 
-[^1]: https://habr.com/ru/articles/891614/
+| Command                   | Description             |
+| ------------------------- | ----------------------- |
+| `uv run pytest`           | Run tests with coverage |
+| `uv run ruff check --fix` | Lint the codebase       |
+| `uv run ruff format`      | Format the codebase     |
+| `uv run mypy`             | Type-check the codebase |
 
-[^2]: https://docs.langchain.com/oss/python/langgraph/quickstart
+### Pre-commit Hooks
+
+To set up pre-commit hooks for automated code quality checks:
+
+```sh
+uv run pre-commit install
+pre-commit autoupdate
+```
+
+## Available Models
+
+| Model                | Owner         |
+| -------------------- | ------------- |
+| GigaChat             | salutedevices |
+| GigaChat-2           | salutedevices |
+| GigaChat-2-Max       | salutedevices |
+| GigaChat-2-Pro       | salutedevices |
+| GigaChat-Max         | salutedevices |
+| GigaChat-Max-preview | salutedevices |
+| GigaChat-Plus        | salutedevices |
+| GigaChat-Pro         | salutedevices |
+| GigaChat-Pro-preview | salutedevices |
+| GigaChat-preview     | salutedevices |
+
+## Resources
+
+- [Habr article: Building AI agents with LangChain](https://habr.com/ru/articles/891614/)
+- [LangGraph Quickstart Guide](https://docs.langchain.com/oss/python/langgraph/quickstart)
+- [GigaChat Developer Portal](https://developers.sber.ru/gigachat)
+- https://python.langchain.com/docs/
+- https://langchain-ai.github.io/langgraph/

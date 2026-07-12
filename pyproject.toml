@@ -1,12 +1,77 @@
+# Настройки системы сборки пакета
+[build-system]
+requires = ["hatchling"]          # Пакеты, необходимые для сборки проекта
+build-backend = "hatchling.build" # Бэкенд сборки
+
+
 [project]
-name = "scenaraist"
+name = "scenaraist" # Имя пакета на PyPI
 version = "0.1.0"
-description = "СценарИИст на python"
-readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
-    "langchain>=1.3.13",
-    "langchain-gigachat>=0.5.1",
-    "langgraph>=1.2.9",
-    "python-dotenv>=1.2.2",
+    "langchain>=1.3",
+    "langchain-gigachat>=0.5",
+    "langgraph>=1.2",
+    "python-dotenv>=1.2",
 ]
+
+# description = "AI agent powered by GigaChat and LangGraph" # Краткое описание проекта
+# readme = "README.md"                                       # Файл с подробным описанием
+# license = { text = "MIT" }                                 # Лицензия проекта
+# authors = [{ name = "scenarAIst contributors" }]           # Авторы проекта
+# # Ключевые слова для поиска на PyPI
+# keywords = ["ai", "chatbot", "gigachat", "langchain", "langgraph"]
+# # Классификаторы PyPI
+# classifiers = [
+#     "Development Status :: 3 - Alpha",
+#     "Intended Audience :: Developers",
+#     "License :: OSI Approved :: MIT License",
+#     "Programming Language :: Python :: 3.14",
+#     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+# ]
+
+
+# [project.urls]
+# Homepage = "https://github.com/example/scenaraist"
+# Repository = "https://github.com/example/scenaraist.git"
+# Documentation = "https://github.com/example/scenaraist#readme"
+
+[project.scripts]
+scenaraist = "scenaraist.__main__:main"
+
+# Группы необязательных зависимостей
+[dependency-groups]
+dev = [
+    "mypy>=2.2.0",              # Статическая проверка типов
+    "pre-commit>=4.6.0",        # Git hooks
+    "pytest>=9.1.1",            # Тестирование
+    "pytest-cov>=7.1.0",        # Покрытие тестами
+    "ruff>=0.15.21",            # Линтер и форматтер
+    "types-python-dateutil",    # Типы для python-dateutil
+]
+
+
+# Настройки сборки wheel
+[tool.hatch.build.targets.wheel]
+packages = ["src/scenaraist"]  # Пакеты, которые попадут в wheel
+
+
+[tool.coverage.run]
+source = ["scenaraist"]
+
+
+# Настройки mypy
+[tool.mypy]
+python_version = "3.14"        # Версия Python для анализа
+warn_return_any = true         # Предупреждать при возврате Any
+warn_unused_configs = true     # Предупреждать о неиспользуемых настройках
+ignore_missing_imports = false
+strict = true                  # Максимально строгий режим проверки
+files = ["src", "tests"]
+
+
+# Настройки pytest
+[tool.pytest.ini_options]
+testpaths = ["tests"]        # Где искать тесты
+python_files = ["test_*.py"] # Какие файлы считать тестами
+pythonpath = ["src"]

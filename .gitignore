@@ -4,9 +4,37 @@ __pycache__/
 build/
 dist/
 wheels/
-*.egg-info
+*.egg-info/
+.eggs/
+.cache/
 
 # Virtual environments
-.venv
+.venv/
 .env
-*.lock
+.python-version
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing and coverage
+.pytest_cache/
+coverage/
+htmlcov/
+.coverage
+.coverage.*
+.pyre/
+.pytype/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+
+# Linting
+.ruff_cache/
+
+# OS files
+.DS_Store
+Thumbs.db

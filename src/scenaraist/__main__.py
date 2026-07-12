@@ -1,0 +1,47 @@
+"""Entry point for running the scenarAIst agent as a module."""
+
+import logging
+
+from langchain_gigachat import GigaChat
+
+from .config import load_settings
+from .graph import build_agent, run_conversation
+
+logger = logging.getLogger(__name__)
+
+
+def main() -> int:
+    """Run the scenarAIst chatbot."""
+
+    logger.info("Starting scenarAIst")
+
+    try:
+        settings = load_settings()
+    except ValueError as exc:
+        logger.error("Configuration error: %s", exc)
+        return 1
+
+    try:
+        llm = GigaChat(
+            credentials=settings.gigachat_credentials,
+            model=settings.gigachat_model,
+            verify_ssl_certs=settings.verify_ssl_certs,
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error: {e}")
+
+    agent = build_agent(llm)
+    run_conversation(agent)
+
+    logger.info("Shutting down")
+    return 0
+
+
+if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+    raise SystemExit(main())
+
+# TODO: метод для смены модели в зависимости от поставщика

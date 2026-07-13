@@ -1,14 +1,27 @@
 """Узлы графа агента — ветвление и финальное форматирование."""
 
 import logging
+from enum import StrEnum
 
 from langchain.messages import AIMessage, ToolMessage
+from langgraph.prebuilt import ToolNode
 
-from .state import OrchestratorState, ToolName
+from .state import OrchestratorState  # noqa: TC001
 from .tools import MATH_TOOLS, JsonResponse, format_response
 
 LOGGER = logging.getLogger(__name__)
+ALL_TOOLS = [*MATH_TOOLS, format_response]
 MATH_TOOLS_NAMES = [tool.name for tool in MATH_TOOLS]
+
+
+class ToolName(StrEnum):
+    """Имена узлов графа с инструментами."""
+
+    MATH = "math_tools"
+    FINAL = "final_tool"
+
+
+MATH_TOOL_NODE = ToolNode(MATH_TOOLS)
 
 
 def router(state: OrchestratorState) -> ToolName:

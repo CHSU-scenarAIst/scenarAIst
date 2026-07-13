@@ -1,19 +1,9 @@
 """Типы состояний для графа агента."""
 
-from enum import StrEnum
-from typing import TYPE_CHECKING, Annotated, TypedDict
+from typing import Annotated, TypedDict
 
+from langchain.messages import AnyMessage  # noqa: TC002
 from langgraph.graph import add_messages
-
-if TYPE_CHECKING:
-    from langchain.messages import AnyMessage
-
-
-class ToolName(StrEnum):
-    """Имена узлов графа с инструментами."""
-
-    MATH = "math_tools"
-    FINAL = "final_tool"
 
 
 class OrchestratorState(TypedDict):

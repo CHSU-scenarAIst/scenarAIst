@@ -3,7 +3,7 @@
 import logging
 from typing import TYPE_CHECKING, Any
 
-from langchain_core.messages import AnyMessage, HumanMessage
+from langchain.messages import AnyMessage, HumanMessage
 
 if TYPE_CHECKING:
     from langgraph.graph.state import CompiledStateGraph
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 EXIT_COMMANDS = {"exit", "quit"}
 
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 def run(agent: CompiledStateGraph[Any, Any, Any, Any]) -> None:
@@ -38,7 +38,7 @@ def run(agent: CompiledStateGraph[Any, Any, Any, Any]) -> None:
         history.append(HumanMessage(content=text))
 
         try:
-            logger.debug("Ввод пользователя: %s", text)
+            LOGGER.debug("Ввод пользователя: %s", text)
 
             result = agent.invoke({"messages": history})
             history = result["messages"]
@@ -47,5 +47,5 @@ def run(agent: CompiledStateGraph[Any, Any, Any, Any]) -> None:
 
             print(response)
         except Exception:
-            logger.exception("Ошибка при вызове агента")
+            LOGGER.exception("Ошибка при вызове агента")
             print("Произошла ошибка. Пожалуйста, попробуйте снова.")

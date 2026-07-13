@@ -8,18 +8,18 @@ from .app import run
 from .config import load_settings
 from .graph import build_agent
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 def main() -> int:
     """Запустить чат-бота scenarAIst."""
 
-    logger.info("Запуск scenarAIst")
+    LOGGER.info("Запуск scenarAIst")
 
     try:
         settings = load_settings()
     except ValueError as exc:
-        logger.error("Ошибка конфигурации: %s", exc)
+        LOGGER.error("Ошибка конфигурации: %s", exc)
         return 1
 
     try:
@@ -29,12 +29,12 @@ def main() -> int:
             verify_ssl_certs=settings.verify_ssl_certs,
         )
     except Exception as e:
-        logger.exception(f"Неожиданная ошибка: {e}")
+        LOGGER.exception(f"Неожиданная ошибка: {e}")
 
     agent = build_agent(llm)
     run(agent)
 
-    logger.info("Завершение работы")
+    LOGGER.info("Завершение работы")
     return 0
 
 

@@ -1,4 +1,4 @@
-"""Configuration management for the scenarAIst agent."""
+"""Управление конфигурацией агента scenarAIst."""
 
 import os
 from dataclasses import dataclass, field
@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 @dataclass(frozen=True, slots=True)
 class Settings:
-    """Application settings loaded from environment variables."""
+    """Настройки приложения, загружаемые из переменных окружения."""
 
     gigachat_credentials: str = field(
         default_factory=lambda: os.getenv("GIGACHAT_CREDENTIALS", ""),
@@ -24,7 +24,7 @@ class Settings:
     def __post_init__(self) -> None:
         if not self.gigachat_credentials:
             raise ValueError(
-                "Missing required environment variable: GIGACHAT_CREDENTIALS",
+                "Отсутствует обязательная переменная окружения: GIGACHAT_CREDENTIALS",
             )
 
 
@@ -39,6 +39,6 @@ def _get_bool(name: str, default: bool = False) -> bool:
 
 @cache
 def load_settings() -> Settings:
-    """Load environment variables from .env file and return settings."""
+    """Загрузить переменные окружения из .env файла и вернуть настройки."""
     load_dotenv(override=False)
     return Settings()

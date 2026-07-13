@@ -1,10 +1,6 @@
-# TODO
+"""Инструменты агента scenarAIst."""
 
-from importlib.metadata import version
-
-from .format import JsonResponse, format
+from .format import JsonResponse, format_response
 from .math import MATH_TOOLS
 
-__version__ = version("scenaraist")
-
-__all__ = (MATH_TOOLS, JsonResponse, format)
+__all__ = (MATH_TOOLS, JsonResponse, format_response)

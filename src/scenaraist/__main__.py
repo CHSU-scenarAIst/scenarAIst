@@ -1,4 +1,4 @@
-"""Entry point for running the scenarAIst agent as a module."""
+"""Точка входа для запуска агента scenarAIst как модуля."""
 
 import logging
 
@@ -12,14 +12,14 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> int:
-    """Run the scenarAIst chatbot."""
+    """Запустить чат-бота scenarAIst."""
 
-    logger.info("Starting scenarAIst")
+    logger.info("Запуск scenarAIst")
 
     try:
         settings = load_settings()
     except ValueError as exc:
-        logger.error("Configuration error: %s", exc)
+        logger.error("Ошибка конфигурации: %s", exc)
         return 1
 
     try:
@@ -29,12 +29,12 @@ def main() -> int:
             verify_ssl_certs=settings.verify_ssl_certs,
         )
     except Exception as e:
-        logger.exception(f"Unexpected error: {e}")
+        logger.exception(f"Неожиданная ошибка: {e}")
 
     agent = build_agent(llm)
     run(agent)
 
-    logger.info("Shutting down")
+    logger.info("Завершение работы")
     return 0
 
 

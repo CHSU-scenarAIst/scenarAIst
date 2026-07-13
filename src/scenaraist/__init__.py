@@ -1,4 +1,4 @@
-"""Core package for the scenarAIst framework."""
+"""Главный пакет фреймворка scenarAIst."""
 
 from importlib.metadata import version
 

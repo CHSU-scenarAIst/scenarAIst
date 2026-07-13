@@ -24,6 +24,7 @@ select = [
 [lint.per-file-ignores]
 "__init__.py" = ["F401"] # Разрешить реэкспорт через __init__.py
 "tests/**/*" = ["S101"]  # Разрешить assert в тестах
+"./*" = ["RUF001"]
 
 
 [format]

@@ -4,8 +4,9 @@ import logging
 
 from langchain_gigachat import GigaChat
 
+from .app import run
 from .config import load_settings
-from .graph import build_agent, run_conversation
+from .graph import build_agent
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ def main() -> int:
         logger.exception(f"Unexpected error: {e}")
 
     agent = build_agent(llm)
-    run_conversation(agent)
+    run(agent)
 
     logger.info("Shutting down")
     return 0

@@ -1,6 +1,6 @@
 """Tests for the tools module."""
 
-from scenaraist.tools import add, multiply
+from scenaraist.tools.format import add, multiply
 
 
 def test_multiply_positive() -> None:

@@ -30,7 +30,7 @@ def test_settings_verify_ssl_true(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("GIGACHAT_CREDENTIALS", "test-creds")
     monkeypatch.setenv("GIGACHAT_VERIFY_SSL_CERTS", "true")
     settings = Settings()
-    assert settings.verify_ssl_certs is True
+    assert settings.gigachat_verify_ssl_certs is True
 
 
 def test_load_settings(monkeypatch: MonkeyPatch) -> None:

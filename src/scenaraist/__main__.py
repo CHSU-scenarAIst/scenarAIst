@@ -2,7 +2,8 @@
 
 import logging
 
-from langchain_gigachat import GigaChat
+# from langchain_gigachat import GigaChat
+from langchain_openrouter import ChatOpenRouter
 
 from .app import run
 from .config import load_settings
@@ -23,10 +24,18 @@ def main() -> int:
         return 1
 
     try:
-        llm = GigaChat(
-            credentials=settings.gigachat_credentials,
-            model=settings.gigachat_model,
-            verify_ssl_certs=settings.verify_ssl_certs,
+        # llm = GigaChat(
+        #     credentials=settings.gigachat_credentials,
+        #     model=settings.gigachat_model,
+        #     verify_ssl_certs=settings.verify_ssl_certs,
+        # )
+
+        print(settings.openrouter_model)
+        print(settings.openrouter_credentials[:10] + "...")
+
+        llm = ChatOpenRouter(
+            api_key=settings.openrouter_credentials,
+            model=settings.openrouter_model,
         )
     except Exception as e:
         LOGGER.exception(f"Неожиданная ошибка: {e}")

@@ -7,10 +7,11 @@ build-backend = "hatchling.build" # Бэкенд сборки
 [project]
 name = "scenaraist" # Имя пакета на PyPI
 version = "0.1.0"
-requires-python = ">=3.14"
+requires-python = ">=3.13"
 dependencies = [
     "langchain>=1.3",
     "langchain-gigachat>=0.5",
+    "langchain-openrouter>=0.2.6",
     "langgraph>=1.2",
     "python-dotenv>=1.2",
 ]
@@ -42,18 +43,18 @@ scenaraist = "scenaraist.__main__:main"
 # Группы необязательных зависимостей
 [dependency-groups]
 dev = [
-    "mypy>=2.2.0",              # Статическая проверка типов
-    "pre-commit>=4.6.0",        # Git hooks
-    "pytest>=9.1.1",            # Тестирование
-    "pytest-cov>=7.1.0",        # Покрытие тестами
-    "ruff>=0.15.21",            # Линтер и форматтер
-    "types-python-dateutil",    # Типы для python-dateutil
+    "mypy>=2.2.0",           # Статическая проверка типов
+    "pre-commit>=4.6.0",     # Git hooks
+    "pytest>=9.1.1",         # Тестирование
+    "pytest-cov>=7.1.0",     # Покрытие тестами
+    "ruff>=0.15.21",         # Линтер и форматтер
+    "types-python-dateutil", # Типы для python-dateutil
 ]
 
 
 # Настройки сборки wheel
 [tool.hatch.build.targets.wheel]
-packages = ["src/scenaraist"]  # Пакеты, которые попадут в wheel
+packages = ["src/scenaraist"] # Пакеты, которые попадут в wheel
 
 
 [tool.coverage.run]
@@ -62,7 +63,7 @@ source = ["scenaraist"]
 
 # Настройки mypy
 [tool.mypy]
-python_version = "3.14"        # Версия Python для анализа
+python_version = "3.13"        # Версия Python для анализа
 warn_return_any = true         # Предупреждать при возврате Any
 warn_unused_configs = true     # Предупреждать о неиспользуемых настройках
 ignore_missing_imports = false

@@ -1,13 +1,10 @@
 """Интерактивный цикл общения с агентом."""
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from langchain.messages import AnyMessage, HumanMessage
-
-if TYPE_CHECKING:
-    from langgraph.graph.state import CompiledStateGraph
-
+from langgraph.graph.state import CompiledStateGraph
 
 EXIT_COMMANDS = {"exit", "quit"}
 
@@ -24,8 +21,8 @@ def run(agent: CompiledStateGraph[Any, Any, Any, Any]) -> None:
     while True:
         try:
             text = input("> ").strip()
-        except EOFError, KeyboardInterrupt:
-            print("\nДо свидания!")
+        except (EOFError, KeyboardInterrupt):
+            print("\nОшибка")
             break
 
         if not text:

@@ -6,7 +6,7 @@ from enum import StrEnum
 from langchain.messages import AIMessage, ToolMessage
 from langgraph.prebuilt import ToolNode
 
-from .state import OrchestratorState  # noqa: TC001
+from .state import OrchestratorState
 from .tools import MATH_TOOLS, JsonResponse, format_response
 
 LOGGER = logging.getLogger(__name__)

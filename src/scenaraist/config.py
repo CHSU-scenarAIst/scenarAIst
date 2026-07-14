@@ -17,14 +17,21 @@ class Settings:
     gigachat_model: str = field(
         default_factory=lambda: os.getenv("GIGACHAT_MODEL", "GigaChat-2"),
     )
-    verify_ssl_certs: bool = field(
+    gigachat_verify_ssl_certs: bool = field(
         default_factory=lambda: _get_bool("GIGACHAT_VERIFY_SSL_CERTS"),
     )
 
+    openrouter_credentials: str = field(
+        default_factory=lambda: os.getenv("OPENROUTER_API_KEY", ""),
+    )
+    openrouter_model: str = field(
+        default_factory=lambda: os.getenv("OPENROUTER_MODEL", "openrouter/free"),
+    )
+
     def __post_init__(self) -> None:
-        if not self.gigachat_credentials:
+        if not self.gigachat_credentials and not self.openrouter_credentials:
             raise ValueError(
-                "Отсутствует обязательная переменная окружения: GIGACHAT_CREDENTIALS",
+                "Отсутствует обязательная переменная окружения",
             )
 
 

@@ -2,7 +2,7 @@
 
 from typing import Annotated, TypedDict
 
-from langchain.messages import AnyMessage  # noqa: TC002
+from langchain.messages import AnyMessage
 from langgraph.graph import add_messages
 
 

@@ -2,30 +2,31 @@
 
 ...
 
-## Getting Started
+## Начало
 
-### Prerequisites
+### Подготовка
 
 - [uv](https://docs.astral.sh/uv/) (recommended) or pip
-- Python 3.14+
-- GigaChat API credentials ([obtain here](https://developers.sber.ru/gigachat))
 
-### Installation
+### Скачивание
 
 ```sh
 # Clone the repository
 git clone https://github.com/example/scenaraist.git
 cd scenaraist
 
-rm -rf ./.venv/
 uv venv --python 3.14
+uv python pin 3.14
 uv sync
 
 # Copy and configure environment variables
 cp .env.example .env
+
+curl https://openrouter.ai/api/v1/key \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY"
 ```
 
-### Usage
+### Использование
 
 ```sh
 scenaraist
@@ -33,16 +34,16 @@ uv run scenaraist
 python -m scenaraist
 ```
 
-## Development
+## Для разработчиков
 
-### Environment Setup
+### Установка зависимостей
 
 ```sh
 # Install development dependencies
 uv sync --dev
 ```
 
-### Development Commands
+### Команды
 
 | Command                   | Description             |
 | ------------------------- | ----------------------- |
@@ -60,7 +61,9 @@ uv run pre-commit install
 pre-commit autoupdate
 ```
 
-## Available Models
+## Модели
+
+BotHub, KodikRouter, ProxyAPI, AITunnel, OfoxAI, RouterAI, OpenRouter...
 
 | Model                | Owner         |
 | -------------------- | ------------- |
@@ -77,8 +80,9 @@ pre-commit autoupdate
 
 ## Resources
 
-- [Habr article: Building AI agents with LangChain](https://habr.com/ru/articles/891614/)
-- [LangGraph Quickstart Guide](https://docs.langchain.com/oss/python/langgraph/quickstart)
-- [GigaChat Developer Portal](https://developers.sber.ru/gigachat)
-- https://python.langchain.com/docs/
-- https://langchain-ai.github.io/langgraph/
+- [Полное руководство (с кодом) AI агента с использованием LangGraph](https://habr.com/ru/articles/891614/)
+- [LangGraph](https://docs.langchain.com/oss/python/langgraph/overview)
+- [LangChain](https://docs.langchain.com/oss/python/langchain/overview)
+- [Using LangChain](https://openrouter.ai/docs/guides/community/langchain)
+- [Studio - Личный кабинет технологических продуктов Сбера](https://developers.sber.ru/studio/workspaces/)
+- [Создание умных AI-агентов: полный курс по LangGraph от А до Я. Часть 3.](https://habr.com/ru/companies/amvera/articles/949376/)

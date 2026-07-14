@@ -1,17 +1,15 @@
 """Сборка и компиляция графа LangGraph."""
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
+from langchain.chat_models import BaseChatModel
 from langchain.messages import SystemMessage
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from .nodes import ALL_TOOLS, MATH_TOOL_NODE, ToolName, final, router
 from .state import OrchestratorState
-
-if TYPE_CHECKING:
-    from langchain.chat_models import BaseChatModel
-    from langgraph.graph.state import CompiledStateGraph
 
 LOGGER = logging.getLogger(__name__)
 

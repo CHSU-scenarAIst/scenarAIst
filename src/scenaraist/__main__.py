@@ -2,7 +2,8 @@
 
 import logging
 
-# from langchain_gigachat import GigaChat
+from langchain_gigachat import GigaChat
+from langchain_openai import ChatOpenAI
 from langchain_openrouter import ChatOpenRouter
 
 from .app import run
@@ -24,19 +25,23 @@ def main() -> int:
         return 1
 
     try:
-        # llm = GigaChat(
-        #     credentials=settings.gigachat_credentials,
-        #     model=settings.gigachat_model,
-        #     verify_ssl_certs=settings.verify_ssl_certs,
-        # )
-
-        print(settings.openrouter_model)
-        print(settings.openrouter_credentials[:10] + "...")
+        llm = GigaChat(
+            credentials=settings.gigachat_credentials,
+            model=settings.gigachat_model,
+            verify_ssl_certs=settings.gigachat_verify_ssl_certs,
+        )
 
         llm = ChatOpenRouter(
             api_key=settings.openrouter_credentials,
             model=settings.openrouter_model,
         )
+
+        llm = ChatOpenAI(
+            base_url="https://api.ofox.ai/v1",
+            api_key=settings.openai_credentials,
+            model=settings.openai_model,
+        )
+
     except Exception as e:
         LOGGER.exception(f"Неожиданная ошибка: {e}")
 

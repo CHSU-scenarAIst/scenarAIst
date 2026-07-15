@@ -28,6 +28,13 @@ class Settings:
         default_factory=lambda: os.getenv("OPENROUTER_MODEL", "openrouter/free"),
     )
 
+    openai_credentials: str = field(
+        default_factory=lambda: os.getenv("OPENAI_API_KEY", ""),
+    )
+    openai_model: str = field(
+        default_factory=lambda: os.getenv("OPENAI_MODEL", "deepseek-v4-flash"),
+    )
+
     def __post_init__(self) -> None:
         if not self.gigachat_credentials and not self.openrouter_credentials:
             raise ValueError(

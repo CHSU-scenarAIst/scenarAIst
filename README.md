@@ -63,7 +63,16 @@ pre-commit autoupdate
 
 ## Модели
 
-BotHub, KodikRouter, ProxyAPI, AITunnel, OfoxAI, RouterAI, OpenRouter...
+BotHub, KodikRouter,
+
+- ProxyAPI: РФ, требует деньги
+- AITunnel: РФ, требует деньги
+- OfoxAI: [OK](https://ofox.ai/ru/models/z-ai/glm-4.7-flash%3Afree)
+- RouterAI: РФ, требует деньги
+- OpenRouter: API не работает в РФ
+- SambaNova Cloud: не работает в РФ с VPN
+- DeepSeek Open Platform: требует деньги
+- ...
 
 | Model                | Owner         |
 | -------------------- | ------------- |

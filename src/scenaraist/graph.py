@@ -43,6 +43,9 @@ def build_agent(llm: BaseChatModel) -> CompiledStateGraph[Any, Any, Any, Any]:
             "llm_calls": state.get("llm_calls", 0) + 1,
         }
 
+    # TODO Математические инструменты сгруппированы в один ToolNode, а веб-поиск — в отдельный.
+    # Это архитектурное решение вынуждает роутер выбирать только один путь, и если
+    # модель вызывает add и web_search одновременно, второй вызов будет проигнорирован.
     math_tool_node = ToolNode(MATH_TOOLS)
     web_tool_node = ToolNode([web_tool])
     builder = StateGraph(OrchestratorState)

@@ -10,9 +10,10 @@ class OrchestratorState(TypedDict):
     """Состояние графа оркестратора."""
 
     messages: Annotated[list[AnyMessage], add_messages]
+    # TODO Нет механизма принудительного завершения после N вызовов.
     llm_calls: int
-    db_path: str  # Путь к SQLite базе
-    urls: list[str]  # Найденные ссылки
+    # db_path: str  # Путь к SQLite базе
+    # urls: list[str]  # Найденные ссылки
     # topic: str  # Тема исследования
     # csv_path: str  # Путь к CSV файлу
     # report_path: str  # Путь к итоговому отчёту

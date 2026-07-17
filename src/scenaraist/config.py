@@ -38,6 +38,9 @@ class Settings:
 
     tavily_api: str = field(default_factory=lambda: os.getenv("TAVILY_API_KEY", ""))
 
+    # TODO Проверка требует, чтобы все ключи были пустыми для ошибки, вместо проверки,
+    # что хотя бы один нужный ключ предоставлен. Пользователь может выбрать GigaChat,
+    # но не иметь GigaChat API ключа — ошибка не возникнет, если есть любой другой ключ.
     def __post_init__(self) -> None:
         if (
             not self.gigachat_api

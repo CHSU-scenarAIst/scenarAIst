@@ -32,9 +32,15 @@ def run(agent: CompiledStateGraph[Any, Any, Any, Any]) -> None:
 
         try:
             result = agent.invoke({"messages": history})
+
+            # TODO История сообщений растёт бесконечно — каждое взаимодействие добавляет
+            # HumanMessage, AIMessage и возможные ToolMessage. Нет механизма очистки или
+            # сокращения контекста, что может привести к превышению лимита контекста LLM.
             history = result["messages"]
+
+            # TODO В LangChain AIMessage.content может быть как строкой, так и
+            # списком блоков контента (например, при использовании мультимодальных моделей).
             response = history[-1].content
-            # TODO? Иногда content бывает не строкой (например, списком блоков контента)
 
             print(response)
         except Exception as e:

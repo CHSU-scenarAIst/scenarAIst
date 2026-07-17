@@ -1,4 +1,5 @@
-from langchain_tavily import TavilyExtract, TavilySearch
+# from langchain_tavily import TavilyExtract
+from langchain_tavily import TavilySearch
 
 
 def web_search() -> TavilySearch:
@@ -20,8 +21,8 @@ def web_search() -> TavilySearch:
     )
 
 
-def web_extract() -> TavilyExtract:
-    return TavilyExtract(
-        extract_depth="basic",
-        # include_images=False
-    )
+# def web_extract() -> TavilyExtract:
+#     return TavilyExtract(
+#         extract_depth="basic",
+#         # include_images=False
+#     )

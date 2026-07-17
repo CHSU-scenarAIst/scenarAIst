@@ -23,6 +23,7 @@ class JsonResponse(BaseModel):
     )
 
 
+# TODO хрупкость в том, что любое изменение роутера может сломать эту логику.
 @tool(args_schema=JsonResponse)
 def format_response(**_: Any) -> None:
     """Маркер финального ответа для LLM."""

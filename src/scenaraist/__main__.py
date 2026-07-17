@@ -40,6 +40,7 @@ def main() -> int:
     ).ask()
 
     try:
+        # TODO Лучше использовать привязку к значению choice или использовать идентификаторы.
         if str(choice).startswith("1"):
             llm = GigaChat(
                 credentials=settings.gigachat_api,

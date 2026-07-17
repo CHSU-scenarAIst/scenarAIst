@@ -33,6 +33,10 @@ def router(state: OrchestratorState) -> ToolName:
         LOGGER.info("Модель не вызвала инструменты")
         return ToolName.FINAL
 
+    # TODO Роутер проверяет только tool_calls[0]["name"], игнорируя
+    # все остальные вызовы инструментов, если LLM решит вызвать несколько инструментов одновременно.
+    # Это приводит к потере вызовов инструментов,
+    # если модель решает вызвать, например, add и web_search в одном ответе.
     tool_name = tool_calls[0]["name"]
 
     if tool_name in MATH_TOOL_NAMES:

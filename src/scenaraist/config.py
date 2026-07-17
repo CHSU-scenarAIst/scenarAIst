@@ -1,4 +1,4 @@
-"""Управление конфигурацией агента scenarAIst."""
+"""Управление конфигурацией СценарИИста."""
 
 import os
 from dataclasses import dataclass, field
@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 class Settings:
     """Настройки приложения, загружаемые из переменных окружения."""
 
-    gigachat_credentials: str = field(
+    gigachat_api: str = field(
         default_factory=lambda: os.getenv("GIGACHAT_CREDENTIALS", ""),
     )
     gigachat_model: str = field(
@@ -21,24 +21,32 @@ class Settings:
         default_factory=lambda: _get_bool("GIGACHAT_VERIFY_SSL_CERTS"),
     )
 
-    openrouter_credentials: str = field(
+    openrouter_api: str = field(
         default_factory=lambda: os.getenv("OPENROUTER_API_KEY", ""),
     )
     openrouter_model: str = field(
         default_factory=lambda: os.getenv("OPENROUTER_MODEL", "openrouter/free"),
     )
 
-    openai_credentials: str = field(
-        default_factory=lambda: os.getenv("OPENAI_API_KEY", ""),
+    openai_base_url: str = field(
+        default_factory=lambda: os.getenv("OPENAI_BASE_URL", "https://api.ofox.ai/v1")
     )
+    openai_api: str = field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
     openai_model: str = field(
-        default_factory=lambda: os.getenv("OPENAI_MODEL", "deepseek-v4-flash"),
+        default_factory=lambda: os.getenv("OPENAI_MODEL", "z-ai/glm-4.7-flash:free")
     )
 
+    tavily_api: str = field(default_factory=lambda: os.getenv("TAVILY_API_KEY", ""))
+
     def __post_init__(self) -> None:
-        if not self.gigachat_credentials and not self.openrouter_credentials:
+        if (
+            not self.gigachat_api
+            and not self.openrouter_api
+            and not self.openai_api
+            and not self.tavily_api
+        ):
             raise ValueError(
-                "Отсутствует обязательная переменная окружения",
+                "Отсутствует обязательная переменная окружения API",
             )
 
 

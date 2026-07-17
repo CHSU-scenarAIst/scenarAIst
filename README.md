@@ -29,9 +29,13 @@ curl https://openrouter.ai/api/v1/key \
 ### Использование
 
 ```sh
+# без логирования
 scenaraist
 uv run scenaraist
+
+# с логированием
 python -m scenaraist
+uv run -m scenaraist
 ```
 
 ## Для разработчиков
@@ -74,24 +78,19 @@ BotHub, KodikRouter,
 - DeepSeek Open Platform: требует деньги
 - ...
 
-| Model                | Owner         |
-| -------------------- | ------------- |
-| GigaChat             | salutedevices |
-| GigaChat-2           | salutedevices |
-| GigaChat-2-Max       | salutedevices |
-| GigaChat-2-Pro       | salutedevices |
-| GigaChat-Max         | salutedevices |
-| GigaChat-Max-preview | salutedevices |
-| GigaChat-Plus        | salutedevices |
-| GigaChat-Pro         | salutedevices |
-| GigaChat-Pro-preview | salutedevices |
-| GigaChat-preview     | salutedevices |
+| GigaChat Model | Owner         |
+| -------------- | ------------- |
+| GigaChat-2     | salutedevices |
+| GigaChat-2-Max | salutedevices |
+| GigaChat-2-Pro | salutedevices |
 
-## Resources
+## Литературы
 
-- [Полное руководство (с кодом) AI агента с использованием LangGraph](https://habr.com/ru/articles/891614/)
+- [Studio - Личный кабинет технологических продуктов Сбера](https://developers.sber.ru/studio/workspaces/)
 - [LangGraph](https://docs.langchain.com/oss/python/langgraph/overview)
 - [LangChain](https://docs.langchain.com/oss/python/langchain/overview)
-- [Using LangChain](https://openrouter.ai/docs/guides/community/langchain)
-- [Studio - Личный кабинет технологических продуктов Сбера](https://developers.sber.ru/studio/workspaces/)
+- [Полное руководство (с кодом) AI агента с использованием LangGraph](https://habr.com/ru/articles/891614/)
 - [Создание умных AI-агентов: полный курс по LangGraph от А до Я. Часть 3.](https://habr.com/ru/companies/amvera/articles/949376/)
+- [sqlite-vec](https://alexgarcia.xyz/sqlite-vec/python.html)
+- [LangChain - Tavily Docs](https://docs.tavily.com/documentation/integrations/langchain)
+- [Tavily API Platform](https://app.tavily.com/home)

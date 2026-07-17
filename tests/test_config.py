@@ -16,7 +16,7 @@ def test_settings_default_values(monkeypatch: MonkeyPatch) -> None:
 def test_settings_with_credentials(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("GIGACHAT_CREDENTIALS", "test-creds")
     settings = Settings()
-    assert settings.gigachat_credentials == "test-creds"
+    assert settings.gigachat_api == "test-creds"
 
 
 def test_settings_custom_model(monkeypatch: MonkeyPatch) -> None:
@@ -37,4 +37,4 @@ def test_load_settings(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("GIGACHAT_CREDENTIALS", "test-creds")
     settings = load_settings()
     assert isinstance(settings, Settings)
-    assert settings.gigachat_credentials == "test-creds"
+    assert settings.gigachat_api == "test-creds"

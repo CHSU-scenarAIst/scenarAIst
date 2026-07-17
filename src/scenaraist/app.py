@@ -1,15 +1,11 @@
 """Интерактивный цикл общения с агентом."""
 
-import logging
 from typing import Any
 
 from langchain.messages import AnyMessage, HumanMessage
 from langgraph.graph.state import CompiledStateGraph
 
 EXIT_COMMANDS = {"exit", "quit"}
-
-
-LOGGER = logging.getLogger(__name__)
 
 
 def run(agent: CompiledStateGraph[Any, Any, Any, Any]) -> None:
@@ -21,8 +17,8 @@ def run(agent: CompiledStateGraph[Any, Any, Any, Any]) -> None:
     while True:
         try:
             text = input("> ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print("\nОшибка")
+        except (EOFError, KeyboardInterrupt) as e:
+            print(f"\nОшибка: {e}")
             break
 
         if not text:
@@ -35,14 +31,11 @@ def run(agent: CompiledStateGraph[Any, Any, Any, Any]) -> None:
         history.append(HumanMessage(content=text))
 
         try:
-            LOGGER.debug("Ввод пользователя: %s", text)
-
             result = agent.invoke({"messages": history})
             history = result["messages"]
             response = history[-1].content
             # TODO? Иногда content бывает не строкой (например, списком блоков контента)
 
             print(response)
-        except Exception:
-            LOGGER.exception("Ошибка при вызове агента")
-            print("Произошла ошибка. Пожалуйста, попробуйте снова.")
+        except Exception as e:
+            print(f"Ошибка: {e}")

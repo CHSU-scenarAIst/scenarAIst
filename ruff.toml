@@ -28,6 +28,7 @@ select = [
 
 
 [format]
-quote-style = "double" # Использовать двойные кавычки
-indent-style = "space" # Использовать пробелы вместо табов
-line-ending = "auto"   # Автоматически определять окончания строк
+quote-style = "double"            # Использовать двойные кавычки
+indent-style = "space"            # Использовать пробелы вместо табов
+line-ending = "auto"              # Автоматически определять окончания строк
+skip-magic-trailing-comma = false # Всегда добавлять запятую в многострочных структурах

@@ -1,40 +1,53 @@
-import os
+import logging
+from collections.abc import Callable, Iterator
+from functools import partial
+from pathlib import Path
 
-from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader
+from langchain_community.document_loaders import (
+    Docx2txtLoader,
+    PyMuPDFLoader,
+    TextLoader,
+    UnstructuredExcelLoader,
+)
+from langchain_community.document_loaders.base import BaseLoader
 from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-# from langchain_text_splitters import RecursiveCharacterTextSplitter
+LOADERS: dict[str, Callable[[str], BaseLoader]] = {
+    ".pdf": PyMuPDFLoader,
+    ".docx": Docx2txtLoader,
+    ".txt": partial(TextLoader, autodetect_encoding=True),
+    ".md": partial(TextLoader, autodetect_encoding=True),
+    ".csv": partial(TextLoader, autodetect_encoding=True),
+    ".xls": UnstructuredExcelLoader,
+    ".xlsx": UnstructuredExcelLoader,
+}
+LOGGER = logging.getLogger(__name__)
 
 
-def load_documents(folder_path: str) -> list[Document]:
-    documents = []
-    for filename in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, filename)
-        if filename.endswith(".pdf"):
-            loader = PyPDFLoader(file_path)
-        elif filename.endswith(".docx"):
-            loader = Docx2txtLoader(file_path)
-        else:
-            print(f"Unsupported file type: {filename}")
+def iter_documents(folder: str | Path) -> Iterator[Document]:
+    """TODO"""
+
+    root = Path(folder)
+    for file in root.rglob("*"):
+        loader_cls = LOADERS.get(file.suffix.lower())
+        if loader_cls is None:
             continue
-        documents.extend(loader.load())
-    return documents
+
+        loader = loader_cls(str(file))
+        try:
+            yield from loader.lazy_load()
+        except Exception as e:
+            LOGGER.warning("Не удалось обработать %s: %s", file, e)
 
 
-folder_path = "/content/docs"
-documents = load_documents(folder_path)
-print(f"Loaded {len(documents)} documents from the folder.")
+def iter_splits(documents: Iterator[Document]) -> Iterator[Document]:
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000, chunk_overlap=200, length_function=len
+    )
+    for document in documents:
+        yield from text_splitter.split_documents([document])
 
-# text_splitter = RecursiveCharacterTextSplitter(
-#     chunk_size=1000, chunk_overlap=200, length_function=len
-# )
-
-# splits = text_splitter.split_documents(documents)
-# print(f"Split the documents into {len(splits)} chunks.")
-
-# from langchain_community.embeddings.sentence_transformer import SentenceTransformerEmbeddings
-
-# embedding_function = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
 
 # from langchain_chroma import Chroma
 

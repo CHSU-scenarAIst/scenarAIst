@@ -45,11 +45,19 @@ def main() -> int:
         LOGGER.error(f"Ошибка LLM-эмбеддингов: {e}")
         return 1
 
-    # agent = build_agent(chat)
-    # run(agent)
+    agent = build_agent(chat)
+    run(agent)
 
     LOGGER.info("Завершение работы...")
     return 0
+
+
+# TODO заглушка
+CONFIG = {
+    "configurable": {
+        "thread_id": "user-1",
+    }
+}
 
 
 def run(agent: CompiledStateGraph[Any, Any, Any, Any]) -> None:
@@ -76,7 +84,7 @@ def run(agent: CompiledStateGraph[Any, Any, Any, Any]) -> None:
         history.append(HumanMessage(content=text))
 
         try:
-            result = agent.invoke({"messages": history})
+            result = agent.invoke({"messages": [HumanMessage(content=text)]}, config=CONFIG)
 
             # TODO История сообщений растёт бесконечно — каждое взаимодействие добавляет
             # HumanMessage, AIMessage и возможные ToolMessage. Нет механизма очистки или

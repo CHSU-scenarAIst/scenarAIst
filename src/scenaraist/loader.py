@@ -13,6 +13,7 @@ from langchain_community.document_loaders.base import BaseLoader
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+LOGGER = logging.getLogger(__name__)
 LOADERS: dict[str, Callable[[str], BaseLoader]] = {
     ".pdf": PyMuPDFLoader,
     ".docx": Docx2txtLoader,
@@ -22,7 +23,6 @@ LOADERS: dict[str, Callable[[str], BaseLoader]] = {
     ".xls": UnstructuredExcelLoader,
     ".xlsx": UnstructuredExcelLoader,
 }
-LOGGER = logging.getLogger(__name__)
 
 
 def iter_documents(folder: str | Path) -> Iterator[Document]:
@@ -43,7 +43,9 @@ def iter_documents(folder: str | Path) -> Iterator[Document]:
 
 def iter_splits(documents: Iterator[Document]) -> Iterator[Document]:
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000, chunk_overlap=200, length_function=len
+        chunk_size=1000,
+        chunk_overlap=200,
+        length_function=len,
     )
     for document in documents:
         yield from text_splitter.split_documents([document])

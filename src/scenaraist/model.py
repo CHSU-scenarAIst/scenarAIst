@@ -21,6 +21,7 @@ class Provider:
     embeddings: Callable[[], Embeddings] | None = None
 
 
+# TODO найди здесь переменные окружения и запиши их в .env.example
 PROVIDERS: dict[str, Provider] = {
     "gigachat": Provider(
         chat=lambda: GigaChat(
@@ -65,7 +66,7 @@ PROVIDERS: dict[str, Provider] = {
 }
 
 
-def _env(name: str, default: str | None) -> str:
+def _env(name: str, default: str = "") -> str:
     """TODO"""
 
     # TODO добавить проверку обязательности переменной окружения
@@ -89,7 +90,7 @@ def get_chat_model(provider: str) -> BaseChatModel:
 
     factory = PROVIDERS[provider].chat
     if factory is None:
-        raise ValueError(f'Провайдер "{provider}" не поддерживает чат.')
+        raise ValueError("Провайдер '%s' не поддерживает чат.", provider)
     LOGGER.info("Выбран провайдер чата: %s", provider)
     return factory()
 
@@ -99,6 +100,6 @@ def get_embeddings(provider: str) -> Embeddings:
 
     factory = PROVIDERS[provider].embeddings
     if factory is None:
-        raise ValueError(f'Провайдер "{provider}" не поддерживает эмбеддинги.')
+        raise ValueError("Провайдер '%s' не поддерживает эмбеддинги.", provider)
     LOGGER.info("Выбран провайдер эмбеддингов: %s", provider)
     return factory()

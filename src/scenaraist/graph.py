@@ -16,6 +16,14 @@ from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field, ValidationError
 
 LOGGER = logging.getLogger(__name__)
+SYSTEM_PROMPT = (
+    "You are a helpful assistant. Отвечай на языке поступившего запроса.\n"
+    "Используй инструменты, когда они необходимы для получения ответа.\n"
+    "Use the web search tool whenever the answer depends on current or external information.\n"
+    "Always use the format_response tool for your final answer.\n"
+    "Never write format_response as plain text.\n"
+    f"Today's date is {datetime.now(UTC):%B %d, %Y}."
+)
 
 
 class OrchestratorState(TypedDict):
@@ -43,13 +51,20 @@ def build_agent(llm: BaseChatModel) -> CompiledStateGraph:
         """Узел вызова LLM с текущей историей сообщений."""
 
         LOGGER.debug("Вызов чатбота с %d сообщениями", len(state["messages"]))
-        system_prompt = (
-            "You are a helpful assistant. Отвечай на языке поступившего запроса.\n"
-            "Используй инструменты, когда они необходимы для получения ответа.\n"
-            "Use the web search tool whenever the answer depends on current or external information.\n"
-            f"Today's date is {datetime.now(UTC):%B %d, %Y}."
-        )
-        prompt = [SystemMessage(content=system_prompt), *state["messages"]]
+
+        messages = [
+            m
+            for m in state["messages"]
+            if not isinstance(m, ToolMessage)
+            and not (
+                isinstance(m, AIMessage)
+                and m.tool_calls
+                and any(tc["name"] == format_response.name for tc in m.tool_calls)
+            )
+        ]
+
+        prompt = [SystemMessage(content=SYSTEM_PROMPT), *messages]
+
         return {
             "messages": [llm_with_tools.invoke(prompt)],
             "llm_calls": state.get("llm_calls", 0) + 1,
@@ -59,21 +74,24 @@ def build_agent(llm: BaseChatModel) -> CompiledStateGraph:
 
     # Узлы графа
     builder.add_node(chat_node.__name__, chat_node)
-    builder.add_node(ToolName.TOOLS, tool_node)
-    builder.add_node(ToolName.FINAL, final_node)
+    builder.add_node(NodeName.TOOLS, tool_node)
+    builder.add_node(NodeName.FINAL, final_node)
+    # builder.add_node(NodeName.CLEANUP, cleanup_node)
 
     # Структура графа
     builder.add_edge(START, chat_node.__name__)
-    builder.add_edge(ToolName.TOOLS, chat_node.__name__)
+    builder.add_edge(NodeName.TOOLS, chat_node.__name__)
     builder.add_conditional_edges(
         chat_node.__name__,
         router_node,
         {
-            ToolName.FINAL: ToolName.FINAL,
-            ToolName.TOOLS: ToolName.TOOLS,
+            NodeName.FINAL: NodeName.FINAL,
+            NodeName.TOOLS: NodeName.TOOLS,
         },
     )
-    builder.add_edge(ToolName.FINAL, END)
+    # builder.add_edge(NodeName.FINAL, NodeName.CLEANUP)
+    # builder.add_edge(NodeName.CLEANUP, END)
+    builder.add_edge(NodeName.FINAL, END)
 
     # Сборка агента
     checkpointer = InMemorySaver()
@@ -83,35 +101,27 @@ def build_agent(llm: BaseChatModel) -> CompiledStateGraph:
     return agent
 
 
-class ToolName(StrEnum):
+class NodeName(StrEnum):
     """Имена узлов графа с инструментами."""
 
-    TOOLS = "tools"
-    FINAL = "final_tool"
+    TOOLS = "tool_node"
+    FINAL = "final_node"
+    # CLEANUP = "cleanup_node"
 
 
-def router_node(state: OrchestratorState) -> ToolName:
+def router_node(state: OrchestratorState) -> NodeName:
     """Ветвление между узлами графа."""
 
     LOGGER.info("Router node")
 
     last = state["messages"][-1]
-    tool_calls = getattr(last, "tool_calls", [])
+    tool_calls = last.tool_calls
+    non_final = [tc for tc in tool_calls if tc["name"] != format_response.name]
 
-    if not tool_calls:
-        return ToolName.FINAL
+    if non_final and state["llm_calls"] < 20:
+        return NodeName.TOOLS
 
-    # TODO Роутер проверяет только tool_calls[0]["name"], игнорируя
-    # все остальные вызовы инструментов, если LLM решит вызвать несколько инструментов одновременно.
-    # Это приводит к потере вызовов инструментов,
-    # если модель решает вызвать, например, add и web_search в одном ответе.
-    tool_name = tool_calls[0]["name"]
-    LOGGER.info("Router: %s", tool_name)
-
-    if tool_name == format_response.name:
-        return ToolName.FINAL
-
-    return ToolName.TOOLS
+    return NodeName.FINAL
 
 
 def final_node(state: OrchestratorState) -> OrchestratorState:
@@ -120,7 +130,7 @@ def final_node(state: OrchestratorState) -> OrchestratorState:
     LOGGER.info("Final node")
 
     last = state["messages"][-1]
-    tool_calls = getattr(last, "tool_calls", [])
+    tool_calls = last.tool_calls
     call = tool_calls[0] if tool_calls else None
 
     if call and call["name"] == format_response.name:
@@ -136,6 +146,7 @@ def final_node(state: OrchestratorState) -> OrchestratorState:
         return {
             "messages": [
                 ToolMessage(
+                    # content=response.model_dump_json(),
                     content="OK",
                     tool_call_id=call["id"],
                     name=format_response.name,

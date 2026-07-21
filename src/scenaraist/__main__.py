@@ -1,11 +1,11 @@
 """Точка входа для запуска агента scenarAIst как модуля."""
 
 import logging
-from typing import Any
+import uuid
 
 import questionary
 from dotenv import load_dotenv
-from langchain.messages import AnyMessage, HumanMessage
+from langchain.messages import HumanMessage
 from langgraph.graph.state import CompiledStateGraph
 
 from scenaraist.loader import iter_documents, iter_splits
@@ -36,17 +36,21 @@ def main() -> int:
         chat = get_chat_model(provider)
     except Exception as e:
         LOGGER.error(f"Ошибка LLM-чата: {e}")
-        return 1
+        raise
 
     try:
         provider = questionary.select("Выберите провайдера эмбеддингов:", choices=CHOICES).ask()
         embeddings = get_embeddings(provider)
     except Exception as e:
         LOGGER.error(f"Ошибка LLM-эмбеддингов: {e}")
-        return 1
+        raise
 
-    agent = build_agent(chat)
-    run(agent)
+    try:
+        agent = build_agent(chat)
+        run(agent)
+    except Exception as e:
+        LOGGER.error(f"Ошибка: {e}")
+        raise
 
     LOGGER.info("Завершение работы...")
     return 0
@@ -55,24 +59,18 @@ def main() -> int:
 # TODO заглушка
 CONFIG = {
     "configurable": {
-        "thread_id": "user-1",
+        "thread_id": uuid.uuid4().hex,
     }
 }
 
 
-def run(agent: CompiledStateGraph[Any, Any, Any, Any]) -> None:
+def run(agent: CompiledStateGraph) -> None:
     """Запустить интерактивный цикл общения с агентом."""
-
-    history: list[AnyMessage] = []
 
     print("Агент scenarAIst готов. Введите 'exit' или 'quit' для выхода.\n")
 
     while True:
-        try:
-            text = input("> ").strip()
-        except (EOFError, KeyboardInterrupt) as e:
-            print(f"\nОшибка: {e}")
-            break
+        text = input("> ").strip()
 
         if not text:
             continue
@@ -81,23 +79,19 @@ def run(agent: CompiledStateGraph[Any, Any, Any, Any]) -> None:
             print("До свидания!")
             break
 
-        history.append(HumanMessage(content=text))
+        result = agent.invoke({"messages": [HumanMessage(content=text)]}, config=CONFIG)
 
-        try:
-            result = agent.invoke({"messages": [HumanMessage(content=text)]}, config=CONFIG)
+        # TODO История сообщений растёт бесконечно — каждое взаимодействие добавляет
+        # HumanMessage, AIMessage и возможные ToolMessage. Нет механизма очистки или
+        # сокращения контекста, что может привести к превышению лимита контекста LLM.
+        history = result["messages"]
 
-            # TODO История сообщений растёт бесконечно — каждое взаимодействие добавляет
-            # HumanMessage, AIMessage и возможные ToolMessage. Нет механизма очистки или
-            # сокращения контекста, что может привести к превышению лимита контекста LLM.
-            history = result["messages"]
+        # TODO В LangChain AIMessage.content может быть как строкой, так и
+        # списком блоков контента (например, при использовании мультимодальных моделей).
+        # response = history.content
+        response = history
 
-            # TODO В LangChain AIMessage.content может быть как строкой, так и
-            # списком блоков контента (например, при использовании мультимодальных моделей).
-            response = history[-1].content
-
-            print(response)
-        except Exception as e:
-            print(f"Ошибка: {e}")
+        print(response)
 
 
 if __name__ == "__main__":

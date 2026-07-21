@@ -66,7 +66,7 @@ PROVIDERS: dict[str, Provider] = {
 }
 
 
-def _env(name: str, default: str = "") -> str:
+def _env(name: str, default: str | None = None) -> str:
     """TODO"""
 
     # TODO добавить проверку обязательности переменной окружения

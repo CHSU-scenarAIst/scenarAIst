@@ -8,11 +8,8 @@ from dotenv import load_dotenv
 from langchain.messages import HumanMessage
 from langgraph.graph.state import CompiledStateGraph
 
-from scenaraist.loader import iter_documents, iter_splits
+from scenaraist.graph import build_agent
 from scenaraist.model import get_chat_model, get_embeddings
-
-# from .db import make_db
-from .graph import build_agent
 
 EXIT_COMMANDS = {"exit", "quit"}
 LOGGER = logging.getLogger(__name__)
@@ -46,7 +43,7 @@ def main() -> int:
         raise
 
     try:
-        agent = build_agent(chat)
+        agent = build_agent(chat, embeddings)
         run(agent)
     except Exception as e:
         LOGGER.error(f"Ошибка: {e}")
@@ -80,17 +77,8 @@ def run(agent: CompiledStateGraph) -> None:
             break
 
         result = agent.invoke({"messages": [HumanMessage(content=text)]}, config=CONFIG)
-
-        # TODO История сообщений растёт бесконечно — каждое взаимодействие добавляет
-        # HumanMessage, AIMessage и возможные ToolMessage. Нет механизма очистки или
-        # сокращения контекста, что может привести к превышению лимита контекста LLM.
-        history = result["messages"]
-
-        # TODO В LangChain AIMessage.content может быть как строкой, так и
-        # списком блоков контента (например, при использовании мультимодальных моделей).
-        # response = history.content
-        response = history
-
+        history = result["messages"][-1]
+        response = history.content
         print(response)
 
 
@@ -100,15 +88,3 @@ if __name__ == "__main__":
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
     raise SystemExit(main())
-
-    folder_path = "./docs/weather"
-    documents = iter_documents(folder_path)
-
-    i = 0
-    for _ in iter_splits(documents):
-        # vectorstore.add_documents([chunk])
-        i += 1
-    print(f"Loaded {i} chunks from the folder.")
-
-    # TODO
-    # make_db()

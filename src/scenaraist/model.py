@@ -59,7 +59,7 @@ PROVIDERS: dict[str, Provider] = {
         embeddings=lambda: HuggingFaceEmbeddings(
             model_name=_env(
                 "HUGGINGFACE_EMBEDDING_MODEL",
-                "sentence-transformers/all-MiniLM-L6-v2",
+                "sentence-transformers/all-mpnet-base-v2",
             ),
         ),
     ),

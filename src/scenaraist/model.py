@@ -1,3 +1,5 @@
+"""Конфигурация и фабрики провайдеров LLM и эмбеддингов."""
+
 import logging
 import os
 from collections.abc import Callable
@@ -15,49 +17,56 @@ LOGGER = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class Provider:
-    """TODO"""
+    """Провайдер LLM, содержащий фабрики для чата и эмбеддингов."""
 
+    # TODO Callable используется без конкретной сигнатуры.
+    # Рекомендуется: заменить на Protocol с методом __call__().
     chat: Callable[[], BaseChatModel] | None = None
     embeddings: Callable[[], Embeddings] | None = None
 
 
-# TODO найди здесь переменные окружения и запиши их в .env.example
 PROVIDERS: dict[str, Provider] = {
     "gigachat": Provider(
         chat=lambda: GigaChat(
-            credentials=_env("GIGACHAT_CREDENTIALS"),
-            model=_env("GIGACHAT_MODEL", "GigaChat-2"),
-            verify_ssl_certs=_env_bool("GIGACHAT_VERIFY_SSL_CERTS"),
+            credentials=os.getenv("GIGACHAT_CREDENTIALS"),
+            model=os.getenv("GIGACHAT_MODEL", "GigaChat-2"),
+            verify_ssl_certs=lambda: (
+                os.getenv("GIGACHAT_VERIFY_SSL_CERTS", str(True)).strip().lower()
+                in {"1", "true", "yes", "on"}
+            ),
             timeout=60,
         ),
         embeddings=lambda: GigaChatEmbeddings(
-            credentials=_env("GIGACHAT_CREDENTIALS"),
-            model=_env("GIGACHAT_EMBEDDING_MODEL", "Embeddings"),
+            credentials=os.getenv("GIGACHAT_CREDENTIALS"),
+            model=os.getenv("GIGACHAT_EMBEDDING_MODEL", "Embeddings"),
         ),
     ),
     "openrouter": Provider(
         chat=lambda: ChatOpenRouter(
-            api_key=_env("OPENROUTER_API_KEY"),
-            model=_env("OPENROUTER_MODEL", "openrouter/free"),
+            api_key=os.getenv("OPENROUTER_API_KEY"),
+            model=os.getenv("OPENROUTER_MODEL", "openrouter/free"),
             timeout=60,
         ),
     ),
     "openai": Provider(
         chat=lambda: ChatOpenAI(
-            base_url=_env("OPENAI_BASE_URL", "https://api.ofox.ai/v1"),
-            api_key=_env("OPENAI_API_KEY"),
-            model=_env("OPENAI_MODEL", "z-ai/glm-4.7-flash:free"),
+            # TODO base_url по умолчанию указывает на сторонний API (ofox.ai).
+            # Это может быть неожиданным для пользователя.
+            # Рекомендуется: использовать официальный API OpenAI по умолчанию.
+            base_url=os.getenv("OPENAI_BASE_URL"),
+            api_key=os.getenv("OPENAI_API_KEY"),
+            model=os.getenv("OPENAI_MODEL"),
             timeout=60,
         ),
         embeddings=lambda: OpenAIEmbeddings(
-            base_url=_env("OPENAI_BASE_URL", "https://api.ofox.ai/v1"),
-            api_key=_env("OPENAI_API_KEY"),
-            model=_env("OPENAI_EMBEDDING_MODEL"),
+            base_url=os.getenv("OPENAI_EMBEDDING_BASE_URL"),
+            api_key=os.getenv("OPENAI_API_KEY"),
+            model=os.getenv("OPENAI_EMBEDDING_MODEL"),
         ),
     ),
     "huggingface": Provider(
         embeddings=lambda: HuggingFaceEmbeddings(
-            model_name=_env(
+            model_name=os.getenv(
                 "HUGGINGFACE_EMBEDDING_MODEL",
                 "sentence-transformers/all-mpnet-base-v2",
             ),
@@ -66,40 +75,21 @@ PROVIDERS: dict[str, Provider] = {
 }
 
 
-def _env(name: str, default: str | None = None) -> str:
-    """TODO"""
-
-    # TODO добавить проверку обязательности переменной окружения
-    # для остановки программы при отсутствии переменной окружения
-    return os.getenv(name, default)
-
-
-def _env_bool(name: str, default: bool = False) -> bool:
-    """TODO"""
-
-    return os.getenv(name, str(default)).strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
-
-
 def get_chat_model(provider: str) -> BaseChatModel:
-    """TODO"""
+    """Создать модель чата по имени провайдера."""
 
-    factory = PROVIDERS[provider].chat
+    factory = PROVIDERS.get(provider).chat
     if factory is None:
-        raise ValueError("Провайдер '%s' не поддерживает чат.", provider)
+        raise KeyError("Провайдер '%s' не поддерживает чат.", provider)
     LOGGER.info("Выбран провайдер чата: %s", provider)
     return factory()
 
 
 def get_embeddings(provider: str) -> Embeddings:
-    """TODO"""
+    """Создать модель эмбеддингов по имени провайдера."""
 
-    factory = PROVIDERS[provider].embeddings
+    factory = PROVIDERS.get(provider).embeddings
     if factory is None:
-        raise ValueError("Провайдер '%s' не поддерживает эмбеддинги.", provider)
+        raise KeyError("Провайдер '%s' не поддерживает эмбеддинги.", provider)
     LOGGER.info("Выбран провайдер эмбеддингов: %s", provider)
     return factory()

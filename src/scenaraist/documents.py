@@ -20,7 +20,7 @@ def iter_documents(path: str) -> Iterator[Document]:
     return load.lazy_load()
 
 
-def iter_splits(documents: Iterator[Document], chunk_size=1000, chunk_overlap=200) -> Iterator[Document]:
+def iter_splits(documents: Iterator[Document], chunk_size, chunk_overlap) -> Iterator[Document]:
     """Разбить документы на чанки."""
 
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)

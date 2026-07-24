@@ -19,8 +19,7 @@ LOGGER = logging.getLogger(__name__)
 class Provider:
     """Провайдер LLM, содержащий фабрики для чата и эмбеддингов."""
 
-    # TODO Callable используется без конкретной сигнатуры.
-    # Рекомендуется: заменить на Protocol с методом __call__().
+    # TODO Callable заменить на Protocol с методом __call__().
     chat: Callable[[], BaseChatModel] | None = None
     embeddings: Callable[[], Embeddings] | None = None
 
@@ -50,9 +49,6 @@ PROVIDERS: dict[str, Provider] = {
     ),
     "openai": Provider(
         chat=lambda: ChatOpenAI(
-            # TODO base_url по умолчанию указывает на сторонний API (ofox.ai).
-            # Это может быть неожиданным для пользователя.
-            # Рекомендуется: использовать официальный API OpenAI по умолчанию.
             base_url=os.getenv("OPENAI_BASE_URL"),
             api_key=os.getenv("OPENAI_API_KEY"),
             model=os.getenv("OPENAI_MODEL"),
@@ -66,10 +62,7 @@ PROVIDERS: dict[str, Provider] = {
     ),
     "huggingface": Provider(
         embeddings=lambda: HuggingFaceEmbeddings(
-            model_name=os.getenv(
-                "HUGGINGFACE_EMBEDDING_MODEL",
-                "sentence-transformers/all-mpnet-base-v2",
-            ),
+            model_name=os.getenv("HUGGINGFACE_EMBEDDING_MODEL", "sentence-transformers/all-mpnet-base-v2"),
         ),
     ),
 }

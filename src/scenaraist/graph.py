@@ -6,9 +6,10 @@ from enum import StrEnum
 from typing import Annotated, Any, TypedDict
 
 from langchain.chat_models import BaseChatModel
-from langchain.messages import AIMessage, AnyMessage, SystemMessage, ToolMessage
+from langchain.messages import AIMessage, AnyMessage, SystemMessage, ToolMessage, trim_messages
 from langchain.tools import BaseTool, tool
-from langgraph.checkpoint.memory import InMemorySaver
+from langchain_core.retrievers import BaseRetriever
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, add_messages
 from langgraph.graph.state import CompiledStateGraph, StateGraph
 from langgraph.prebuilt import ToolNode
@@ -26,7 +27,24 @@ SYSTEM_PROMPT = (
 )
 
 
-def build_agent(chat: BaseChatModel, tools: list[BaseTool] | None = None) -> CompiledStateGraph:
+class OrchestratorState(TypedDict):
+    """Состояние графа оркестратора."""
+
+    messages: Annotated[list[AnyMessage], add_messages]
+    max_llm_calls: int = 20
+    llm_calls: int
+    query: str
+    retriever: BaseRetriever
+    documents: list[Document]
+
+
+def build_agent(
+    chat: BaseChatModel,
+    checkpointer: BaseCheckpointSaver,
+    tools: list[BaseTool],
+    retriever: BaseRetriever,
+    max_tokens: int,
+) -> CompiledStateGraph:
     """Собрать и скомпилировать граф состояний агента."""
 
     llm_with_tools = chat.bind_tools(tools)
@@ -36,65 +54,67 @@ def build_agent(chat: BaseChatModel, tools: list[BaseTool] | None = None) -> Com
 
         messages = state["messages"]
         LOGGER.debug("Вызов чатбота с %d сообщениями", len(messages))
-        prompt = [
-            SystemMessage(content=SYSTEM_PROMPT + f"Today's date is {datetime.now(UTC):%B %d, %Y}."),
-            *messages,
-        ]
+
+        messages = prepare_messages(messages, max_tokens)
+        content = SYSTEM_PROMPT + f"Today's date is {datetime.now(UTC):%B %d, %Y}."
+        prompt = [SystemMessage(content), *messages]
 
         return {
             "messages": [llm_with_tools.invoke(prompt)],
             "llm_calls": state.get("llm_calls", 0) + 1,
+            "query": "#TODO",
         }
 
     builder = StateGraph(OrchestratorState)
 
+    builder.state_schema["retriever"] = retriever
+
     # Узлы графа
-    builder.add_node(chat_node.__name__, chat_node)
+    builder.add_node(NodeName.CHAT, chat_node)
     builder.add_node(NodeName.TOOLS, ToolNode(tools))
+    builder.add_node(NodeName.RETRIEVE, retrieve_node)
     builder.add_node(NodeName.FINAL, final_node)
 
     # Структура графа
-    builder.add_edge(START, chat_node.__name__)
-    builder.add_edge(NodeName.TOOLS, chat_node.__name__)
+    builder.add_edge(START, NodeName.CHAT)
     builder.add_conditional_edges(
-        chat_node.__name__,
+        NodeName.CHAT,
         router_node,
         {
-            NodeName.FINAL: NodeName.FINAL,
             NodeName.TOOLS: NodeName.TOOLS,
+            NodeName.RETRIEVE: NodeName.RETRIEVE,
+            NodeName.FINAL: NodeName.FINAL,
         },
     )
+    builder.add_edge(NodeName.TOOLS, NodeName.CHAT)
+    builder.add_edge(NodeName.RETRIEVE, NodeName.CHAT)
     builder.add_edge(NodeName.FINAL, END)
 
     # Сборка агента
-    # ? InMemorySaver не сохраняет состояние между перезапусками.
-    # Для production рекомендуется SQLiteSaver или PostgresSaver.
-    checkpointer = InMemorySaver()
     agent = builder.compile(checkpointer=checkpointer)
     LOGGER.info("Граф скомпилирован")
     return agent
 
 
-class OrchestratorState(TypedDict):
-    """Состояние графа оркестратора."""
-
-    messages: Annotated[list[AnyMessage], add_messages]
-    # TODO История сообщений растёт бесконечно — каждое взаимодействие добавляет
-    # HumanMessage, AIMessage и возможные ToolMessage. Нет механизма очистки или
-    # сокращения контекста, что может привести к превышению лимита контекста LLM.
-    # Рекомендуется: внедрить стратегию сокращения контекста (windowing, summarization)
-    # или использовать checkpointer с поддержкой trimming.
-    max_llm_calls: int = 20
-    llm_calls: int
-    folder_path: str
-    # ? использовать
-    db_path: str  # Путь к SQLite базе
+def prepare_messages(messages: list[AnyMessage], max_tokens: int) -> list[AnyMessage]:
+    # ? суммаризация
+    # ? SQLite/Postgres Checkpointer
+    return trim_messages(
+        messages,
+        max_tokens=max_tokens,
+        strategy="last",
+        token_counter=lambda msgs: len(str(msgs)),  # либо tokenizer модели
+        include_system=False,
+        start_on="human",
+    )
 
 
 class NodeName(StrEnum):
     """Имена узлов графа с инструментами."""
 
+    CHAT = "chat_node"
     TOOLS = "tool_node"
+    RETRIEVE = "retrieve_node"
     FINAL = "final_node"
 
 
@@ -111,6 +131,26 @@ def router_node(state: OrchestratorState) -> NodeName:
         return NodeName.TOOLS
 
     return NodeName.FINAL
+
+
+def retrieve_node(state: OrchestratorState):
+    """TODO"""
+
+    LOGGER.info("Retrieve node")
+
+    retriever = state["retriever"]
+    query = state["query"]
+    docs = retriever.invoke(query)
+
+    # ? для отладки
+    for d in docs:
+        print(d.metadata.get("source", "-"))
+        print(d.page_content[:300])
+
+    return {
+        "documents": docs,
+    }
+    # return "\n\n".join(f"Источник: {d.metadata.get('source', '-')}\n{d.page_content}" for d in docs)
 
 
 def final_node(state: OrchestratorState) -> OrchestratorState:
@@ -143,12 +183,20 @@ def final_node(state: OrchestratorState) -> OrchestratorState:
             ],
         }
 
-    # ? fallback: при отсутствии format_response создаётся ответ с сырым content. Может быть невалидным JSON.
+    # LLM
+    # ↓
+    # нет format_response
+    # ↓
+    # добавить SystemMessage
+    # "You MUST call format_response."
+    # ↓
+    # LLM
+
     content = getattr(last, "content", "")
     fallback = JsonResponse(
-        status="OK",
-        message=str(content),
-        data={},
+        status="ERROR",
+        message="Модель не вызвала format_response.",
+        data={"raw_content": str(content)},
     )
 
     return {"messages": [AIMessage(content=fallback.model_dump_json(indent=2))]}
@@ -171,6 +219,7 @@ class JsonResponse(BaseModel):
     )
 
 
+# ? упростить
 @tool(args_schema=JsonResponse)
 def format_response(**_: Any) -> None:
     """Маркер финального ответа LLM для завершения графа."""

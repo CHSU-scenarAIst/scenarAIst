@@ -15,7 +15,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.state import CompiledStateGraph
 
 from scenaraist.documents import iter_documents, iter_splits
-from scenaraist.graph import build_agent, format_response
+from scenaraist.graph import build_agent
 from scenaraist.model import get_chat_model, get_embeddings
 
 LOGGER = logging.getLogger(__name__)
@@ -73,7 +73,6 @@ def main() -> int:
             )
 
         web_search = TavilySearch(max_results=max_results, topic="general")
-        all_tools = [format_response, web_search]
         checkpointer = InMemorySaver()
         # checkpointer = SqliteSaver.from_conn_string(state_db)
 
@@ -92,7 +91,7 @@ def main() -> int:
 
         retriever = db.as_retriever(search_kwargs={"k": 3})
 
-        agent = build_agent(chat, checkpointer, all_tools, retriever, max_tokens)
+        agent = build_agent(chat, checkpointer, [web_search], retriever, max_tokens)
         run(agent)
     except Exception as e:
         LOGGER.error(f"Ошибка: {e}")

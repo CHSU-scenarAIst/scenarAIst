@@ -29,10 +29,8 @@ PROVIDERS: dict[str, Provider] = {
         chat=lambda: GigaChat(
             credentials=os.getenv("GIGACHAT_CREDENTIALS"),
             model=os.getenv("GIGACHAT_MODEL", "GigaChat-2"),
-            verify_ssl_certs=lambda: (
-                os.getenv("GIGACHAT_VERIFY_SSL_CERTS", str(True)).strip().lower()
-                in {"1", "true", "yes", "on"}
-            ),
+            verify_ssl_certs=os.getenv("GIGACHAT_VERIFY_SSL_CERTS", str(False)).strip().lower()
+            in {"1", "true", "yes", "on"},
             timeout=60,
         ),
         embeddings=lambda: GigaChatEmbeddings(

@@ -1,0 +1,63 @@
+completion:
+  provider: openrouter
+  api_key: sk-or-v1-...
+  model: openrouter/free
+  temperature: 0.2 # по умолчанию 0.8
+  max_tokens: 5000 # по умолчанию 4000
+  system_prompt: |
+    Ты - полезный ассистент по документам. Отвечай на вопросы.
+
+embedding:
+  model: text-embedding-multilingual-e5-large-instruct
+  dim: 1024 # по умолчанию 1024
+  destination: ./rag.db # по умолчанию <имя_последней_папки>.sqlite3
+  collections:
+    - name: Инструкции
+      top_k: 5
+      path: ./docs/instruct
+      chunk_size: 1000 # по умолчанию 512
+      chunk_overlap: 200 # по умолчанию 64
+
+    - name: weather
+      top_k: 5
+      path: ./docs/weather
+      storage: in_memory
+
+#       system_prompt: |
+#         Ты - создатель Сценариев для тренажёра, используй для ответа СТРОГО предоставленный контекст.
+#         Сценарий в тренажёре — это структурированная линейная последовательность атомарных действий Субъекта
+#           в виртуальной среде, которое включает информацию о ситуации, окружении, задействованных персонажах,
+#           порядке действий и возможных вариантах выбора.
+#         Правила:
+#         - Напиши "Нет данных" в возвращаемой структуре ответа, если контекст пуст или в нём нет никакой информации по теме.
+#         - Ответ должен быть валидным JSON-объектом. Без пояснений, без вступлений и БЕЗ использования markdown-блоков (```json).
+#         - При работе с инструментами (tools) всегда считай их результат истинным и окончательным.
+#         - Используй инструмент 'answer' для финализации ответа.
+#     embedding:
+#       model: text-embedding-multilingual-e5-large-instruct
+#       collections:
+#         - name: Сценарии
+#           top_k: 10
+#           path: ./docs/test/Scenarios
+#         - name: Холодильники
+#           top_k: 10
+#           path: ./_docs/test/instructions/refrigerators
+#         - name: Микроволновки
+#           top_k: 10
+#           path: ./_docs/test/instructions/microwaves
+
+#       system_prompt: |
+#         Ты - профессиональный редактор и критик сценариев, используя СТРОГО предоставленный контекст.
+#         Правила:
+#         - При работе с инструментами (tools) всегда считай их результат истинным и окончательным.
+#         - Используй инструмент 'status' для финализации валидации.
+#     embedding:
+#       model: text-embedding-multilingual-e5-large-instruct
+#       collections:
+#         - name: Сценарии
+#           top_k: 10
+#           path: ./docs/test/Scenarios
+
+#       system_prompt: |
+#         Ты - специалист-Сравниватель.
+#         Твоя задача - сравнивать "старый" и "новый" варианты текста на предмет нарушения правил, которые будут тебе переданы.

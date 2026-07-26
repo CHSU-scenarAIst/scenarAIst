@@ -16,30 +16,26 @@ def run(agent: CompiledStateGraph) -> None:
 
     print("Агент scenarAIst готов. Введите 'exit' или 'quit' для выхода.\n")
 
+    config: dict[str, dict[str, str]] = {
+        "configurable": {
+            "thread_id": uuid.uuid4().hex,
+        }
+    }
+
     while True:
         # TODO input() блокирует выполнение и не поддерживает Ctrl+C корректно
         # в некоторых окружениях. Рекомендуется: использовать асинхронный ввод
         # или обработку сигналов.
-        text = input("> ").strip()
+        content = input("> ").strip()
 
-        if not text:
+        if not content:
             continue
 
-        if text.lower() in EXIT_COMMANDS:
+        if content.lower() in EXIT_COMMANDS:
             print("До свидания!")
             break
 
-        config: dict[str, dict[str, str]] = {
-            "configurable": {
-                "thread_id": uuid.uuid4().hex,
-            }
-        }
-
-        # ? agent.invoke не обрабатывает возможные ошибки LLM (timeout, rate limit, некорректный ответ).
-        # Рекомендуется: добавить retry-логику с exponential backoff.
-        # ? result["messages"][-1] — берётся последнее сообщение, но в
-        # истории могут быть ToolMessage или SystemMessage.
-        # Рекомендуется: фильтровать по AIMessage или проверять тип.
-        result = agent.invoke(input={"messages": [HumanMessage(content=text)]}, config=config)
+        result = agent.invoke(input={"messages": [HumanMessage(content)]}, config=config)
         response: BaseModel = result["response"]
-        print(response.model_dump_json(indent=2, ensure_ascii=False))
+        answer = response.model_dump_json(indent=2, ensure_ascii=False)
+        print(answer)

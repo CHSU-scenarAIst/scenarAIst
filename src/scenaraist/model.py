@@ -11,7 +11,6 @@ from langchain.embeddings import Embeddings
 from langchain_gigachat import GigaChat, GigaChatEmbeddings
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_openrouter import ChatOpenRouter
 
 LOGGER = logging.getLogger(__name__)
 
@@ -52,13 +51,6 @@ class ProviderName(Enum):
             model=os.getenv("GIGACHAT_EMBEDDING_MODEL", "Embeddings"),
         ),
     )
-    OpenRouter = Provider(
-        chat=lambda: ChatOpenRouter(
-            api_key=os.getenv("OPENROUTER_API_KEY"),
-            model=os.getenv("OPENROUTER_MODEL", "openrouter/free"),
-            timeout=60,
-        ),
-    )
     OpenAI = Provider(
         chat=lambda: ChatOpenAI(
             base_url=os.getenv("OPENAI_BASE_URL"),
@@ -95,3 +87,6 @@ class ProviderName(Enum):
         if factory is None:
             raise KeyError(f"Провайдер '{self.name}' не поддерживает эмбеддинги.")
         return factory()
+
+
+# TODO - сменить переменные окружения на конфигурационный файл по структуре config.example.yaml

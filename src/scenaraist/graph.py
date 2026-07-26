@@ -45,20 +45,8 @@ SYSTEM_PROMPT = (
     "</prompt>"
 )
 
-FORMAT_PROMPT = (
-    "<prompt>"
-    "You are a formatter."
-    "Convert the assistant answer into the required JSON schema:"
-    f"{JsonResponse.model_json_schema()}."
-    "DON'T change original answer!."
-    "</prompt>"
-)
 
-
-# class AgentGraphBuilder: ...
-
-
-# ? переписать на объектный подход
+# TODO class AgentGraphBuilder: переписать на объектный подход
 def build_agent(
     chat: BaseChatModel,
     checkpointer: BaseCheckpointSaver,
@@ -70,7 +58,6 @@ def build_agent(
     """Собрать и скомпилировать граф состояний агента."""
 
     agent_llm = chat.bind_tools(tools)
-    structured_llm = chat.with_structured_output(JsonResponse)
     tool_node = ToolNode(tools)
 
     def retrieve_node(state: OrchestratorState) -> OrchestratorState:
@@ -96,7 +83,7 @@ def build_agent(
 
         messages = prepare_messages(messages, max_tokens)
         docs = state.get("documents", None)
-        system_content = SYSTEM_PROMPT + f"<today>{datetime.now(UTC):%B %d, %Y}.</today>"
+        system_content = SYSTEM_PROMPT + f"<time_now>{datetime.now(UTC):%B %d, %Y}.</time_now>"
 
         if context := prepare_context_documents(docs):
             system_content += f"<context>{context}</context>"
@@ -119,7 +106,7 @@ def build_agent(
         if tool_calls and state.get("steps", 0) < max_steps:
             return NodeEnum.TOOLS
 
-        return NodeEnum.FINAL
+        return NodeEnum.FORMAT
 
     def tools_node(state: OrchestratorState) -> OrchestratorState:
         result = tool_node.invoke(state)
@@ -132,12 +119,15 @@ def build_agent(
         """TODO"""
         LOGGER.critical("Format node")
 
-        messages = state["messages"]
-        messages = prepare_messages(messages, max_tokens)
-        response = structured_llm.invoke([SystemMessage(FORMAT_PROMPT), *messages])
-        LOGGER.critical("Formatter raw: %s", response)
+        last = state["messages"][-1]
+        response = JsonResponse(
+            status="OK",
+            message=last.content,
+            data={},
+        )
 
         return {
+            "messages": state["messages"],
             "response": response,
             "steps": state.get("steps", 0) + 1,
         }
@@ -149,7 +139,7 @@ def build_agent(
         builder.add_node(NodeEnum.RETRIEVE, retrieve_node)
     builder.add_node(NodeEnum.CHAT, chat_node)
     builder.add_node(NodeEnum.TOOLS, tools_node)
-    builder.add_node(NodeEnum.FINAL, format_node)
+    builder.add_node(NodeEnum.FORMAT, format_node)
 
     # Структура графа
     if retriever:
@@ -163,11 +153,11 @@ def build_agent(
         router_node,
         {
             NodeEnum.TOOLS: NodeEnum.TOOLS,
-            NodeEnum.FINAL: NodeEnum.FINAL,
+            NodeEnum.FORMAT: NodeEnum.FORMAT,
         },
     )
     builder.add_edge(NodeEnum.TOOLS, NodeEnum.CHAT)
-    builder.add_edge(NodeEnum.FINAL, END)
+    builder.add_edge(NodeEnum.FORMAT, END)
 
     # Сборка агента
     agent = builder.compile(checkpointer=checkpointer)
@@ -182,7 +172,7 @@ class NodeEnum(StrEnum):
     RETRIEVE = "retrieve_node"
     CHAT = "chat_node"
     TOOLS = "tool_node"
-    FINAL = "final_node"
+    FORMAT = "format_node"
 
 
 def prepare_messages(messages: list[AnyMessage], max_tokens: int) -> list[AnyMessage]:

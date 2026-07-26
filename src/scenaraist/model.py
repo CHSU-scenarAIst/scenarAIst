@@ -2,8 +2,9 @@
 
 import logging
 import os
-from collections.abc import Callable
 from dataclasses import dataclass
+from enum import Enum
+from typing import Protocol
 
 from langchain.chat_models import BaseChatModel
 from langchain.embeddings import Embeddings
@@ -15,17 +16,30 @@ from langchain_openrouter import ChatOpenRouter
 LOGGER = logging.getLogger(__name__)
 
 
+class IChat(Protocol):
+    """Интерфейс фабрики для создания моделей чата."""
+
+    def __call__(self) -> BaseChatModel: ...
+
+
+class IEmbeddings(Protocol):
+    """Интерфейс фабрики для создания моделей эмбеддингов."""
+
+    def __call__(self) -> Embeddings: ...
+
+
 @dataclass(frozen=True, slots=True)
 class Provider:
-    """Провайдер LLM, содержащий фабрики для чата и эмбеддингов."""
+    """Класс-провайдер LLM, содержащий фабрики для чата и эмбеддингов."""
 
-    # TODO Callable заменить на Protocol с методом __call__().
-    chat: Callable[[], BaseChatModel] | None = None
-    embeddings: Callable[[], Embeddings] | None = None
+    chat: IChat | None = None
+    embeddings: IEmbeddings | None = None
 
 
-PROVIDERS: dict[str, Provider] = {
-    "gigachat": Provider(
+class ProviderName(Enum):
+    """Перечисление поддерживаемых провайдеров LLM."""
+
+    GigaChat = Provider(
         chat=lambda: GigaChat(
             credentials=os.getenv("GIGACHAT_CREDENTIALS"),
             model=os.getenv("GIGACHAT_MODEL", "GigaChat-2"),
@@ -37,15 +51,15 @@ PROVIDERS: dict[str, Provider] = {
             credentials=os.getenv("GIGACHAT_CREDENTIALS"),
             model=os.getenv("GIGACHAT_EMBEDDING_MODEL", "Embeddings"),
         ),
-    ),
-    "openrouter": Provider(
+    )
+    OpenRouter = Provider(
         chat=lambda: ChatOpenRouter(
             api_key=os.getenv("OPENROUTER_API_KEY"),
             model=os.getenv("OPENROUTER_MODEL", "openrouter/free"),
             timeout=60,
         ),
-    ),
-    "openai": Provider(
+    )
+    OpenAI = Provider(
         chat=lambda: ChatOpenAI(
             base_url=os.getenv("OPENAI_BASE_URL"),
             api_key=os.getenv("OPENAI_API_KEY"),
@@ -57,30 +71,27 @@ PROVIDERS: dict[str, Provider] = {
             api_key=os.getenv("OPENAI_API_KEY"),
             model=os.getenv("OPENAI_EMBEDDING_MODEL"),
         ),
-    ),
-    "huggingface": Provider(
+    )
+    HuggingFace = Provider(
         embeddings=lambda: HuggingFaceEmbeddings(
             model_name=os.getenv("HUGGINGFACE_EMBEDDING_MODEL", "sentence-transformers/all-mpnet-base-v2"),
         ),
-    ),
-}
+    )
 
+    def get_chat(self) -> BaseChatModel:
+        """Создать модель чата провайдера."""
+        LOGGER.info("Выбран провайдер чата: %s", self.name)
 
-def get_chat_model(provider: str) -> BaseChatModel:
-    """Создать модель чата по имени провайдера."""
+        factory = self.value.chat
+        if factory is None:
+            raise KeyError(f"Провайдер '{self.name}' не поддерживает чат.")
+        return factory()
 
-    factory = PROVIDERS.get(provider).chat
-    if factory is None:
-        raise KeyError("Провайдер '%s' не поддерживает чат.", provider)
-    LOGGER.info("Выбран провайдер чата: %s", provider)
-    return factory()
+    def get_embeddings(self) -> Embeddings:
+        """Создать модель эмбеддингов провайдера."""
+        LOGGER.info("Выбран провайдер эмбеддингов: %s", self.name)
 
-
-def get_embeddings(provider: str) -> Embeddings:
-    """Создать модель эмбеддингов по имени провайдера."""
-
-    factory = PROVIDERS.get(provider).embeddings
-    if factory is None:
-        raise KeyError("Провайдер '%s' не поддерживает эмбеддинги.", provider)
-    LOGGER.info("Выбран провайдер эмбеддингов: %s", provider)
-    return factory()
+        factory = self.value.embeddings
+        if factory is None:
+            raise KeyError(f"Провайдер '{self.name}' не поддерживает эмбеддинги.")
+        return factory()

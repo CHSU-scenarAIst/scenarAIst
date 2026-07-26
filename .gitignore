@@ -39,6 +39,8 @@ htmlcov/
 .DS_Store
 Thumbs.db
 *.lock
-docs/rust/
-docs/test/
 *.sqlite3
+
+# документация
+docs/
+!docs/zhopka

@@ -1,6 +1,7 @@
 pragma Singleton
 import QtQuick
 
+// TODO перейти на базовые qm файлы с локализацией (самый распространённый подход)
 QtObject {
     id: root
 

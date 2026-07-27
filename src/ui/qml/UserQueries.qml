@@ -3,8 +3,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-import "./"
-
 Item {
     id: root
 
@@ -130,6 +128,7 @@ Item {
         return queriesModel.count;
     }
 
+    // TODO вместо uuid режим + дата и время (без милисекунд) + хэшсумма из 6 символов
     function _newUuid() {
         return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
             const r = Math.random() * 16 | 0;
@@ -167,6 +166,7 @@ Item {
     }
 
     function texts() {
+        /// вам
         const arr = [];
         for (let i = 0; i < queriesModel.count; i++) {
             const item = queriesModel.get(i);

@@ -1,62 +1,79 @@
 """Точка входа для запуска агента scenarAIst как модуля."""
 
 import logging
+from dataclasses import dataclass
 
-import questionary
-from dotenv import load_dotenv
+import yaml
 from langchain_tavily import TavilySearch
 from langgraph.checkpoint.memory import InMemorySaver
 
 from scenaraist.chat import run
+from scenaraist.config import CompletionConfig, EmbeddingConfig
 from scenaraist.graph import build_agent
-from scenaraist.model import ProviderName
-from scenaraist.retriever import get_storage_retriever
+from scenaraist.model import CHAT_FACTORIES, EMBEDDING_FACTORIES, IChat, IEmbeddings
+from scenaraist.retriever import StorageRetriever
 
 LOGGER = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class Provider:
+    chat: IChat | None = None
+    embeddings: IEmbeddings | None = None
 
 
 def main() -> int:
     """Запустить чат-бота scenarAIst."""
     LOGGER.info("Запуск СценарИИста")
 
-    load_dotenv(override=False)
-
-    choices = [questionary.Choice(title=p.name, value=p) for p in ProviderName]
-
     try:
-        provider = questionary.select("Выберите провайдера чата:", choices).ask()
-        chat = ProviderName(provider).get_chat()
-    except Exception as e:
-        LOGGER.error(f"Ошибка LLM-чата: {e}")
-        raise
+        with open("config.yaml") as f:
+            data = yaml.safe_load(f)
 
-    try:
-        provider = questionary.select("Выберите провайдера эмбеддингов:", choices).ask()
-        embeddings = ProviderName(provider).get_embeddings()
-    except Exception as e:
-        LOGGER.error(f"Ошибка LLM-эмбеддингов: {e}")
-        raise
+        completion = CompletionConfig(**data["completion"])
+        model_completion = CHAT_FACTORIES[completion.provider.strip().lower()](completion)
 
-    try:
         # TODO вынести в конфигурационный файл.
         folder_path: str = "./docs/zhopka"
         db_path: str = "rag.sqlite3"
         table = "documents"
-        max_results = 5
+        top_k = 5
         max_tokens = 10000
         chunk_size = 1000
         chunk_overlap = 200
 
-        retriever = get_storage_retriever(folder_path, db_path, table, embeddings, chunk_size, chunk_overlap)
-        web_search = TavilySearch(max_results=max_results, topic="general")
-        tools = [web_search]
-        # ? SQLite/Postgres Checkpointer
-        checkpointer = InMemorySaver()
+        try:
+            embedding = EmbeddingConfig(**data["embeddings"])
+            model_embeddings = EMBEDDING_FACTORIES[embedding.provider.strip().lower()](embedding)
 
-        agent = build_agent(chat, checkpointer, tools, max_tokens, retriever)
+            retriever = StorageRetriever(
+                folder_path, db_path, table, model_embeddings, chunk_size, chunk_overlap
+            )
+            retriever.get_storage_retriever(top_k)
+        except Exception:
+            retriever = None
+
+    except Exception:
+        LOGGER.exception("Ошибка конфигурации")
+        raise
+
+    tools = []
+
+    try:
+        tavily_api_key = EmbeddingConfig(**data["tavily_api_key"])
+        web_search = TavilySearch(tavily_api_key=tavily_api_key, max_results=top_k, topic="general")
+        tools.append(web_search)
+    except Exception:
+        ...
+
+    # ? SQLite/Postgres Checkpointer
+    checkpointer = InMemorySaver()
+
+    try:
+        agent = build_agent(model_completion, checkpointer, tools, max_tokens, retriever)
         run(agent)
-    except Exception as e:
-        LOGGER.error(f"Ошибка run: {e}")
+    except Exception:
+        LOGGER.exception("Ошибка работы")
         raise
 
     LOGGER.info("Завершение работы...")

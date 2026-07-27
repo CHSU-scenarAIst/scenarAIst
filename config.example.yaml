@@ -1,6 +1,8 @@
-completion:
-  provider: openrouter
-  api_key: sk-or-v1-...
+completion: # обязательно
+  provider: openrouter # обязательно
+  api_key: sk-or-v1-... # обязательно
+  verify_ssl_certs: true # по умолчанию false
+  base_url: https://api.openrouter.ai/v1/completion
   model: openrouter/free
   temperature: 0.2 # по умолчанию 0.8
   max_tokens: 5000 # по умолчанию 4000
@@ -8,20 +10,25 @@ completion:
     Ты - полезный ассистент по документам. Отвечай на вопросы.
 
 embedding:
+  provider: openrouter # обязательно
+  api_key: sk-or-v1-... # обязательно
+  verify_ssl_certs: true # по умолчанию false
+  base_url: https://api.openrouter.ai/v1/completion
   model: text-embedding-multilingual-e5-large-instruct
   dim: 1024 # по умолчанию 1024
-  destination: ./rag.db # по умолчанию <имя_последней_папки>.sqlite3
-  collections:
-    - name: Инструкции
-      top_k: 5
-      path: ./docs/instruct
-      chunk_size: 1000 # по умолчанию 512
-      chunk_overlap: 200 # по умолчанию 64
+  storage:
+    destination: ./rag.db # по умолчанию ./rag.sqlite3
+    collections:
+      - name: Инструкции
+        top_k: 5
+        path: ./docs/instruct
+        chunk_size: 1000 # по умолчанию 512
+        chunk_overlap: 200 # по умолчанию 64
 
-    - name: weather
-      top_k: 5
-      path: ./docs/weather
-      storage: in_memory
+      - name: weather
+        top_k: 5
+        path: ./docs/weather
+        storage: in_memory
 
 #       system_prompt: |
 #         Ты - создатель Сценариев для тренажёра, используй для ответа СТРОГО предоставленный контекст.

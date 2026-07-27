@@ -1,9 +1,6 @@
-"""Конфигурация и фабрики провайдеров LLM и эмбеддингов."""
+"""Фабрики провайдеров LLM и эмбеддингов."""
 
-import logging
-import os
-from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Protocol
 
 from langchain.chat_models import BaseChatModel
@@ -12,81 +9,78 @@ from langchain_gigachat import GigaChat, GigaChatEmbeddings
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
-LOGGER = logging.getLogger(__name__)
+from scenaraist.config import CompletionConfig, EmbeddingConfig
 
 
 class IChat(Protocol):
     """Интерфейс фабрики для создания моделей чата."""
 
-    def __call__(self) -> BaseChatModel: ...
+    def __call__(self, cfg: CompletionConfig) -> BaseChatModel: ...
 
 
 class IEmbeddings(Protocol):
     """Интерфейс фабрики для создания моделей эмбеддингов."""
 
-    def __call__(self) -> Embeddings: ...
+    def __call__(self, cfg: EmbeddingConfig) -> Embeddings: ...
 
 
-@dataclass(frozen=True, slots=True)
-class Provider:
-    """Класс-провайдер LLM, содержащий фабрики для чата и эмбеддингов."""
-
-    chat: IChat | None = None
-    embeddings: IEmbeddings | None = None
+DEFAULT_TIMEOUT = 60
 
 
-class ProviderName(Enum):
-    """Перечисление поддерживаемых провайдеров LLM."""
-
-    GigaChat = Provider(
-        chat=lambda: GigaChat(
-            credentials=os.getenv("GIGACHAT_CREDENTIALS"),
-            model=os.getenv("GIGACHAT_MODEL", "GigaChat-2"),
-            verify_ssl_certs=os.getenv("GIGACHAT_VERIFY_SSL_CERTS", str(False)).strip().lower()
-            in {"1", "true", "yes", "on"},
-            timeout=60,
-        ),
-        embeddings=lambda: GigaChatEmbeddings(
-            credentials=os.getenv("GIGACHAT_CREDENTIALS"),
-            model=os.getenv("GIGACHAT_EMBEDDING_MODEL", "Embeddings"),
-        ),
-    )
-    OpenAI = Provider(
-        chat=lambda: ChatOpenAI(
-            base_url=os.getenv("OPENAI_BASE_URL"),
-            api_key=os.getenv("OPENAI_API_KEY"),
-            model=os.getenv("OPENAI_MODEL"),
-            timeout=60,
-        ),
-        embeddings=lambda: OpenAIEmbeddings(
-            base_url=os.getenv("OPENAI_EMBEDDING_BASE_URL"),
-            api_key=os.getenv("OPENAI_API_KEY"),
-            model=os.getenv("OPENAI_EMBEDDING_MODEL"),
-        ),
-    )
-    HuggingFace = Provider(
-        embeddings=lambda: HuggingFaceEmbeddings(
-            model_name=os.getenv("HUGGINGFACE_EMBEDDING_MODEL", "sentence-transformers/all-mpnet-base-v2"),
-        ),
+def __create_openai_compatible_chat(cfg: CompletionConfig) -> BaseChatModel:
+    return ChatOpenAI(
+        api_key=cfg.api_key,
+        base_url=cfg.base_url,
+        model=cfg.model or "z-ai/glm-4.7-flash:free",
+        temperature=cfg.temperature,
+        max_tokens=cfg.max_tokens,
+        timeout=DEFAULT_TIMEOUT,
     )
 
-    def get_chat(self) -> BaseChatModel:
-        """Создать модель чата провайдера."""
-        LOGGER.info("Выбран провайдер чата: %s", self.name)
 
-        factory = self.value.chat
-        if factory is None:
-            raise KeyError(f"Провайдер '{self.name}' не поддерживает чат.")
-        return factory()
-
-    def get_embeddings(self) -> Embeddings:
-        """Создать модель эмбеддингов провайдера."""
-        LOGGER.info("Выбран провайдер эмбеддингов: %s", self.name)
-
-        factory = self.value.embeddings
-        if factory is None:
-            raise KeyError(f"Провайдер '{self.name}' не поддерживает эмбеддинги.")
-        return factory()
+def __create_gigachat_chat(cfg: CompletionConfig) -> BaseChatModel:
+    return GigaChat(
+        credentials=cfg.api_key,
+        model=cfg.model or "GigaChat-2",
+        verify_ssl_certs=cfg.verify_ssl_certs,
+        timeout=DEFAULT_TIMEOUT,
+    )
 
 
-# TODO - сменить переменные окружения на конфигурационный файл по структуре config.example.yaml
+def __create_openai_embeddings(cfg: EmbeddingConfig) -> Embeddings:
+    return OpenAIEmbeddings(
+        api_key=cfg.api_key,
+        base_url=cfg.base_url,
+        model=cfg.model,
+    )
+
+
+def __create_gigachat_embeddings(cfg: EmbeddingConfig) -> Embeddings:
+    return GigaChatEmbeddings(
+        credentials=cfg.api_key,
+        model=cfg.model or "Embeddings",
+    )
+
+
+def __create_huggingface_embeddings(cfg: EmbeddingConfig) -> Embeddings:
+    return HuggingFaceEmbeddings(
+        model_name=cfg.model or "sentence-transformers/all-mpnet-base-v2",
+    )
+
+
+class Provider(StrEnum):
+    OPENAI = "openai"
+    GIGACHAT = "gigachat"
+    HUGGINGFACE = "huggingface"
+
+
+CHAT_FACTORIES: dict[Provider, IChat] = {
+    Provider.OPENAI: __create_openai_compatible_chat,
+    Provider.GIGACHAT: __create_gigachat_chat,
+}
+
+EMBEDDING_FACTORIES: dict[str, IEmbeddings] = {
+    Provider.OPENAI: __create_openai_embeddings,
+    Provider.GIGACHAT: __create_gigachat_embeddings,
+    Provider.HUGGINGFACE: __create_huggingface_embeddings,
+}

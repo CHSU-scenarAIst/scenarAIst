@@ -109,6 +109,7 @@ def build_agent(
         return NodeEnum.FORMAT
 
     def tools_node(state: OrchestratorState) -> OrchestratorState:
+        """TODO"""
         result = tool_node.invoke(state)
         return {
             **result,
@@ -134,29 +135,25 @@ def build_agent(
 
     builder = StateGraph(OrchestratorState)
 
-    # Узлы графа
-    if retriever:
-        builder.add_node(NodeEnum.RETRIEVE, retrieve_node)
+    # Узлы и Структура графа
     builder.add_node(NodeEnum.CHAT, chat_node)
-    builder.add_node(NodeEnum.TOOLS, tools_node)
     builder.add_node(NodeEnum.FORMAT, format_node)
 
-    # Структура графа
     if retriever:
+        builder.add_node(NodeEnum.RETRIEVE, retrieve_node)
         builder.add_edge(START, NodeEnum.RETRIEVE)
         builder.add_edge(NodeEnum.RETRIEVE, NodeEnum.CHAT)
     else:
         builder.add_edge(START, NodeEnum.CHAT)
 
-    builder.add_conditional_edges(
-        NodeEnum.CHAT,
-        router_node,
-        {
-            NodeEnum.TOOLS: NodeEnum.TOOLS,
-            NodeEnum.FORMAT: NodeEnum.FORMAT,
-        },
-    )
-    builder.add_edge(NodeEnum.TOOLS, NodeEnum.CHAT)
+    if tools:
+        builder.add_node(NodeEnum.TOOLS, tools_node)
+        conditional_edges = {NodeEnum.TOOLS: NodeEnum.TOOLS, NodeEnum.FORMAT: NodeEnum.FORMAT}
+        builder.add_edge(NodeEnum.TOOLS, NodeEnum.CHAT)
+    else:
+        conditional_edges = {NodeEnum.FORMAT: NodeEnum.FORMAT}
+
+    builder.add_conditional_edges(NodeEnum.CHAT, router_node, conditional_edges)
     builder.add_edge(NodeEnum.FORMAT, END)
 
     # Сборка агента

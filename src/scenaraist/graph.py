@@ -42,7 +42,7 @@ def build_agent(
     system_prompt: str,
     checkpointer: BaseCheckpointSaver,
     tools: list[BaseTool],
-    retriever: BaseRetriever | None,
+    retriever: list[BaseRetriever],
     # TODO в конфиг
     max_steps: int = 20,
 ) -> CompiledStateGraph:
@@ -59,7 +59,7 @@ def build_agent(
             return {}
 
         query = extract_query(state["messages"])
-        docs = retriever.invoke(query)
+        docs = [r.invoke(query) for r in retriever][:5]
 
         return {
             "query": query,

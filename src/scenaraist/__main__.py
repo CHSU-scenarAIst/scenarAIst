@@ -26,29 +26,29 @@ def main() -> int:
     """Запустить чат-бота scenarAIst."""
     LOGGER.info("Запуск СценарИИста")
 
-    try:
-        with open("config.yaml") as f:
-            data = yaml.safe_load(f)
+    with open("config.yaml") as f:
+        data = yaml.safe_load(f)
 
-        chat_cfg = ChatConfig(**data["completion"])
+    try:
+        chat_cfg = ChatConfig.model_validate(data["completion"])
         LOGGER.debug(chat_cfg)
         chat = CHAT_FACTORIES[chat_cfg.provider.strip().lower()](chat_cfg)
-
-        try:
-            embed_cfg = EmbeddingConfig(**data["embeddings"])
-            LOGGER.debug(embed_cfg)
-            embed = EMBEDDING_FACTORIES[embed_cfg.provider.strip().lower()](embed_cfg)
-            retriever = StorageRetriever().from_config(embed_cfg, embed)
-        except Exception:
-            retriever = None
-
     except Exception:
-        LOGGER.exception("Ошибка конфигурации")
+        LOGGER.exception("Error loading chat config")
         raise
+
+    try:
+        embed_cfg = EmbeddingConfig.model_validate(data["embeddings"])
+        LOGGER.debug(embed_cfg)
+        embed = EMBEDDING_FACTORIES[embed_cfg.provider.strip().lower()](embed_cfg)
+        retriever = StorageRetriever().from_config(embed_cfg, embed)
+    except Exception:
+        LOGGER.exception("Error loading embeddings config")
+        retriever = []
 
     tools = []
     try:
-        tavily = TavilyConfig(**data["tavily"])
+        tavily = TavilyConfig.model_validate(data["tavily"])
         LOGGER.debug(tavily)
         web_search = TavilySearch(tavily_api_key=tavily.api_key, max_results=tavily.top_k, topic="general")
         tools.append(web_search)
@@ -71,7 +71,7 @@ def main() -> int:
 if __name__ == "__main__":
     logging.basicConfig(
         # filename="scenarAIst.log",
-        level=logging.DEBUG,
+        level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
     raise SystemExit(main())

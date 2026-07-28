@@ -54,6 +54,7 @@ def __create_openai_embeddings(cfg: EmbeddingConfig) -> Embeddings:
         base_url=cfg.base_url,
         model=cfg.model or "text-embedding-multilingual-e5-large-instruct",
         dimensions=cfg.dim,
+        chunk_size=cfg.batch_size,
     )
 
 

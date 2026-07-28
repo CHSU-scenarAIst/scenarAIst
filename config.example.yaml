@@ -24,7 +24,7 @@ embedding:
   # по умолчанию
   verify_ssl_certs: false
   base_url: http://localhost:1234/v1 # для каждого провайдера свой
-  model: text-embedding-multilingual-e5-large-instruct # для каждого провайдера свой
+  model: intfloat/multilingual-e5-large # для каждого провайдера свой
   dim: 1024
   db_path: ./rag.sqlite3
 

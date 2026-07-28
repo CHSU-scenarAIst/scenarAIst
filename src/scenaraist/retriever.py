@@ -19,13 +19,15 @@ class StorageRetriever:
             for c in embed_cfg.collections:
                 docs = self.__iter_documents(c.path, c.chunk_size, c.chunk_overlap)
                 dbs.append(
-                    SQLiteVec.from_documents(
-                        documents=docs,
-                        embedding=embeddings,
-                        table=c.name,
-                        db_file=embed_cfg.db_path,
-                    ),
-                    c.top_k,
+                    (
+                        SQLiteVec.from_documents(
+                            documents=docs,
+                            embedding=embeddings,
+                            table=c.name,
+                            db_file=embed_cfg.db_path,
+                        ),
+                        c.top_k,
+                    )
                 )
 
         return [db.as_retriever(search_kwargs={"k": k}) for db, k in dbs]

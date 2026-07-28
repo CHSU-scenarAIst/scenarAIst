@@ -1,12 +1,11 @@
 """Конфигурация LLM."""
 
-from dataclasses import dataclass, field
+from pydantic import BaseModel, Field
 
 
-@dataclass(slots=True, frozen=True)
-class ChatConfig:
+class ChatConfig(BaseModel):
     provider: str
-    api_key: str = field(repr=False)
+    api_key: str = Field(repr=False)
     verify_ssl_certs: bool = False
     base_url: str | None = None
     model: str | None = None
@@ -15,8 +14,7 @@ class ChatConfig:
     system_prompt: str = "You are a helpful assistant."
 
 
-@dataclass(slots=True, frozen=True)
-class CollectionConfig:
+class CollectionConfig(BaseModel):
     path: str
     name: str
     top_k: int = 5
@@ -24,19 +22,18 @@ class CollectionConfig:
     chunk_overlap: int = 64
 
 
-@dataclass(slots=True, frozen=True)
-class EmbeddingConfig:
+class EmbeddingConfig(BaseModel):
     provider: str
-    api_key: str = field(repr=False)
+    api_key: str = Field(default="None", repr=False)
     collections: list[CollectionConfig]
     verify_ssl_certs: bool = False
     base_url: str | None = None
     model: str | None = None
     dim: int = 1024
     db_path: str = "./rag.sqlite3"
+    batch_size: int = 4
 
 
-@dataclass(slots=True, frozen=True)
-class TavilyConfig:
-    api_key: str = field(repr=False)
+class TavilyConfig(BaseModel):
+    api_key: str = Field(repr=False)
     top_k: int = 3

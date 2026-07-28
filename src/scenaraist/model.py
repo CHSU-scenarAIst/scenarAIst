@@ -9,13 +9,13 @@ from langchain_gigachat import GigaChat, GigaChatEmbeddings
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
-from scenaraist.config import CompletionConfig, EmbeddingConfig
+from scenaraist.config import ChatConfig, EmbeddingConfig
 
 
 class IChat(Protocol):
     """Интерфейс фабрики для создания моделей чата."""
 
-    def __call__(self, cfg: CompletionConfig) -> BaseChatModel: ...
+    def __call__(self, cfg: ChatConfig) -> BaseChatModel: ...
 
 
 class IEmbeddings(Protocol):
@@ -27,7 +27,7 @@ class IEmbeddings(Protocol):
 DEFAULT_TIMEOUT = 60
 
 
-def __create_openai_compatible_chat(cfg: CompletionConfig) -> BaseChatModel:
+def __create_openai_compatible_chat(cfg: ChatConfig) -> BaseChatModel:
     return ChatOpenAI(
         api_key=cfg.api_key,
         base_url=cfg.base_url,
@@ -38,12 +38,13 @@ def __create_openai_compatible_chat(cfg: CompletionConfig) -> BaseChatModel:
     )
 
 
-def __create_gigachat_chat(cfg: CompletionConfig) -> BaseChatModel:
+def __create_gigachat_chat(cfg: ChatConfig) -> BaseChatModel:
     return GigaChat(
         credentials=cfg.api_key,
         model=cfg.model or "GigaChat-2",
         verify_ssl_certs=cfg.verify_ssl_certs,
         timeout=DEFAULT_TIMEOUT,
+        max_tokens=cfg.max_tokens,
     )
 
 
@@ -51,7 +52,8 @@ def __create_openai_embeddings(cfg: EmbeddingConfig) -> Embeddings:
     return OpenAIEmbeddings(
         api_key=cfg.api_key,
         base_url=cfg.base_url,
-        model=cfg.model,
+        model=cfg.model or "text-embedding-multilingual-e5-large-instruct",
+        dimensions=cfg.dim,
     )
 
 

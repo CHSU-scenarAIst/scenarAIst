@@ -6,10 +6,9 @@ from enum import StrEnum
 from typing import Any
 
 from langchain.chat_models import BaseChatModel
-from langchain.messages import AnyMessage, HumanMessage, SystemMessage, trim_messages
+from langchain.messages import AnyMessage, HumanMessage, SystemMessage
 from langchain.tools import BaseTool
 from langchain_core.documents import Document
-from langchain_core.messages.utils import count_tokens_approximately
 from langchain_core.retrievers import BaseRetriever
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, MessagesState
@@ -37,22 +36,14 @@ class OrchestratorState(MessagesState, total=False):
     response: JsonResponse
 
 
-SYSTEM_PROMPT = (
-    "<prompt>"
-    "You are a helpful assistant. Respond in the same language as the user's request.\n"
-    "The agent may use tools whenever they are necessary to answer the user's request.\n"
-    "The agent MUST use the web search tool whenever the answer depends on current or external information.\n"
-    "</prompt>"
-)
-
-
 # TODO class AgentGraphBuilder: переписать на объектный подход
 def build_agent(
     chat: BaseChatModel,
+    system_prompt: str,
     checkpointer: BaseCheckpointSaver,
     tools: list[BaseTool],
-    max_tokens: int,
-    retriever: BaseRetriever | None = None,
+    retriever: BaseRetriever | None,
+    # TODO в конфиг
     max_steps: int = 20,
 ) -> CompiledStateGraph:
     """Собрать и скомпилировать граф состояний агента."""
@@ -62,7 +53,7 @@ def build_agent(
 
     def retrieve_node(state: OrchestratorState) -> OrchestratorState:
         """Узел поиска документов по запросу."""
-        LOGGER.critical("Retrieve node")
+        LOGGER.info("Retrieve node")
 
         if retriever is None:
             return {}
@@ -79,17 +70,16 @@ def build_agent(
     def chat_node(state: OrchestratorState) -> OrchestratorState:
         """Узел вызова LLM с текущей историей сообщений."""
         messages = state["messages"]
-        LOGGER.critical("Chat node with %d messages", len(messages))
+        LOGGER.info("Chat node with %d messages", len(messages))
 
-        messages = prepare_messages(messages, max_tokens)
         docs = state.get("documents", None)
-        system_content = SYSTEM_PROMPT + f"<time_now>{datetime.now(UTC):%B %d, %Y}.</time_now>"
+        system_content = system_prompt + f"<time_now>{datetime.now(UTC):%B %d, %Y}.</time_now>"
 
         if context := prepare_context_documents(docs):
             system_content += f"<context>{context}</context>"
 
         response = agent_llm.invoke([SystemMessage(system_content), *messages])
-        LOGGER.critical("LLM response: response=%s", response)
+        LOGGER.info("LLM response: response=%s", response)
 
         return {
             "messages": [response],
@@ -98,7 +88,7 @@ def build_agent(
 
     def router_node(state: OrchestratorState) -> NodeEnum:
         """Ветвление после вызова LLM."""
-        LOGGER.critical("Router node")
+        LOGGER.info("Router node")
 
         last = state["messages"][-1]
         tool_calls = getattr(last, "tool_calls", [])
@@ -118,7 +108,7 @@ def build_agent(
 
     def format_node(state: OrchestratorState) -> OrchestratorState:
         """TODO"""
-        LOGGER.critical("Format node")
+        LOGGER.info("Format node")
 
         last = state["messages"][-1]
         response = JsonResponse(
@@ -159,7 +149,7 @@ def build_agent(
     # Сборка агента
     agent = builder.compile(checkpointer=checkpointer)
     # ? debug схемы структуры графа
-    LOGGER.critical("Граф скомпилирован")
+    LOGGER.info("Граф скомпилирован")
     return agent
 
 
@@ -170,19 +160,6 @@ class NodeEnum(StrEnum):
     CHAT = "chat_node"
     TOOLS = "tool_node"
     FORMAT = "format_node"
-
-
-def prepare_messages(messages: list[AnyMessage], max_tokens: int) -> list[AnyMessage]:
-    """TODO"""
-    # ? tokenizer конкретной модели.
-    return trim_messages(
-        messages,
-        max_tokens=max_tokens,
-        strategy="last",
-        token_counter=count_tokens_approximately,
-        include_system=False,
-        start_on="human",
-    )
 
 
 def extract_query(messages: list[AnyMessage]) -> str:

@@ -1,34 +1,50 @@
-completion: # обязательно
-  provider: openrouter # обязательно
-  api_key: sk-or-v1-... # обязательно
-  verify_ssl_certs: true # по умолчанию false
-  base_url: https://api.openrouter.ai/v1/completion
-  model: openrouter/free
-  temperature: 0.2 # по умолчанию 0.8
-  max_tokens: 5000 # по умолчанию 4000
+# обязательно
+completion:
+  provider: gigachat
+  api_key: sk-or-v1-...
+
+  # по умолчанию
+  verify_ssl_certs: false
+  base_url: http://localhost:1234/v1 # для каждого провайдера свой
+  model: GigaChat-2 # для каждого провайдера свой
+  temperature: 0.8
+  max_tokens: 4000
   system_prompt: |
-    Ты - полезный ассистент по документам. Отвечай на вопросы.
+    <prompt>
+    You are a helpful assistant. Respond in the same language as the user's request.
+    The agent may use tools whenever they are necessary to answer the user's request.
+    </prompt>
 
+# необязательно
 embedding:
-  provider: openrouter # обязательно
-  api_key: sk-or-v1-... # обязательно
-  verify_ssl_certs: true # по умолчанию false
-  base_url: https://api.openrouter.ai/v1/completion
-  model: text-embedding-multilingual-e5-large-instruct
-  dim: 1024 # по умолчанию 1024
-  storage:
-    destination: ./rag.db # по умолчанию ./rag.sqlite3
-    collections:
-      - name: Инструкции
-        top_k: 5
-        path: ./docs/instruct
-        chunk_size: 1000 # по умолчанию 512
-        chunk_overlap: 200 # по умолчанию 64
+  # обязательно
+  provider: gigachat
+  api_key: sk-or-v1-...
 
-      - name: weather
-        top_k: 5
-        path: ./docs/weather
-        storage: in_memory
+  # по умолчанию
+  verify_ssl_certs: false
+  base_url: http://localhost:1234/v1 # для каждого провайдера свой
+  model: text-embedding-multilingual-e5-large-instruct # для каждого провайдера свой
+  dim: 1024
+  db_path: ./rag.sqlite3
+
+  # обязательно
+  collections:
+    - name: Инструкции
+      path: ./docs/instruct
+
+      # по умолчанию
+      top_k: 5
+      chunk_size: 512
+      chunk_overlap: 64
+
+# необязательно - поиск в Интернете
+tavily:
+  # обязательно
+  api_key: tvly-dev-...
+
+  # по умолчанию
+  top_k: 5
 
 #       system_prompt: |
 #         Ты - создатель Сценариев для тренажёра, используй для ответа СТРОГО предоставленный контекст.

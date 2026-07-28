@@ -55,11 +55,20 @@ def build_agent(
         """Узел поиска документов по запросу."""
         LOGGER.info("Retrieve node")
 
-        if retriever is None:
-            return {}
+        if not retriever:
+            return {
+                "query": "",
+                "documents": [],
+                "steps": state.get("steps", 0) + 1,
+            }
 
         query = extract_query(state["messages"])
-        docs = [r.invoke(query) for r in retriever][:5]
+
+        all_docs = []
+        for r in retriever:
+            all_docs.extend(r.invoke(query))
+
+        docs = all_docs[:5]
 
         return {
             "query": query,
@@ -130,10 +139,12 @@ def build_agent(
     builder.add_node(NodeEnum.FORMAT, format_node)
 
     if retriever:
+        LOGGER.info("Retriever +")
         builder.add_node(NodeEnum.RETRIEVE, retrieve_node)
         builder.add_edge(START, NodeEnum.RETRIEVE)
         builder.add_edge(NodeEnum.RETRIEVE, NodeEnum.CHAT)
     else:
+        LOGGER.info("Retriever -")
         builder.add_edge(START, NodeEnum.CHAT)
 
     if tools:

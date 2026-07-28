@@ -1,6 +1,8 @@
+import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
+import sqlite_vec
 from langchain.embeddings import Embeddings
 from langchain_community.document_loaders.directory import DirectoryLoader
 from langchain_community.vectorstores import SQLiteVec
@@ -13,22 +15,34 @@ from scenaraist.config import EmbeddingConfig
 
 class StorageRetriever:
     def from_config(self, embed_cfg: EmbeddingConfig, embeddings: Embeddings) -> list[BaseRetriever]:
+        """TODO"""
         dbs: list[tuple[SQLiteVec, int]] = []
+        db_path_exists = Path(embed_cfg.db_path).exists()
 
-        if not Path(embed_cfg.db_path).exists():
-            for c in embed_cfg.collections:
-                docs = self.__iter_documents(c.path, c.chunk_size, c.chunk_overlap)
-                dbs.append(
-                    (
-                        SQLiteVec.from_documents(
-                            documents=docs,
-                            embedding=embeddings,
-                            table=c.name,
-                            db_file=embed_cfg.db_path,
-                        ),
-                        c.top_k,
-                    )
+        for c in embed_cfg.collections:
+            if not db_path_exists:
+                docs = list(self.__iter_documents(c.path, c.chunk_size, c.chunk_overlap))
+                db = SQLiteVec.from_documents(
+                    documents=docs,
+                    embedding=embeddings,
+                    table=c.name,
+                    db_file=embed_cfg.db_path,
                 )
+            else:
+                conn = sqlite3.connect(embed_cfg.db_path, check_same_thread=False)
+                conn.row_factory = sqlite3.Row
+                conn.enable_load_extension(True)
+                sqlite_vec.load(conn)
+                conn.enable_load_extension(False)
+
+                db = SQLiteVec(
+                    table=c.name,
+                    connection=conn,
+                    embedding=embeddings,
+                    db_file=embed_cfg.db_path,
+                )
+
+            dbs.append((db, c.top_k))
 
         return [db.as_retriever(search_kwargs={"k": k}) for db, k in dbs]
 

@@ -2,47 +2,33 @@
 
 ...
 
-## Начало
-
-### Подготовка
-
-- [uv](https://docs.astral.sh/uv/) (recommended) or pip
-
-### Скачивание
+## Использовать
 
 ```sh
-# Clone the repository
-git clone https://github.com/example/scenaraist.git
-cd scenaraist
-
-uv venv --python 3.14
-uv python pin 3.14
-uv sync
-
-# Copy and configure environment variables
-cp .env.example .env
-
-curl https://openrouter.ai/api/v1/key \
-  -H "Authorization: Bearer $OPENROUTER_API_KEY"
-```
-
-### Использование
-
-```sh
-# без логирования
-scenaraist
-uv run scenaraist
-
 # с логированием
-python -m scenaraist
+scenaraist
+# без логирования
 uv run -m scenaraist
 ```
 
-## Для разработчиков
+## Dev
 
 ### Установка зависимостей
 
 ```sh
+###
+wget -qO- https://astral.sh/uv/install.sh | sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+###
+
+# Clone the repository
+git clone https://github.com/example/scenaraist.git
+cd scenaraist
+uv venv --python 3.13
+uv python pin 3.13
+uv sync
+
 # Install development dependencies
 uv sync --dev
 ```
@@ -76,7 +62,12 @@ BotHub, KodikRouter,
 - OpenRouter: API не работает в РФ
 - SambaNova Cloud: не работает в РФ с VPN
 - DeepSeek Open Platform: требует деньги
-- ...
+- <https://www.orcarouter.ai/>
+- <https://teamorouter.com/>
+- <https://agentrouter.org/>
+- <https://tokenharbor.ai/>
+- <https://router.bynara.id/>
+- <https://freerouter.eu.cc/>
 
 | GigaChat Model | Owner         |
 | -------------- | ------------- |

@@ -3,7 +3,7 @@
 from pydantic import BaseModel, Field
 
 
-class ChatConfig(BaseModel):
+class CompletionConfig(BaseModel):
     provider: str
     api_key: str = Field(repr=False)
     verify_ssl_certs: bool = False
@@ -12,6 +12,7 @@ class ChatConfig(BaseModel):
     temperature: float = 0.8
     max_tokens: int = 10000
     system_prompt: str = "You are a helpful assistant."
+    timeout: int = 60
 
 
 class CollectionConfig(BaseModel):
@@ -32,6 +33,7 @@ class EmbeddingConfig(BaseModel):
     dim: int = 1024
     db_path: str = "./rag.sqlite3"
     batch_size: int = 4
+    timeout: int = 60
 
 
 class TavilyConfig(BaseModel):

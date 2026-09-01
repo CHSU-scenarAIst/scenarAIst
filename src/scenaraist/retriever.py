@@ -1,3 +1,5 @@
+"TODO"
+
 import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
@@ -13,15 +15,17 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from scenaraist.config import EmbeddingConfig
 
 
-class StorageRetriever:
+class SQLiteVecRetriever:
     def from_config(self, embed_cfg: EmbeddingConfig, embeddings: Embeddings) -> list[BaseRetriever]:
         """TODO"""
+
         dbs: list[tuple[SQLiteVec, int]] = []
         db_path_exists = Path(embed_cfg.db_path).exists()
 
         for c in embed_cfg.collections:
             if not db_path_exists:
                 docs = list(self.__iter_documents(c.path, c.chunk_size, c.chunk_overlap))
+                # docs = self.__iter_documents(c.path, c.chunk_size, c.chunk_overlap)
                 db = SQLiteVec.from_documents(
                     documents=docs,
                     embedding=embeddings,

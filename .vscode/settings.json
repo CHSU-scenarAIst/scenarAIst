@@ -1,0 +1,9 @@
+{
+  "[python]": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "always",
+      "source.organizeImports.ruff": "always"
+    }
+  },
+  "qt-qml.qmlls.customExePath": "${workspaceFolder}/.venv/bin/pyside6-qmlls"
+}

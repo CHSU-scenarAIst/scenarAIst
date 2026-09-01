@@ -25,7 +25,8 @@ def __create_openai_compatible_chat(cfg: CompletionConfig) -> BaseChatModel:
 def __create_gigachat_chat(cfg: CompletionConfig) -> BaseChatModel:
     return GigaChat(
         credentials=cfg.api_key,
-        model=cfg.model,
+        # model=cfg.model,
+        model=cfg.model or "GigaChat-2",
         verify_ssl_certs=cfg.verify_ssl_certs,
         max_tokens=cfg.max_tokens,
         timeout=cfg.timeout,

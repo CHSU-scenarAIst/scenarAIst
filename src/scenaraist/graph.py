@@ -42,7 +42,7 @@ def build_agent(
     system_prompt: str,
     checkpointer: BaseCheckpointSaver,
     tools: list[BaseTool],
-    retriever: list[BaseRetriever],
+    retriever: list[BaseRetriever] | None = None,
     # TODO в конфиг
     max_steps: int = 20,
 ) -> CompiledStateGraph:

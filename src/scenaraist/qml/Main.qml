@@ -175,6 +175,7 @@ ApplicationWindow {
             return;
         }
 
+        // ! TODO - здесь не правильный insert
         const focus = root.activeFocusItem;
         if (focus && focus.activeFocus) {
             const pos = focus.cursorPosition; // qmllint disable missing-property

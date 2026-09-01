@@ -18,20 +18,20 @@ from scenaraist.retriever import SQLiteVecRetriever
 
 LOGGER = logging.getLogger(__name__)
 QML_DIR = Path(__file__).parent / "qml"
+CONFIG_FILE = Path("config.yaml")
+LOG_FILE = "scenarAIst.log"
 
 
 def main() -> int:
-    """Запустить чат-бота scenarAIst."""
+    LOGGER.info("Запуск СценарИИста")
 
     logging.basicConfig(
-        filename="scenarAIst.log",
+        filename=LOG_FILE,
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
 
-    LOGGER.info("Запуск СценарИИста")
-
-    with open("config.yaml") as f:
+    with CONFIG_FILE.open(encoding="utf-8") as f:
         data = yaml.safe_load(f)
 
     try:
@@ -40,16 +40,20 @@ def main() -> int:
         chat = CHAT_FACTORIES[chat_cfg.provider.strip().lower()](chat_cfg)
     except Exception:
         LOGGER.exception("Ошибка загрузки конфигурации модели")
-        raise
+        return -1
 
+    retriever = None
     try:
         embed_cfg = EmbeddingConfig.model_validate(data["embeddings"])
-        LOGGER.debug(embed_cfg)
-        embed = EMBEDDING_FACTORIES[embed_cfg.provider.strip().lower()](embed_cfg)
-        retriever = SQLiteVecRetriever().from_config(embed_cfg, embed)
+        try:
+            LOGGER.debug(embed_cfg)
+            embed = EMBEDDING_FACTORIES[embed_cfg.provider.strip().lower()](embed_cfg)
+            retriever = SQLiteVecRetriever().from_config(embed_cfg, embed)
+        except Exception:
+            LOGGER.exception("Ошибка загрузки конфигурации эмбеддингов")
     except Exception:
-        LOGGER.exception("Ошибка загрузки конфигурации эмбеддингов")
-        retriever = []
+        # пропуск по причине ...
+        ...
 
     tools = []
     try:
@@ -68,7 +72,8 @@ def main() -> int:
 
     app = QGuiApplication(sys.argv)
     engine = QQmlApplicationEngine()
-    engine.addImportPath(sys.path[0])
+    # engine.addImportPath(sys.path[0])
+    engine.addImportPath(QML_DIR)
 
     app_backend = AppBackend(agent)
 
@@ -86,10 +91,9 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    """Запуск как модуль"""
-
     logging.basicConfig(
-        level=logging.INFO,
+        filename="scenarAIst.log",
+        level=logging.DEBUG,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
     raise SystemExit(main())

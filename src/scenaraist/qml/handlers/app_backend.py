@@ -1,6 +1,7 @@
 """Backend for the {Main.qml}."""
 
 import json
+import logging
 import uuid
 from typing import TYPE_CHECKING
 
@@ -11,6 +12,8 @@ from PySide6.QtGui import QGuiApplication
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
+
+LOGGER = logging.getLogger(__name__)
 
 
 class AppBackend(QObject):
@@ -64,9 +67,13 @@ class AppBackend(QObject):
 
             content = queries[0]
 
-            result = self._agent.invoke(input={"messages": [HumanMessage(content)]}, config=self._config)
-            response: BaseModel = result["response"]
-            response = response.model_dump_json(indent=2, ensure_ascii=False)
+            try:
+                result = self._agent.invoke(input={"messages": [HumanMessage(content)]}, config=self._config)
+                response: BaseModel = result["response"]
+                response = response.model_dump_json(indent=2, ensure_ascii=False)
+            except Exception as e:
+                LOGGER.error(f"Ошибка при выполнении запроса: {e}")
+                response = "Ошибка при выполнении запроса."
 
             self._current_response = response
             self.currentResponseChanged.emit()

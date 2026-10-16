@@ -21,7 +21,7 @@ ApplicationWindow {
 
     color: "#e8e8e8"
 
-    property var backend: appBackend // qmllint disable unqualified
+    property var handler: handlerBackend // qmllint disable unqualified
 
     ColumnLayout {
         anchors.fill: parent
@@ -35,6 +35,16 @@ ApplicationWindow {
             text: ""
         }
 
+        // TODO убрать знание о поддерживаемых языках
+        ComboBox {
+            Layout.alignment: Qt.AlignRight
+            model: ["English", "Русский", "Deutsch"]
+            currentIndex: 0
+            onActivated: function (index) {
+                root.handler.setLanguage(["en", "ru", "de"][index]);
+            }
+        }
+
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -45,9 +55,9 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                title: "Ответы LLM"
-                text: root.backend.currentResponse
-                onCopyRequested: root.backend.copyToClipboard(root.backend.currentResponse)
+                title: root.handler.translate("main.titleResponse", root.handler.language)
+                text: root.handler.currentResponse
+                onCopyRequested: root.handler.copyToClipboard(root.handler.currentResponse)
             }
 
             UserQueries {
@@ -55,7 +65,7 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                title: "Запросы Пользователя"
+                title: root.handler.translate("main.titleQuery", root.handler.language)
                 onRunRequested: root.runPipeline()
             }
         }
@@ -69,11 +79,11 @@ ApplicationWindow {
             }
 
             Button {
-                text: "Очистить"
+                text: root.handler.translate("main.btnClear", root.handler.language)
                 ToolTip.text: "Очистить поля Ответов LLM и Запросов Пользователя"
                 ToolTip.visible: hovered
                 onClicked: {
-                    root.backend.clearAll();
+                    root.handler.clearAll();
                     userQueries.clear();
                     root.refreshStatus();
                 }
@@ -86,6 +96,7 @@ ApplicationWindow {
             implicitHeight: 30
             color: "#000000"
 
+            // * it will be set
             bindings: []
         }
     }
@@ -105,7 +116,7 @@ ApplicationWindow {
     Shortcut {
         sequence: "Ctrl+M"
         context: Qt.ApplicationShortcut
-        onActivated: root.backend.cycleMode()
+        onActivated: root.handler.cycleMode()
     }
 
     Shortcut {
@@ -127,7 +138,7 @@ ApplicationWindow {
     }
 
     Connections {
-        target: root.backend
+        target: root.handler
 
         function onCurrentModeChanged() {
             root.refreshStatus();
@@ -153,8 +164,9 @@ ApplicationWindow {
         nameFilters: ["JSON files (*.json)", "All files (*)"]
 
         onAccepted: {
+            // TODO это работает на Windows?
             const path = selectedFile.toString().replace("file://", "");
-            root.backend.saveToJson(path);
+            root.handler.saveToJson(path);
         }
     }
 
@@ -165,22 +177,26 @@ ApplicationWindow {
             return;
         }
 
-        backend.runPipeline(backend.currentMode, queries);
+        handler.runPipeline(handler.currentMode, queries);
     }
 
     function pasteFromClipboard() {
-        const clip = backend.clipboardText();
+        const clip = handler.clipboardText();
 
         if (!clip) {
             return;
         }
 
-        // ! TODO - здесь не правильный insert
         const focus = root.activeFocusItem;
+        // ! TODO - здесь не правильный insert
         if (focus && focus.activeFocus) {
-            const pos = focus.cursorPosition; // qmllint disable missing-property
-            focus.insert(pos, clip); // qmllint disable missing-property
-            focus.cursorPosition = pos + clip.length;
+            if (focus instanceof TextInput || focus instanceof TextArea) {
+                const pos = focus.cursorPosition; // qmllint disable missing-property
+                focus.insert(pos, clip);// qmllint disable missing-property
+                focus.cursorPosition = pos + clip.length;
+            } else {
+                userQueries.addQuery(clip);
+            }
         } else {
             userQueries.addQuery(clip);
         }
@@ -189,7 +205,7 @@ ApplicationWindow {
     }
 
     function refreshStatus() {
-        statusBar.text = "Режим: " + backend.currentModeName + "   |   Запросов: " + userQueries.count();
+        statusBar.text = "Режим: " + handler.currentModeName + "   |   Запросов: " + userQueries.count();
     }
 
     function refreshHotkeys() {
@@ -204,7 +220,7 @@ ApplicationWindow {
             },
             {
                 key: "^M",
-                label: "Режим: " + backend.currentModeName
+                label: "Режим: " + handler.currentModeName
             },
             {
                 key: "^S",

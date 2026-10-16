@@ -16,12 +16,15 @@ if TYPE_CHECKING:
 LOGGER = logging.getLogger(__name__)
 
 
-class AppBackend(QObject):
+class HandlerBackend(QObject):
     currentModeChanged = Signal()  # noqa: N815
     currentResponseChanged = Signal()  # noqa: N815
     queriesProcessed = Signal(list)  # noqa: N815
+    languageChanged = Signal()  # noqa: N815
 
-    def __init__(self, agent: CompiledStateGraph, parent=None):
+    def __init__(
+        self, agent: CompiledStateGraph, json: dict[str, list[dict[str, dict[str, str]]]], parent=None
+    ):
         super().__init__(parent)
         self._MODES = ["question_answer", "conveyor_create", "conveyor_check"]
         self._MODE_NAMES = {
@@ -38,6 +41,23 @@ class AppBackend(QObject):
                 "thread_id": uuid.uuid4().hex,
             }
         }
+
+        self._translations = {}
+        self._languages = set()
+        for item in json.get("translatables"):
+            key = item.get("trId")
+            if not key:
+                continue
+            mapping = {}
+            for entry in item.get("translations", []):
+                language = entry.get("language")
+                value = entry.get("translation")
+                if language and isinstance(value, str):
+                    mapping[language] = value
+                    self._languages.add(language)
+            self._translations[key] = mapping
+
+        self._language = "en" if "en" in self._languages else next(iter(sorted(self._languages)), "en")
 
     @Property(str, notify=currentModeChanged)
     def currentMode(self):  # noqa: N802
@@ -113,3 +133,20 @@ class AppBackend(QObject):
     def saveToJson(self, file_path):  # noqa: N802
         with open(file_path, "w", encoding="utf-8") as fh:
             json.dump(self._current_response, fh, ensure_ascii=False, indent=2)
+
+    @Property(str, notify=languageChanged)
+    def language(self):
+        return self._language
+
+    @Slot(str)
+    def setLanguage(self, language: str):  # noqa: N802
+        if language not in self._languages or language == self._language:
+            return
+        self._language = language
+        self.languageChanged.emit()
+
+    @Slot(str, str, result=str)
+    def translate(self, key: str, language: str) -> str:
+        # Fallback order: requested language -> English -> key.
+        translations = self._translations.get(key, {})
+        return translations.get(language) or translations.get("en") or key

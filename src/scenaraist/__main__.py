@@ -1,5 +1,6 @@
 """Точка входа scenarAIst."""
 
+import json
 import logging
 import sys
 from pathlib import Path
@@ -13,13 +14,14 @@ from PySide6.QtQml import QQmlApplicationEngine
 from scenaraist.config import CompletionConfig, EmbeddingConfig, TavilyConfig
 from scenaraist.graph import build_agent
 from scenaraist.model import CHAT_FACTORIES, EMBEDDING_FACTORIES
-from scenaraist.qml.handlers.app_backend import AppBackend
+from scenaraist.qml.handlers.backend import HandlerBackend
 from scenaraist.retriever import SQLiteVecRetriever
 
 LOGGER = logging.getLogger(__name__)
 QML_DIR = Path(__file__).parent / "qml"
 CONFIG_FILE = Path("config.yaml")
 LOG_FILE = "scenarAIst.log"
+TRANSLATABLE = Path("translations.json")
 
 
 def main() -> int:
@@ -32,10 +34,13 @@ def main() -> int:
     )
 
     with CONFIG_FILE.open(encoding="utf-8") as f:
-        data = yaml.safe_load(f)
+        cfg = yaml.safe_load(f)
+
+    with TRANSLATABLE.open("r", encoding="utf-8") as f:
+        trl = json.load(f)
 
     try:
-        chat_cfg = CompletionConfig.model_validate(data["completion"])
+        chat_cfg = CompletionConfig.model_validate(cfg["completion"])
         LOGGER.debug(chat_cfg)
         chat = CHAT_FACTORIES[chat_cfg.provider.strip().lower()](chat_cfg)
     except Exception:
@@ -44,7 +49,7 @@ def main() -> int:
 
     retriever = None
     try:
-        embed_cfg = EmbeddingConfig.model_validate(data["embeddings"])
+        embed_cfg = EmbeddingConfig.model_validate(cfg["embeddings"])
         try:
             LOGGER.debug(embed_cfg)
             embed = EMBEDDING_FACTORIES[embed_cfg.provider.strip().lower()](embed_cfg)
@@ -52,12 +57,12 @@ def main() -> int:
         except Exception:
             LOGGER.exception("Ошибка загрузки конфигурации эмбеддингов")
     except Exception:
-        # пропуск по причине ...
+        # ? пропуск по причине ...
         ...
 
     tools = []
     try:
-        tavily = TavilyConfig.model_validate(data["tavily"])
+        tavily = TavilyConfig.model_validate(cfg["tavily"])
         LOGGER.debug(tavily)
         web_search = TavilySearch(tavily_api_key=tavily.api_key, max_results=tavily.top_k, topic="general")
         tools.append(web_search)
@@ -75,10 +80,8 @@ def main() -> int:
     # engine.addImportPath(sys.path[0])
     engine.addImportPath(QML_DIR)
 
-    app_backend = AppBackend(agent)
-
-    engine.rootContext().setContextProperty("appBackend", app_backend)
-
+    handler_backend = HandlerBackend(agent=agent, json=trl)
+    engine.rootContext().setContextProperty("handlerBackend", handler_backend)
     engine.load(QML_DIR / "Main.qml")
 
     if not engine.rootObjects():

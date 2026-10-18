@@ -1,6 +1,5 @@
 """Точка входа scenarAIst."""
 
-import json
 import logging
 import sys
 from pathlib import Path
@@ -11,17 +10,16 @@ from langgraph.checkpoint.memory import InMemorySaver
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 
+from scenaraist.backend import HandlerBackend
 from scenaraist.config import CompletionConfig, EmbeddingConfig, TavilyConfig
 from scenaraist.graph import build_agent
 from scenaraist.model import CHAT_FACTORIES, EMBEDDING_FACTORIES
-from scenaraist.qml.handlers.backend import HandlerBackend
 from scenaraist.retriever import SQLiteVecRetriever
 
 LOGGER = logging.getLogger(__name__)
 QML_DIR = Path(__file__).parent / "qml"
 CONFIG_FILE = Path("config.yaml")
 LOG_FILE = "scenarAIst.log"
-TRANSLATABLE = QML_DIR / Path("translations.json")
 
 
 def main() -> int:
@@ -35,9 +33,6 @@ def main() -> int:
 
     with CONFIG_FILE.open(encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
-
-    with TRANSLATABLE.open("r", encoding="utf-8") as f:
-        trl = json.load(f)
 
     try:
         chat_cfg = CompletionConfig.model_validate(cfg["completion"])
@@ -80,7 +75,7 @@ def main() -> int:
     # engine.addImportPath(sys.path[0])
     engine.addImportPath(QML_DIR)
 
-    handler_backend = HandlerBackend(agent=agent, json=trl)
+    handler_backend = HandlerBackend(agent)
     engine.rootContext().setContextProperty("handlerBackend", handler_backend)
     engine.load(QML_DIR / "Main.qml")
 

@@ -2,11 +2,12 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
+import "./"
+
 Item {
     id: root
 
-    required property string title
-    required property var handler // TODO
+    required property var handler
 
     property string text
 
@@ -27,7 +28,7 @@ Item {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.leftMargin: 8
-                text: root.title
+                text: Localization.tr("Response.Title")
                 font.bold: true
                 font.pointSize: 11
             }
@@ -37,8 +38,8 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.rightMargin: 4
 
-                text: root.handler.translate("Query.Copy.Text", root.handler.language)
-                ToolTip.text: root.handler.translate("Query.Copy.Tip", root.handler.language)
+                text: Localization.tr("Query.Copy.Text")
+                ToolTip.text: Localization.tr("Query.Copy.Tip")
                 ToolTip.visible: hovered
 
                 onClicked: root.copyRequested()

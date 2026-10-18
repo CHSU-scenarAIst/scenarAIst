@@ -1,0 +1,2 @@
+module MyApp
+singleton Localization 1.0 Localization.qml

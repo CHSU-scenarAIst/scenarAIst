@@ -3,11 +3,10 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
+import "./"
+
 Item {
     id: root
-
-    required property string title
-    required property var handler // TODO
 
     signal runRequested
 
@@ -31,7 +30,7 @@ Item {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.leftMargin: 8
-                text: root.title
+                text: Localization.tr("Query.Title")
                 font.bold: true
                 font.pointSize: 11
             }
@@ -95,7 +94,7 @@ Item {
 
                     width: 26
                     text: "\u2715"
-                    ToolTip.text: root.handler.translate("Query.Delete.Tip", root.handler.language)
+                    ToolTip.text: Localization.tr("Query.Delete.Tip")
                     ToolTip.visible: hovered
 
                     onClicked: root.removeAt(delegate.index)
@@ -108,8 +107,8 @@ Item {
             Layout.topMargin: 4
 
             Button {
-                text: root.handler.translate("Query.Add.Text", root.handler.language)
-                ToolTip.text: root.handler.translate("Query.Add.Tip", root.handler.language)
+                text: Localization.tr("Query.Add.Text")
+                ToolTip.text: Localization.tr("Query.Add.Tip")
                 ToolTip.visible: hovered
                 onClicked: root.addQuery("")
             }
@@ -119,8 +118,8 @@ Item {
             }
 
             Button {
-                text: root.handler.translate("Query.Send.Text", root.handler.language)
-                ToolTip.text: root.handler.translate("Query.Send.Tip", root.handler.language)
+                text: Localization.tr("Query.Send.Text")
+                ToolTip.text: Localization.tr("Query.Send.Tip")
                 ToolTip.visible: hovered
                 onClicked: root.runRequested()
             }

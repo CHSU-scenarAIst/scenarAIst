@@ -4,12 +4,12 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import QtQuick.Window
 
-import "./components"
+import "./"
 
 ApplicationWindow {
     id: root
 
-    title: root.handler.translate("Main.title", root.handler.language)
+    title: Localization.tr("Main.Title")
     visible: true
     width: 1200
     height: 700
@@ -18,6 +18,14 @@ ApplicationWindow {
     color: "#e8e8e8"
 
     property var handler: handlerBackend // qmllint disable unqualified
+    property int currentMode: 0
+    property var modes: {
+        0: "Mode.QuestionAnswer",
+        1: "Mode.ConveyorCreate",
+        2: "Mode.ConveyorCheck"
+    }
+    readonly property int modesLength: Object.keys(modes).length
+    property string currentResponse: ""
 
     ColumnLayout {
         anchors.fill: parent
@@ -29,13 +37,16 @@ ApplicationWindow {
             color: "#000000"
         }
 
-        // TODO убрать знание о поддерживаемых языках
         ComboBox {
             Layout.alignment: Qt.AlignRight
-            model: ["English", "Русский"]
-            currentIndex: 0
+
+            model: ["Русский", "English"]
+            currentIndex: Localization.language === "ru" ? 0 : 1
+
             onActivated: function (index) {
-                root.handler.setLanguage(["en", "ru"][index]);
+                Localization.language = index === 0 ? "ru" : "en";
+                root.refreshStatus();
+                root.refreshHotkeys();
             }
         }
 
@@ -48,18 +59,16 @@ ApplicationWindow {
                 id: llmResponse
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                title: root.handler.translate("Response.title", root.handler.language)
-                text: root.handler.currentResponse
-                onCopyRequested: root.handler.copyToClipboard(root.handler.currentResponse)
+                text: root.currentResponse
+                onCopyRequested: root.handler.copyToClipboard(root.currentResponse)
+                handler: root.handler
             }
 
             UserQueries {
                 id: userQueries
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                title: root.handler.translate("Query.title", root.handler.language)
                 onRunRequested: root.runPipeline()
-                handler: handler
             }
         }
 
@@ -72,11 +81,11 @@ ApplicationWindow {
             }
 
             Button {
-                text: root.handler.translate("Clear.btn", root.handler.language)
-                ToolTip.text: root.handler.translate("Clear.tip", root.handler.language)
+                text: Localization.tr("Clear.Btn")
+                ToolTip.text: Localization.tr("Clear.Tip")
                 ToolTip.visible: hovered
                 onClicked: {
-                    root.handler.clearAll();
+                    root.currentResponse = "";
                     userQueries.clear();
                     root.refreshStatus();
                 }
@@ -107,8 +116,13 @@ ApplicationWindow {
     Shortcut {
         sequence: "Ctrl+M"
         context: Qt.ApplicationShortcut
-        onActivated: root.handler.cycleMode()
+        onActivated: function onCurrentModeChanged() {
+            root.currentMode = (root.currentMode + 1) % root.modesLength;
+            root.refreshStatus();
+        }
     }
+
+    // TODO "Ctrl+C" для копирования ответа LLM
 
     Shortcut {
         sequence: "Ctrl+S"
@@ -131,9 +145,8 @@ ApplicationWindow {
     Connections {
         target: root.handler
 
-        function onCurrentModeChanged() {
-            root.refreshStatus();
-            root.refreshHotkeys();
+        function onResponseReady(response) {
+            root.currentResponse = response;
         }
 
         function onQueriesProcessed(indices) {
@@ -149,7 +162,7 @@ ApplicationWindow {
 
     FileDialog {
         id: saveDialog
-        title: root.handler.translate("Save.dialogue", root.handler.language)
+        title: Localization.tr("Save.Response")
         fileMode: FileDialog.SaveFile
         defaultSuffix: "json"
         nameFilters: ["JSON files (*.json)", "All files (*)"]
@@ -157,7 +170,7 @@ ApplicationWindow {
         onAccepted: {
             // TODO это работает на Windows?
             const path = selectedFile.toString().replace("file://", "");
-            root.handler.saveToJson(path);
+            root.handler.saveToJson(path, root.currentResponse);
         }
     }
 
@@ -166,7 +179,7 @@ ApplicationWindow {
         if (queries.length <= 0) {
             return;
         }
-        handler.runPipeline(handler.currentMode, queries);
+        handler.runPipeline(root.currentMode, queries);
     }
 
     function pasteFromClipboard() {
@@ -177,46 +190,45 @@ ApplicationWindow {
         }
 
         const focus = root.activeFocusItem;
-        if (focus && focus.activeFocus) {
-            if (focus instanceof TextInput || focus instanceof TextArea) {
-                const pos = focus.cursorPosition; // qmllint disable missing-property
-                focus.insert(pos, clip);// qmllint disable missing-property
-                focus.cursorPosition = pos + clip.length;
-            } else {
-                userQueries.addQuery(clip);
-            }
+        if (focus && focus.activeFocus && (focus instanceof TextInput || focus instanceof TextArea)) {
+            const pos = focus.cursorPosition; // qmllint disable missing-property
+            focus.insert(pos, clip);// qmllint disable missing-property
+            focus.cursorPosition = pos + clip.length;
         } else {
             userQueries.addQuery(clip);
         }
 
-        root.refreshStatus();
+        refreshStatus();
     }
 
     function refreshStatus() {
-        statusBar.text = root.handler.translate("Hotkeys.Mode", root.handler.language) + ": " + handler.currentModeName + "   |   " + root.handler.translate("Response.Count", root.handler.language) + ": " + userQueries.count();
+        statusBar.text = Localization.tr("Hotkeys.Mode") + ": " + Localization.tr(root.modes[root.currentMode]) + "   |   " + Localization.tr("Response.Count") + ": " + userQueries.count();
     }
 
     function refreshHotkeys() {
         hotkeyBar.bindings = [
             {
                 key: "^Space",
-                label: root.handler.translate("Hotkeys.Send", root.handler.language)
+                label: Localization.tr("Hotkeys.Send")
             },
             {
                 key: "^V",
-                label: root.handler.translate("Hotkeys.Insert", root.handler.language)
+                label: Localization.tr("Hotkeys.Insert")
             },
             {
                 key: "^M",
-                label: root.handler.translate("Hotkeys.Mode", root.handler.language) + ": " + handler.currentModeName
+                label: Localization.tr("Hotkeys.Mode")
             },
+
+            // TODO "Ctrl+C" для копирования ответа LLM
+
             {
                 key: "^S",
-                label: root.handler.translate("Hotkeys.Save", root.handler.language)
+                label: Localization.tr("Hotkeys.Save")
             },
             {
                 key: "↑↓",
-                label: root.handler.translate("Hotkeys.Scroll", root.handler.language)
+                label: Localization.tr("Hotkeys.Scroll")
             }
         ];
     }

@@ -14,9 +14,10 @@ completion:
     You are a helpful assistant. Respond in the same language as the user's request.
     The agent may use tools whenever they are necessary to answer the user's request.
     </prompt>
+  max_steps: 20
 
 # необязательно
-embedding:
+embeddings:
   # обязательно
   provider: gigachat
   api_key: sk-or-v1-...

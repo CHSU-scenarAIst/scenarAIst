@@ -130,8 +130,17 @@ Item {
         return queriesModel.count;
     }
 
+    // function _newUuid() {
+    //     return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+    //         const r = Math.random() * 16 | 0;
+    //         const v = c === "x" ? r : (r & 0x3 | 0x8);
+    //         return v.toString(16);
+    //     });
+    // }
+
     function addQuery(text) {
         queriesModel.append({
+            // uid: _newUuid(),
             text: text
         });
         Qt.callLater(() => queriesView.positionViewAtEnd());
@@ -143,7 +152,7 @@ Item {
         }
     }
 
-    function removeAtIndices(indices) {
+    function removeByIndices(indices) {
         const sorted = indices.slice().sort((a, b) => b - a);
 
         for (const index of sorted) {
@@ -151,15 +160,29 @@ Item {
         }
     }
 
+    // function removeByUids(uids) {
+    //     const uidSet = new Set(uids.map(String));
+
+    //     for (let i = queriesModel.count - 1; i >= 0; i--) {
+    //         if (uidSet.has(String(queriesModel.get(i).uid))) {
+    //             queriesModel.remove(i);
+    //         }
+    //     }
+    // }
+
     function clear() {
         queriesModel.clear();
     }
 
-    // TODO: UUID вместо числовых индексов
     function texts() {
         const arr = [];
         for (let i = 0; i < queriesModel.count; i++) {
             arr.push(queriesModel.get(i).text);
+            // const item = queriesModel.get(i);
+            // arr.push({
+            //     uid: item.uid,
+            //     text: item.text
+            // });
         }
         return arr;
     }

@@ -29,13 +29,13 @@ class HandlerBackend(QObject):
 
     @Slot(int, list)
     def runPipeline(self, mode: int, queries: list):  # noqa: N802
-        queries = [str(q).strip() for q in (queries or []) if str(q).strip()]
+        entries = self.__normalize_queries(queries)
 
         if mode == 0:
-            if not queries:
+            if not entries:
                 return
 
-            content = queries[0]
+            uid, content = entries[0]
 
             try:
                 result = self._agent.invoke(input={"messages": [HumanMessage(content)]}, config=self._config)
@@ -50,22 +50,60 @@ class HandlerBackend(QObject):
                 LOGGER.error(f"{response}: {e}")
 
             self.responseReady.emit(response)
-            self.queriesProcessed.emit([0])
+            self.queriesProcessed.emit([uid])
 
         elif mode == 1:
-            if not queries:
+            if not entries:
                 return
 
-            lines = "\n".join(f"[{i + 1}] Эхо: {q}" for i, q in enumerate(queries))
-            response = f"Конвейер массовое создание ({len(queries)} шт.):\n{lines}"
+            lines = "\n".join(f"[{i + 1}] Эхо: {text}" for i, (_, text) in enumerate(entries))
+            response = f"Конвейер массовое создание ({len(entries)} шт.):\n{lines}"
 
             self.responseReady.emit(response)
-            self.queriesProcessed.emit(list(range(len(queries))))
+            self.queriesProcessed.emit([uid for uid, _ in entries])
 
         else:
-            response = "Заглушка: режим «массовая проверка + изменение» не реализован."
+            if not entries:
+                return
+
+            results = []
+            for _, text in entries:
+                try:
+                    result = self._agent.invoke(input={"messages": [HumanMessage(text)]}, config=self._config)
+                    model = result["response"]
+
+                    if not isinstance(model, BaseModel):
+                        raise TypeError("Ответ агента не является моделью Pydantic")
+
+                    results.append(model.model_dump_json(indent=2, ensure_ascii=False))
+                except Exception as e:
+                    LOGGER.error(f"Ошибка массовой проверки: {e}")
+                    results.append(
+                        json.dumps(
+                            {"status": "ERROR", "message": "Ошибка при выполнении запроса"},
+                            ensure_ascii=False,
+                        )
+                    )
+
+            response = "\n\n---\n\n".join(results)
 
             self.responseReady.emit(response)
+            self.queriesProcessed.emit([uid for uid, _ in entries])
+
+    @staticmethod
+    def __normalize_queries(queries: list) -> list[tuple[str, str]]:
+        """Привести входящие запросы к парам (uuid, текст), отбрасывая пустые."""
+        entries: list[tuple[str, str]] = []
+        for q in queries or []:
+            if isinstance(q, dict):
+                uid = str(q.get("uid") or uuid.uuid4().hex)
+                text = str(q.get("text") or "").strip()
+            else:
+                uid = uuid.uuid4().hex
+                text = str(q).strip()
+            if text:
+                entries.append((uid, text))
+        return entries
 
     @Slot(str)
     def copyToClipboard(self, input: str):  # noqa: N802

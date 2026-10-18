@@ -12,7 +12,7 @@ from PySide6.QtQml import QQmlApplicationEngine
 
 from scenaraist.backend import HandlerBackend
 from scenaraist.config import CompletionConfig, EmbeddingConfig, TavilyConfig
-from scenaraist.graph import build_agent
+from scenaraist.graph import AgentGraphBuilder
 from scenaraist.model import CHAT_FACTORIES, EMBEDDING_FACTORIES
 from scenaraist.retriever import SQLiteVecRetriever
 
@@ -68,7 +68,14 @@ def main() -> int:
     # ? SQLite/Postgres Checkpointer
     checkpointer = InMemorySaver()
 
-    agent = build_agent(chat, chat_cfg.system_prompt, checkpointer, tools, retriever)
+    agent = AgentGraphBuilder(
+        chat,
+        chat_cfg.system_prompt,
+        checkpointer,
+        tools,
+        retriever,
+        chat_cfg.max_steps,
+    ).compile()
 
     app = QGuiApplication(sys.argv)
     engine = QQmlApplicationEngine()

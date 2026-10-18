@@ -13,6 +13,7 @@ class CompletionConfig(BaseModel):
     max_tokens: int = 10000
     system_prompt: str = "You are a helpful assistant."
     timeout: int = 60
+    max_steps: int = Field(default=20, description="Максимальное число шагов агента.")
 
 
 class CollectionConfig(BaseModel):

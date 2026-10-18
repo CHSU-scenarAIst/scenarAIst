@@ -36,132 +36,144 @@ class OrchestratorState(MessagesState, total=False):
     response: JsonResponse
 
 
-# TODO class AgentGraphBuilder: переписать на объектный подход
-def build_agent(
-    chat: BaseChatModel,
-    system_prompt: str,
-    checkpointer: BaseCheckpointSaver,
-    tools: list[BaseTool],
-    retriever: list[BaseRetriever] | None = None,
-    # TODO в конфиг
-    max_steps: int = 20,
-) -> CompiledStateGraph:
-    """Собрать и скомпилировать граф состояний агента."""
+class AgentGraphBuilder:
+    """Объектный сборщик и компилятор графа LangGraph."""
 
-    agent_llm = chat.bind_tools(tools)
-    tool_node = ToolNode(tools)
+    def __init__(
+        self,
+        chat: BaseChatModel,
+        system_prompt: str,
+        max_steps: int,
+        checkpointer: BaseCheckpointSaver,
+        tools: list[BaseTool] | None = None,
+        retriever: list[BaseRetriever] | None = None,
+    ):
+        """Сохранить зависимости агента для последующей сборки графа."""
+        self._chat = chat
+        self._system_prompt = system_prompt
+        self._checkpointer = checkpointer
+        self._tools = tools or []
+        self._retriever = retriever
+        self._max_steps = max_steps
 
-    def retrieve_node(state: OrchestratorState) -> OrchestratorState:
-        """Узел поиска документов по запросу."""
-        LOGGER.info("Retrieve node")
+    def compile(self) -> CompiledStateGraph:
+        """Собрать и скомпилировать граф состояний агента."""
+        agent_llm = self._chat.bind_tools(self._tools)
+        tool_node = ToolNode(self._tools)
 
-        if not retriever:
+        def retrieve_node(state: OrchestratorState) -> OrchestratorState:
+            """Узел поиска релевантных документов по запросу."""
+            LOGGER.info("Retrieve node")
+
+            if not self._retriever:
+                return {
+                    "query": "",
+                    "documents": [],
+                    "steps": state.get("steps", 0) + 1,
+                }
+
+            query = extract_query(state["messages"])
+
+            all_docs: list[Document] = []
+            for r in self._retriever:
+                all_docs.extend(r.invoke(query))
+
+            docs = all_docs[:5]
+
             return {
-                "query": "",
-                "documents": [],
+                "query": query,
+                "documents": docs,
                 "steps": state.get("steps", 0) + 1,
             }
 
-        query = extract_query(state["messages"])
+        def chat_node(state: OrchestratorState) -> OrchestratorState:
+            """Узел вызова LLM с текущей историей сообщений."""
+            messages = state["messages"]
+            LOGGER.info("Chat node with %d messages", len(messages))
 
-        all_docs = []
-        for r in retriever:
-            all_docs.extend(r.invoke(query))
+            docs = state.get("documents", None)
+            system_content = self._system_prompt + f"<time_now>{datetime.now(UTC):%B %d, %Y}.</time_now>"
 
-        docs = all_docs[:5]
+            if context := prepare_context_documents(docs):
+                system_content += f"<context>{context}</context>"
 
-        return {
-            "query": query,
-            "documents": docs,
-            "steps": state.get("steps", 0) + 1,
-        }
+            response = agent_llm.invoke([SystemMessage(system_content), *messages])
+            LOGGER.info("LLM response: response=%s", response)
 
-    def chat_node(state: OrchestratorState) -> OrchestratorState:
-        """Узел вызова LLM с текущей историей сообщений."""
-        messages = state["messages"]
-        LOGGER.info("Chat node with %d messages", len(messages))
+            return {
+                "messages": [response],
+                "steps": state.get("steps", 0) + 1,
+            }
 
-        docs = state.get("documents", None)
-        system_content = system_prompt + f"<time_now>{datetime.now(UTC):%B %d, %Y}.</time_now>"
+        def router_node(state: OrchestratorState) -> NodeEnum:
+            """Ветвление после вызова LLM: исполнение инструментов либо финализация ответа."""
+            LOGGER.info("Router node")
 
-        if context := prepare_context_documents(docs):
-            system_content += f"<context>{context}</context>"
+            last = state["messages"][-1]
+            tool_calls = getattr(last, "tool_calls", [])
 
-        response = agent_llm.invoke([SystemMessage(system_content), *messages])
-        LOGGER.info("LLM response: response=%s", response)
+            if tool_calls and self._tools and state.get("steps", 0) < self._max_steps:
+                return NodeEnum.TOOLS
 
-        return {
-            "messages": [response],
-            "steps": state.get("steps", 0) + 1,
-        }
+            return NodeEnum.FORMAT
 
-    def router_node(state: OrchestratorState) -> NodeEnum:
-        """Ветвление после вызова LLM."""
-        LOGGER.info("Router node")
+        def tools_node(state: OrchestratorState) -> OrchestratorState:
+            """Узел исполнения инструментов, выбранных LLM."""
+            LOGGER.info("Tools node")
 
-        last = state["messages"][-1]
-        tool_calls = getattr(last, "tool_calls", [])
+            result = tool_node.invoke(state)
+            return {
+                **result,
+                "steps": state.get("steps", 0) + 1,
+            }
 
-        if tool_calls and state.get("steps", 0) < max_steps:
-            return NodeEnum.TOOLS
+        def format_node(state: OrchestratorState) -> OrchestratorState:
+            """Узел финализации ответа в структуру {JsonResponse}."""
+            LOGGER.info("Format node")
 
-        return NodeEnum.FORMAT
+            last = state["messages"][-1]
+            response = JsonResponse(
+                status="OK",
+                message=last.content,
+                data={},
+            )
 
-    def tools_node(state: OrchestratorState) -> OrchestratorState:
-        """TODO"""
-        result = tool_node.invoke(state)
-        return {
-            **result,
-            "steps": state.get("steps", 0) + 1,
-        }
+            return {
+                "messages": state["messages"],
+                "response": response,
+                "steps": state.get("steps", 0) + 1,
+            }
 
-    def format_node(state: OrchestratorState) -> OrchestratorState:
-        """TODO"""
-        LOGGER.info("Format node")
+        builder = StateGraph(OrchestratorState)
 
-        last = state["messages"][-1]
-        response = JsonResponse(
-            status="OK",
-            message=last.content,
-            data={},
-        )
+        # Узлы и структура графа
+        builder.add_node(NodeEnum.CHAT, chat_node)
+        builder.add_node(NodeEnum.FORMAT, format_node)
 
-        return {
-            "messages": state["messages"],
-            "response": response,
-            "steps": state.get("steps", 0) + 1,
-        }
+        if self._retriever:
+            LOGGER.info("Retriever +")
+            builder.add_node(NodeEnum.RETRIEVE, retrieve_node)
+            builder.add_edge(START, NodeEnum.RETRIEVE)
+            builder.add_edge(NodeEnum.RETRIEVE, NodeEnum.CHAT)
+        else:
+            LOGGER.info("Retriever -")
+            builder.add_edge(START, NodeEnum.CHAT)
 
-    builder = StateGraph(OrchestratorState)
+        if self._tools:
+            builder.add_node(NodeEnum.TOOLS, tools_node)
+            conditional_edges = {NodeEnum.TOOLS: NodeEnum.TOOLS, NodeEnum.FORMAT: NodeEnum.FORMAT}
+            builder.add_edge(NodeEnum.TOOLS, NodeEnum.CHAT)
+        else:
+            conditional_edges = {NodeEnum.FORMAT: NodeEnum.FORMAT}
 
-    # Узлы и Структура графа
-    builder.add_node(NodeEnum.CHAT, chat_node)
-    builder.add_node(NodeEnum.FORMAT, format_node)
+        builder.add_conditional_edges(NodeEnum.CHAT, router_node, conditional_edges)
+        builder.add_edge(NodeEnum.FORMAT, END)
 
-    if retriever:
-        LOGGER.info("Retriever +")
-        builder.add_node(NodeEnum.RETRIEVE, retrieve_node)
-        builder.add_edge(START, NodeEnum.RETRIEVE)
-        builder.add_edge(NodeEnum.RETRIEVE, NodeEnum.CHAT)
-    else:
-        LOGGER.info("Retriever -")
-        builder.add_edge(START, NodeEnum.CHAT)
-
-    if tools:
-        builder.add_node(NodeEnum.TOOLS, tools_node)
-        conditional_edges = {NodeEnum.TOOLS: NodeEnum.TOOLS, NodeEnum.FORMAT: NodeEnum.FORMAT}
-        builder.add_edge(NodeEnum.TOOLS, NodeEnum.CHAT)
-    else:
-        conditional_edges = {NodeEnum.FORMAT: NodeEnum.FORMAT}
-
-    builder.add_conditional_edges(NodeEnum.CHAT, router_node, conditional_edges)
-    builder.add_edge(NodeEnum.FORMAT, END)
-
-    # Сборка агента
-    agent = builder.compile(checkpointer=checkpointer)
-    # ? debug схемы структуры графа
-    LOGGER.info("Граф скомпилирован")
-    return agent
+        # Компиляция агента
+        agent = builder.compile(checkpointer=self._checkpointer)
+        # ? debug схемы структуры графа
+        LOGGER.info("Граф скомпилирован")
+        return agent
 
 
 class NodeEnum(StrEnum):
@@ -186,7 +198,7 @@ def prepare_context_documents(docs: list[Document] | None) -> str:
     """Формирует текст контекста из найденных документов."""
     if not docs:
         return ""
-    # ! TODO source нет такого поля
+    # ! source нет такого поля
     return "\n\n".join(
         f"<source>{doc.metadata.get('source', '-')}</source><documents>{doc.page_content}</documents>"
         for doc in docs

@@ -47,6 +47,10 @@ QtObject {
                 "en": "Mode",
                 "ru": "Режим"
             },
+            "Hotkeys.Copy": {
+                "en": "Copy",
+                "ru": "Копировать"
+            },
             "Hotkeys.Save": {
                 "en": "Save as JSON...",
                 "ru": "Сохранить как JSON..."

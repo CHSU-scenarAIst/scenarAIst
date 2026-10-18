@@ -122,7 +122,11 @@ ApplicationWindow {
         }
     }
 
-    // TODO "Ctrl+C" для копирования ответа LLM
+    Shortcut {
+        sequence: "Ctrl+C"
+        context: Qt.ApplicationShortcut
+        onActivated: root.copyResponseOrSelection()
+    }
 
     Shortcut {
         sequence: "Ctrl+S"
@@ -150,7 +154,9 @@ ApplicationWindow {
         }
 
         function onQueriesProcessed(indices) {
-            userQueries.removeAtIndices(indices);
+            userQueries.removeByIndices(indices);
+            // function onQueriesProcessed(uids) {
+            //     userQueries.removeByUids(uids);
             root.refreshStatus();
         }
     }
@@ -168,8 +174,7 @@ ApplicationWindow {
         nameFilters: ["JSON files (*.json)", "All files (*)"]
 
         onAccepted: {
-            // TODO это работает на Windows?
-            const path = selectedFile.toString().replace("file://", "");
+            const path = root.toLocalPath(selectedFile);
             root.handler.saveToJson(path, root.currentResponse);
         }
     }
@@ -201,6 +206,30 @@ ApplicationWindow {
         refreshStatus();
     }
 
+    function copyResponseOrSelection() {
+        const focus = root.activeFocusItem;
+
+        if (focus && focus.activeFocus && (focus instanceof TextInput || focus instanceof TextArea) && focus.selectedText) {
+            focus.copy(); // qmllint disable missing-property
+            return;
+        }
+
+        if (root.currentResponse) {
+            root.handler.copyToClipboard(root.currentResponse);
+        }
+    }
+
+    function toLocalPath(fileUrl) {
+        let path = fileUrl.toString().replace(/^file:\/\//, "");
+
+        // Windows: "file:///C:/..." -> "/C:/..." -> "C:/..."
+        if (/^\/[A-Za-z]:[\\/]/.test(path)) {
+            path = path.slice(1);
+        }
+
+        return path;
+    }
+
     function refreshStatus() {
         statusBar.text = Localization.tr("Hotkeys.Mode") + ": " + Localization.tr(root.modes[root.currentMode]) + "   |   " + Localization.tr("Response.Count") + ": " + userQueries.count();
     }
@@ -219,9 +248,10 @@ ApplicationWindow {
                 key: "^M",
                 label: Localization.tr("Hotkeys.Mode")
             },
-
-            // TODO "Ctrl+C" для копирования ответа LLM
-
+            {
+                key: "^C",
+                label: Localization.tr("Hotkeys.Copy")
+            },
             {
                 key: "^S",
                 label: Localization.tr("Hotkeys.Save")

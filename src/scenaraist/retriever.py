@@ -1,4 +1,4 @@
-"TODO"
+"""Ретриверы для RAG-поиска по документам, загруженным в векторную БД SQLite."""
 
 import sqlite3
 from collections.abc import Iterator
@@ -16,8 +16,10 @@ from scenaraist.config import EmbeddingConfig
 
 
 class SQLiteVecRetriever:
+    """Фабрика ретриверов поверх векторного хранилища SQLiteVec."""
+
     def from_config(self, embed_cfg: EmbeddingConfig, embeddings: Embeddings) -> list[BaseRetriever]:
-        """TODO"""
+        """Создать ретриверы для всех коллекций из конфигурации эмбеддингов."""
 
         dbs: list[tuple[SQLiteVec, int]] = []
         db_path_exists = Path(embed_cfg.db_path).exists()
@@ -25,7 +27,6 @@ class SQLiteVecRetriever:
         for c in embed_cfg.collections:
             if not db_path_exists:
                 docs = list(self.__iter_documents(c.path, c.chunk_size, c.chunk_overlap))
-                # docs = self.__iter_documents(c.path, c.chunk_size, c.chunk_overlap)
                 db = SQLiteVec.from_documents(
                     documents=docs,
                     embedding=embeddings,

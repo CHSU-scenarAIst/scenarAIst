@@ -2,12 +2,12 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// TODO: проверить оформление, вынести хард-код текст на уровень выше
-
 Item {
     id: root
 
-    property string title
+    required property string title
+    required property var handler // TODO
+
     property string text
 
     signal copyRequested
@@ -37,8 +37,8 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.rightMargin: 4
 
-                text: "\u29C9"
-                ToolTip.text: "Копировать ответ LLM"
+                text: root.handler.translate("Query.Copy.Text", root.handler.language)
+                ToolTip.text: root.handler.translate("Query.Copy.Tip", root.handler.language)
                 ToolTip.visible: hovered
 
                 onClicked: root.copyRequested()

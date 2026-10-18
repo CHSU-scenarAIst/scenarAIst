@@ -4,7 +4,7 @@ import QtQuick.Controls
 Rectangle {
     id: root
 
-    required property string text
+    property string text
 
     Label {
         anchors.fill: parent

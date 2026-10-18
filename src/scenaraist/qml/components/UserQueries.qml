@@ -3,12 +3,11 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// TODO: проверить оформление, вынести хард-код текст на уровень выше, UUID вместо числовых индексов
-
 Item {
     id: root
 
     required property string title
+    required property var handler // TODO
 
     signal runRequested
 
@@ -96,7 +95,7 @@ Item {
 
                     width: 26
                     text: "\u2715"
-                    ToolTip.text: "Удалить запрос"
+                    ToolTip.text: root.handler.translate("Query.Delete.Tip", root.handler.language)
                     ToolTip.visible: hovered
 
                     onClicked: root.removeAt(delegate.index)
@@ -109,8 +108,8 @@ Item {
             Layout.topMargin: 4
 
             Button {
-                text: "+"
-                ToolTip.text: "Добавить запрос"
+                text: root.handler.translate("Query.Add.Text", root.handler.language)
+                ToolTip.text: root.handler.translate("Query.Add.Tip", root.handler.language)
                 ToolTip.visible: hovered
                 onClicked: root.addQuery("")
             }
@@ -120,8 +119,8 @@ Item {
             }
 
             Button {
-                text: "\u25B2 Отправить"
-                ToolTip.text: "Отправить запрос / запустить конвейер (Ctrl+Space)"
+                text: root.handler.translate("Query.Send.Text", root.handler.language)
+                ToolTip.text: root.handler.translate("Query.Send.Tip", root.handler.language)
                 ToolTip.visible: hovered
                 onClicked: root.runRequested()
             }
@@ -157,13 +156,12 @@ Item {
         queriesModel.clear();
     }
 
+    // TODO: UUID вместо числовых индексов
     function texts() {
         const arr = [];
-
         for (let i = 0; i < queriesModel.count; i++) {
             arr.push(queriesModel.get(i).text);
         }
-
         return arr;
     }
 }

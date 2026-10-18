@@ -8,7 +8,8 @@ import "./components"
 
 ApplicationWindow {
     id: root
-    title: "scenarAIst"
+
+    title: root.handler.translate("Main.title", root.handler.language)
     visible: true
     width: 1200
     height: 700
@@ -25,7 +26,6 @@ ApplicationWindow {
             id: statusBar
             Layout.fillWidth: true
             implicitHeight: 30
-            text: ""
             color: "#000000"
         }
 
@@ -59,6 +59,7 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 title: root.handler.translate("Query.title", root.handler.language)
                 onRunRequested: root.runPipeline()
+                handler: handler
             }
         }
 

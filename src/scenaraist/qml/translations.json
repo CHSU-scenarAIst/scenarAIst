@@ -1,11 +1,24 @@
 {
   "translatables": [
     {
+      "trId": "Main.title",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "scenarAIst"
+        },
+        {
+          "language": "ru",
+          "translation": "СценарИИст"
+        }
+      ]
+    },
+    {
       "trId": "Response.title",
       "translations": [
         {
           "language": "en",
-          "translation": "LLM Responses"
+          "translation": "Model Responses"
         },
         {
           "language": "ru",
@@ -31,7 +44,7 @@
       "translations": [
         {
           "language": "en",
-          "translation": "User ..."
+          "translation": "User Queries"
         },
         {
           "language": "ru",
@@ -70,7 +83,7 @@
       "translations": [
         {
           "language": "en",
-          "translation": "..."
+          "translation": "Save LLM response as JSON"
         },
         {
           "language": "ru",
@@ -122,11 +135,11 @@
       "translations": [
         {
           "language": "en",
-          "translation": "Save to Json..."
+          "translation": "Save as JSON..."
         },
         {
           "language": "ru",
-          "translation": "Сохранить в JSON..."
+          "translation": "Сохранить как JSON..."
         }
       ]
     },
@@ -135,11 +148,141 @@
       "translations": [
         {
           "language": "en",
-          "translation": "Scroll"
+          "translation": "Scroll Response"
         },
         {
           "language": "ru",
           "translation": "Прокрутка ответа"
+        }
+      ]
+    },
+    {
+      "trId": "Mode.QuestionAnswer",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "..."
+        },
+        {
+          "language": "ru",
+          "translation": "Вопрос–ответ"
+        }
+      ]
+    },
+    {
+      "trId": "Mode.ConveyorCreate",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "..."
+        },
+        {
+          "language": "ru",
+          "translation": "Массовое создание"
+        }
+      ]
+    },
+    {
+      "trId": "Mode.ConveyorCheck",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "..."
+        },
+        {
+          "language": "ru",
+          "translation": "Массовая проверка и изменение"
+        }
+      ]
+    },
+    {
+      "trId": "Query.Add.Text",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "+"
+        },
+        {
+          "language": "ru",
+          "translation": "+"
+        }
+      ]
+    },
+    {
+      "trId": "Query.Add.Tip",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "..."
+        },
+        {
+          "language": "ru",
+          "translation": "Добавить запрос"
+        }
+      ]
+    },
+    {
+      "trId": "Query.Delete.Tip",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "..."
+        },
+        {
+          "language": "ru",
+          "translation": "Удалить запрос"
+        }
+      ]
+    },
+    {
+      "trId": "Query.Send.Text",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "..."
+        },
+        {
+          "language": "ru",
+          "translation": "\u25B2 Отправить"
+        }
+      ]
+    },
+    {
+      "trId": "Query.Send.Tip",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "..."
+        },
+        {
+          "language": "ru",
+          "translation": "Отправить запрос / запустить конвейер"
+        }
+      ]
+    },
+    {
+      "trId": "Query.Copy.Text",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "..."
+        },
+        {
+          "language": "Copy ...",
+          "translation": "\u29C9"
+        }
+      ]
+    },
+    {
+      "trId": "Query.Copy.Tip",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "..."
+        },
+        {
+          "language": "Copy ...",
+          "translation": "Копировать ответ LLM"
         }
       ]
     }

@@ -1,0 +1,147 @@
+{
+  "translatables": [
+    {
+      "trId": "Response.title",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "LLM Responses"
+        },
+        {
+          "language": "ru",
+          "translation": "Ответы LLM"
+        }
+      ]
+    },
+    {
+      "trId": "Response.Count",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "Responses"
+        },
+        {
+          "language": "ru",
+          "translation": "Запросов"
+        }
+      ]
+    },
+    {
+      "trId": "Query.title",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "User ..."
+        },
+        {
+          "language": "ru",
+          "translation": "Запросы Пользователя"
+        }
+      ]
+    },
+    {
+      "trId": "Clear.btn",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "Clear"
+        },
+        {
+          "language": "ru",
+          "translation": "Очистить"
+        }
+      ]
+    },
+    {
+      "trId": "Clear.tip",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "..."
+        },
+        {
+          "language": "ru",
+          "translation": "Очистить поля Ответов LLM и Запросов Пользователя"
+        }
+      ]
+    },
+    {
+      "trId": "Save.dialogue",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "..."
+        },
+        {
+          "language": "ru",
+          "translation": "Сохранить ответ LLM в JSON"
+        }
+      ]
+    },
+    {
+      "trId": "Hotkeys.Send",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "Send"
+        },
+        {
+          "language": "ru",
+          "translation": "Отправить"
+        }
+      ]
+    },
+    {
+      "trId": "Hotkeys.Insert",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "Insert"
+        },
+        {
+          "language": "ru",
+          "translation": "Вставить"
+        }
+      ]
+    },
+    {
+      "trId": "Hotkeys.Mode",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "Mode"
+        },
+        {
+          "language": "ru",
+          "translation": "Режим"
+        }
+      ]
+    },
+    {
+      "trId": "Hotkeys.Save",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "Save to Json..."
+        },
+        {
+          "language": "ru",
+          "translation": "Сохранить в JSON..."
+        }
+      ]
+    },
+    {
+      "trId": "Hotkeys.Scroll",
+      "translations": [
+        {
+          "language": "en",
+          "translation": "Scroll"
+        },
+        {
+          "language": "ru",
+          "translation": "Прокрутка ответа"
+        }
+      ]
+    }
+  ]
+}

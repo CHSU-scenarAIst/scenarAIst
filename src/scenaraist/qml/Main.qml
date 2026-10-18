@@ -6,19 +6,14 @@ import QtQuick.Window
 
 import "./components"
 
-// TODO: проверить оформление, вынести хард-код текст на уровень выше
-
 ApplicationWindow {
     id: root
-
     title: "scenarAIst"
     visible: true
-
     width: 1200
     height: 700
     minimumWidth: 900
     minimumHeight: 500
-
     color: "#e8e8e8"
 
     property var handler: handlerBackend // qmllint disable unqualified
@@ -30,18 +25,17 @@ ApplicationWindow {
             id: statusBar
             Layout.fillWidth: true
             implicitHeight: 30
-            color: "#000000"
-
             text: ""
+            color: "#000000"
         }
 
         // TODO убрать знание о поддерживаемых языках
         ComboBox {
             Layout.alignment: Qt.AlignRight
-            model: ["English", "Русский", "Deutsch"]
+            model: ["English", "Русский"]
             currentIndex: 0
             onActivated: function (index) {
-                root.handler.setLanguage(["en", "ru", "de"][index]);
+                root.handler.setLanguage(["en", "ru"][index]);
             }
         }
 
@@ -54,8 +48,7 @@ ApplicationWindow {
                 id: llmResponse
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-
-                title: root.handler.translate("main.titleResponse", root.handler.language)
+                title: root.handler.translate("Response.title", root.handler.language)
                 text: root.handler.currentResponse
                 onCopyRequested: root.handler.copyToClipboard(root.handler.currentResponse)
             }
@@ -64,8 +57,7 @@ ApplicationWindow {
                 id: userQueries
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-
-                title: root.handler.translate("main.titleQuery", root.handler.language)
+                title: root.handler.translate("Query.title", root.handler.language)
                 onRunRequested: root.runPipeline()
             }
         }
@@ -79,8 +71,8 @@ ApplicationWindow {
             }
 
             Button {
-                text: root.handler.translate("main.btnClear", root.handler.language)
-                ToolTip.text: "Очистить поля Ответов LLM и Запросов Пользователя"
+                text: root.handler.translate("Clear.btn", root.handler.language)
+                ToolTip.text: root.handler.translate("Clear.tip", root.handler.language)
                 ToolTip.visible: hovered
                 onClicked: {
                     root.handler.clearAll();
@@ -95,8 +87,6 @@ ApplicationWindow {
             Layout.fillWidth: true
             implicitHeight: 30
             color: "#000000"
-
-            // * it will be set
             bindings: []
         }
     }
@@ -158,7 +148,7 @@ ApplicationWindow {
 
     FileDialog {
         id: saveDialog
-        title: "Сохранить ответ LLM в JSON"
+        title: root.handler.translate("Save.dialogue", root.handler.language)
         fileMode: FileDialog.SaveFile
         defaultSuffix: "json"
         nameFilters: ["JSON files (*.json)", "All files (*)"]
@@ -172,11 +162,9 @@ ApplicationWindow {
 
     function runPipeline() {
         const queries = userQueries.texts();
-
         if (queries.length <= 0) {
             return;
         }
-
         handler.runPipeline(handler.currentMode, queries);
     }
 
@@ -188,7 +176,6 @@ ApplicationWindow {
         }
 
         const focus = root.activeFocusItem;
-        // ! TODO - здесь не правильный insert
         if (focus && focus.activeFocus) {
             if (focus instanceof TextInput || focus instanceof TextArea) {
                 const pos = focus.cursorPosition; // qmllint disable missing-property
@@ -205,30 +192,30 @@ ApplicationWindow {
     }
 
     function refreshStatus() {
-        statusBar.text = "Режим: " + handler.currentModeName + "   |   Запросов: " + userQueries.count();
+        statusBar.text = root.handler.translate("Hotkeys.Mode", root.handler.language) + ": " + handler.currentModeName + "   |   " + root.handler.translate("Response.Count", root.handler.language) + ": " + userQueries.count();
     }
 
     function refreshHotkeys() {
         hotkeyBar.bindings = [
             {
                 key: "^Space",
-                label: "Отправить"
+                label: root.handler.translate("Hotkeys.Send", root.handler.language)
             },
             {
                 key: "^V",
-                label: "Вставить"
+                label: root.handler.translate("Hotkeys.Insert", root.handler.language)
             },
             {
                 key: "^M",
-                label: "Режим: " + handler.currentModeName
+                label: root.handler.translate("Hotkeys.Mode", root.handler.language) + ": " + handler.currentModeName
             },
             {
                 key: "^S",
-                label: "Сохранить JSON"
+                label: root.handler.translate("Hotkeys.Save", root.handler.language)
             },
             {
                 key: "↑↓",
-                label: "Прокрутка ответа"
+                label: root.handler.translate("Hotkeys.Scroll", root.handler.language)
             }
         ];
     }

@@ -13,7 +13,7 @@ Rectangle {
         anchors.rightMargin: 8
 
         text: root.text
-        color: '#ffffff'
+        color: "#ffffff"
         font.pointSize: 10
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight

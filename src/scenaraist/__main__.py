@@ -21,7 +21,7 @@ LOGGER = logging.getLogger(__name__)
 QML_DIR = Path(__file__).parent / "qml"
 CONFIG_FILE = Path("config.yaml")
 LOG_FILE = "scenarAIst.log"
-TRANSLATABLE = Path("translations.json")
+TRANSLATABLE = QML_DIR / Path("translations.json")
 
 
 def main() -> int:

@@ -1,4 +1,4 @@
-"""Backend for the {Main.qml}."""
+"""Обработчик для {Main.qml}."""
 
 import json
 import logging
@@ -148,5 +148,5 @@ class HandlerBackend(QObject):
     @Slot(str, str, result=str)
     def translate(self, key: str, language: str) -> str:
         # Fallback order: requested language -> English -> key.
-        translations = self._translations.get(key, {})
+        translations: dict[str, str] = self._translations.get(key, {})
         return translations.get(language) or translations.get("en") or key

@@ -7,8 +7,6 @@ import "./"
 Item {
     id: root
 
-    required property var handler
-
     property string text
 
     signal copyRequested

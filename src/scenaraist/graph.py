@@ -19,23 +19,6 @@ from pydantic import BaseModel, Field
 LOGGER = logging.getLogger(__name__)
 
 
-class JsonResponse(BaseModel):
-    """Структура JSON-ответа."""
-
-    status: str = Field(..., description="Статус ответа: 'OK' или 'ERROR'.")
-    message: str = Field(..., description="Текстовое сообщение для пользователя.")
-    data: dict[str, Any] = Field(default_factory=dict, description="Словарь с техническими данными.")
-
-
-class OrchestratorState(MessagesState, total=False):
-    """Состояние графа оркестратора."""
-
-    steps: int
-    query: str
-    documents: list[Document] | None
-    response: JsonResponse
-
-
 class AgentGraphBuilder:
     """Объектный сборщик и компилятор графа LangGraph."""
 
@@ -174,6 +157,23 @@ class AgentGraphBuilder:
         # ? debug схемы структуры графа
         LOGGER.info("Граф скомпилирован")
         return agent
+
+
+class JsonResponse(BaseModel):
+    """Структура JSON-ответа."""
+
+    status: str = Field(..., description="Статус ответа: 'OK' или 'ERROR'.")
+    message: str = Field(..., description="Текстовое сообщение для пользователя.")
+    data: dict[str, Any] = Field(default_factory=dict, description="Словарь с техническими данными.")
+
+
+class OrchestratorState(MessagesState, total=False):
+    """Состояние графа оркестратора."""
+
+    steps: int
+    query: str
+    documents: list[Document] | None
+    response: JsonResponse
 
 
 class NodeEnum(StrEnum):

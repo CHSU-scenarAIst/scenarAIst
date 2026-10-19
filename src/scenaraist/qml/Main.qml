@@ -61,7 +61,6 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 text: root.currentResponse
                 onCopyRequested: root.handler.copyToClipboard(root.currentResponse)
-                handler: root.handler
             }
 
             UserQueries {
@@ -195,7 +194,7 @@ ApplicationWindow {
         }
 
         const focus = root.activeFocusItem;
-        if (focus && focus.activeFocus && (focus instanceof TextInput || focus instanceof TextArea)) {
+        if (focus && focus.activeFocus && focus instanceof TextArea) {
             const pos = focus.cursorPosition; // qmllint disable missing-property
             focus.insert(pos, clip);// qmllint disable missing-property
             focus.cursorPosition = pos + clip.length;
@@ -209,7 +208,7 @@ ApplicationWindow {
     function copyResponseOrSelection() {
         const focus = root.activeFocusItem;
 
-        if (focus && focus.activeFocus && (focus instanceof TextInput || focus instanceof TextArea) && focus.selectedText) {
+        if (focus && focus.activeFocus && focus.selectedText) { // qmllint disable missing-property
             focus.copy(); // qmllint disable missing-property
             return;
         }
@@ -221,7 +220,7 @@ ApplicationWindow {
 
     function toLocalPath(fileUrl) {
         let path = fileUrl.toString().replace(/^file:\/\//, "");
-
+        // ? есть ли уже готовые решения в документации?
         // Windows: "file:///C:/..." -> "/C:/..." -> "C:/..."
         if (/^\/[A-Za-z]:[\\/]/.test(path)) {
             path = path.slice(1);

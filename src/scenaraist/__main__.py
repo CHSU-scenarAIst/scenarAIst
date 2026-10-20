@@ -5,17 +5,12 @@ import sys
 from pathlib import Path
 
 import yaml
-
-# from langchain_tavily import TavilySearch
-from langgraph.checkpoint.memory import InMemorySaver
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 
-from scenaraist.backend import HandlerBackend
-from scenaraist.config import CompletionConfig, EmbeddingConfig  # , TavilyConfig
-from scenaraist.graph import AgentGraphBuilder
-from scenaraist.model import CHAT_FACTORIES, EMBEDDING_FACTORIES
-from scenaraist.retriever import SQLiteVecRetriever
+from scenaraist.agent import AgentGraphBuilder
+from scenaraist.handler import HandlerBackend
+from scenaraist.model import get_model
 
 LOGGER = logging.getLogger(__name__)
 QML_DIR = Path(__file__).parent / "qml"
@@ -33,52 +28,22 @@ def main() -> int:
 
     with CONFIG_FILE.open(encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
+    LOGGER.debug(cfg)
 
-    try:
-        chat_cfg = CompletionConfig.model_validate(cfg["completion"])
-        LOGGER.debug(chat_cfg)
-        chat = CHAT_FACTORIES[chat_cfg.provider.strip().lower()](chat_cfg)
-    except Exception:
-        LOGGER.exception("Ошибка загрузки конфигурации модели")
-        return -1
-
-    try:
-        embed_cfg = EmbeddingConfig.model_validate(cfg["embeddings"])
-        try:
-            LOGGER.debug(embed_cfg)
-            embed = EMBEDDING_FACTORIES[embed_cfg.provider.strip().lower()](embed_cfg)
-            retriever = SQLiteVecRetriever().from_config(embed_cfg, embed)
-        except Exception:
-            LOGGER.exception("Ошибка загрузки конфигурации эмбеддингов")
-    except Exception:
-        # ? пропуск по причине ...
-        ...
-
-    # ! Инструменты агента (бесполезно)
-    # try:
-    #     tavily = TavilyConfig.model_validate(cfg["tavily"])
-    #     LOGGER.debug(tavily)
-    #     web_search = TavilySearch(tavily_api_key=tavily.api_key, max_results=tavily.top_k, topic="general")
-    #     tools = [web_search]
-    # except Exception:
-    #     # ? пропуск по причине ...
-    #     ...
-
-    # ? на будущее: SQLite/Postgres Checkpointer
-    checkpointer = InMemorySaver()
+    chat, system_prompt, max_steps, checkpointer, retriever, tools = get_model(cfg)
 
     agent = AgentGraphBuilder(
         chat=chat,
-        system_prompt=chat_cfg.system_prompt,
-        max_steps=chat_cfg.max_steps,
+        system_prompt=system_prompt,
+        max_steps=max_steps,
         checkpointer=checkpointer,
-        retriever=retriever if retriever else None,
-        # tools=tools if tools else None,
+        retriever=retriever,
+        tools=tools,
     ).compile()
 
     app = QGuiApplication(sys.argv)
     engine = QQmlApplicationEngine()
-    # engine.addImportPath(sys.path[0])
+    # ? engine.addImportPath(sys.path[0])
     engine.addImportPath(QML_DIR)
 
     # * QML-фронтенд

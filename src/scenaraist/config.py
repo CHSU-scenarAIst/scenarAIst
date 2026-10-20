@@ -40,3 +40,6 @@ class EmbeddingConfig(BaseModel):
 # class TavilyConfig(BaseModel):
 #     api_key: str = Field(repr=False)
 #     top_k: int = 3
+#
+# def from_cfg(self, cfg) -> Self:
+#     return self.model_validate(cfg["tavily"])

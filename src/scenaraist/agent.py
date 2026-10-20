@@ -12,13 +12,14 @@ from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, MessagesState
-from langgraph.graph.state import CompiledStateGraph, StateGraph
+from langgraph.graph.state import StateGraph
 from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field
 
 LOGGER = logging.getLogger(__name__)
 
 
+# TODO with_structured_output()
 class AgentGraphBuilder:
     """Объектный сборщик и компилятор графа LangGraph."""
 
@@ -39,12 +40,12 @@ class AgentGraphBuilder:
         self._retriever = retriever
         self._max_steps = max_steps
 
-    def compile(self) -> CompiledStateGraph:
+    def compile(self):
         """Собрать и скомпилировать граф состояний агента."""
         agent_llm = self._chat.bind_tools(self._tools)
         tool_node = ToolNode(self._tools)
 
-        def retrieve_node(state: OrchestratorState) -> OrchestratorState:
+        def retrieve_node(state: OrchestratorState):
             """Узел поиска релевантных документов по запросу."""
             LOGGER.info("Retrieve node")
 
@@ -69,7 +70,7 @@ class AgentGraphBuilder:
                 "steps": state.get("steps", 0) + 1,
             }
 
-        def chat_node(state: OrchestratorState) -> OrchestratorState:
+        def chat_node(state: OrchestratorState):
             """Узел вызова LLM с текущей историей сообщений."""
             messages = state["messages"]
             LOGGER.info("Chat node with %d messages", len(messages))
@@ -88,7 +89,7 @@ class AgentGraphBuilder:
                 "steps": state.get("steps", 0) + 1,
             }
 
-        def router_node(state: OrchestratorState) -> NodeEnum:
+        def router_node(state: OrchestratorState):
             """Ветвление после вызова LLM: исполнение инструментов либо финализация ответа."""
             LOGGER.info("Router node")
 
@@ -100,7 +101,7 @@ class AgentGraphBuilder:
 
             return NodeEnum.FORMAT
 
-        def tools_node(state: OrchestratorState) -> OrchestratorState:
+        def tools_node(state: OrchestratorState):
             """Узел исполнения инструментов, выбранных LLM."""
             LOGGER.info("Tools node")
 
@@ -110,19 +111,21 @@ class AgentGraphBuilder:
                 "steps": state.get("steps", 0) + 1,
             }
 
-        def format_node(state: OrchestratorState) -> OrchestratorState:
+        def format_node(state: OrchestratorState):
             """Узел финализации ответа в структуру {JsonResponse}."""
             LOGGER.info("Format node")
 
             last = state["messages"][-1]
+            message = last.content
+
             response = JsonResponse(
                 status="OK",
-                message=last.content,
+                message=message,
                 data={},
+                words=[WordItem(word=word) for word in message.split()],
             )
 
             return {
-                "messages": state["messages"],
                 "response": response,
                 "steps": state.get("steps", 0) + 1,
             }
@@ -159,12 +162,22 @@ class AgentGraphBuilder:
         return agent
 
 
+class WordItem(BaseModel):
+    """Отдельное слово итогового ответа."""
+
+    word: str = Field(..., description="Слово из итогового ответа.")
+
+
 class JsonResponse(BaseModel):
     """Структура JSON-ответа."""
 
     status: str = Field(..., description="Статус ответа: 'OK' или 'ERROR'.")
     message: str = Field(..., description="Текстовое сообщение для пользователя.")
     data: dict[str, Any] = Field(default_factory=dict, description="Словарь с техническими данными.")
+    words: list[WordItem] = Field(
+        default_factory=list,
+        description="Массив слов итогового ответа.",
+    )
 
 
 class OrchestratorState(MessagesState, total=False):

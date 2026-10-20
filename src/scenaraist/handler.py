@@ -24,7 +24,6 @@ class HandlerBackend(QObject):
                 "thread_id": uuid.uuid4().hex,
             }
         }
-
         self._agent = agent
 
     @Slot(int, list)

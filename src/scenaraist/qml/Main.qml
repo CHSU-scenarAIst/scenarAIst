@@ -136,13 +136,13 @@ ApplicationWindow {
     Shortcut {
         sequence: "Up"
         context: Qt.ApplicationShortcut
-        onActivated: llmResponse.scrollBy(-24)
+        onActivated: llmResponse.scrollBy(-40)
     }
 
     Shortcut {
         sequence: "Down"
         context: Qt.ApplicationShortcut
-        onActivated: llmResponse.scrollBy(24)
+        onActivated: llmResponse.scrollBy(40)
     }
 
     Connections {

@@ -19,6 +19,7 @@ LOG_FILE = "scenarAIst.log"
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
 
+# * Запуск как приложение
 def main() -> int:
     logging.basicConfig(
         filename=LOG_FILE,
@@ -41,12 +42,12 @@ def main() -> int:
         tools=tools,
     ).compile()
 
+    # * QML-фронтенд
     app = QGuiApplication(sys.argv)
     engine = QQmlApplicationEngine()
     # ? engine.addImportPath(sys.path[0])
     engine.addImportPath(QML_DIR)
 
-    # * QML-фронтенд
     handler_backend = HandlerBackend(agent)
     engine.rootContext().setContextProperty("handlerBackend", handler_backend)
     engine.load(QML_DIR / "Main.qml")
@@ -60,6 +61,7 @@ def main() -> int:
     return exit_code
 
 
+# * Запуск как модуль
 if __name__ == "__main__":
     logging.basicConfig(
         filename=LOG_FILE,

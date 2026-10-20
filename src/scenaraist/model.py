@@ -43,19 +43,20 @@ def get_model(cfg):
         except Exception:
             LOGGER.exception("Ошибка загрузки конфигурации эмбеддингов")
     except Exception:
-        LOGGER.info("Нет внешних данных для подключения")
+        LOGGER.warning("Нет внешних данных для подключения")
 
     # ? на будущее: SQLite/Postgres Checkpointer
     checkpointer = InMemorySaver()
 
     # ! Инструменты агента (бесполезно)
     tools = []
-    # try:
+    try:
+        ...
     #     tavily = TavilyConfig(cfg)
     #     web_search = TavilySearch(tavily_api_key=tavily.api_key, max_results=tavily.top_k, topic="general")
     #     tools = [web_search]
-    # except Exception:
-    #     ...
+    except Exception:
+        LOGGER.exception("Ошибка при передаче инструментов")
 
     return chat, chat_cfg.system_prompt, chat_cfg.max_steps, checkpointer, retriever, tools
 

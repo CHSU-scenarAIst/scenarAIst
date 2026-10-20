@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, Field
 
+# TODO дать описание каждому полю через Field
+
 
 class CompletionConfig(BaseModel):
     provider: str

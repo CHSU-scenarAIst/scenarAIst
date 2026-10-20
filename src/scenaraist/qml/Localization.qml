@@ -99,6 +99,7 @@ QtObject {
                 "en": "Copy LLM response",
                 "ru": "Копировать ответ LLM"
             }
+            // TODO Exit from app
         })
 
     function tr(key) {

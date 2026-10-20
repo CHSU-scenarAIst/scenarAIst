@@ -29,63 +29,71 @@ class HandlerBackend(QObject):
     @Slot(int, list)
     def runPipeline(self, mode: int, queries: list):  # noqa: N802
         entries = self.__normalize_queries(queries)
+        if not entries:
+            LOGGER.warning("Нет вхождений")
+            return
 
         if mode == 0:
-            if not entries:
-                return
-
             uid, content = entries[0]
 
             try:
-                result = self._agent.invoke(input={"messages": [HumanMessage(content)]}, config=self._config)
+                result = self._agent.invoke(
+                    input={"messages": [HumanMessage(content)]},
+                    config=self._config,
+                )
                 model = result["response"]
 
                 if not isinstance(model, BaseModel):
-                    raise TypeError("Ответ агента не является моделью Pydantic")
+                    LOGGER.error("Ответ агента не является моделью Pydantic")
+                    raise
 
                 response = model.model_dump_json(indent=2, ensure_ascii=False)
             except Exception as e:
                 response = "Ошибка при выполнении запроса"
-                LOGGER.error(f"{response}: {e}")
+                LOGGER.exception(f"{response}: {e}")
 
+            # TODO сначала сохранение в файл, потом чтение из файла, потом сохранение в currentResponse
             self.responseReady.emit(response)
             self.queriesProcessed.emit([uid])
 
         elif mode == 1:
-            if not entries:
-                return
-
             lines = "\n".join(f"[{i + 1}] Эхо: {text}" for i, (_, text) in enumerate(entries))
             response = f"Конвейер массовое создание ({len(entries)} шт.):\n{lines}"
 
+            # TODO сначала сохранение в файл, потом чтение из файла, потом сохранение в currentResponse
             self.responseReady.emit(response)
             self.queriesProcessed.emit([uid for uid, _ in entries])
 
         else:
-            if not entries:
-                return
-
             results = []
             for _, text in entries:
                 try:
-                    result = self._agent.invoke(input={"messages": [HumanMessage(text)]}, config=self._config)
+                    result = self._agent.invoke(
+                        input={"messages": [HumanMessage(text)]},
+                        config=self._config,
+                    )
                     model = result["response"]
 
                     if not isinstance(model, BaseModel):
-                        raise TypeError("Ответ агента не является моделью Pydantic")
+                        LOGGER.error("Ответ агента не является моделью Pydantic")
+                        raise
 
                     results.append(model.model_dump_json(indent=2, ensure_ascii=False))
                 except Exception as e:
-                    LOGGER.error(f"Ошибка массовой проверки: {e}")
+                    LOGGER.exception(f"Ошибка массовой проверки: {e}")
                     results.append(
                         json.dumps(
-                            {"status": "ERROR", "message": "Ошибка при выполнении запроса"},
+                            {
+                                "status": "EX",
+                                "message": "Ошибка при выполнении запроса",
+                            },
                             ensure_ascii=False,
                         )
                     )
 
             response = "\n\n---\n\n".join(results)
 
+            # TODO сначала сохранение в файл, потом чтение из файла, потом сохранение в currentResponse
             self.responseReady.emit(response)
             self.queriesProcessed.emit([uid for uid, _ in entries])
 
@@ -115,7 +123,12 @@ class HandlerBackend(QObject):
     @Slot(str, str)
     def saveToJson(self, file_path: str, current_response: str):  # noqa: N802
         with open(file_path, "w", encoding="utf-8") as fh:
-            json.dump(current_response, fh, ensure_ascii=False, indent=2)
+            json.dump(
+                current_response,
+                fh,
+                ensure_ascii=False,
+                indent=2,
+            )
 
         # try:
         #     data = json.loads(self._current_response)

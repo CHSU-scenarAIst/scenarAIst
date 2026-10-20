@@ -145,6 +145,8 @@ ApplicationWindow {
         onActivated: llmResponse.scrollBy(40)
     }
 
+    // TODO Exit from app by user confirm (by default No) with Enter press (base Linux/Windows buttons?)
+
     Connections {
         target: root.handler
 
@@ -259,6 +261,7 @@ ApplicationWindow {
                 key: "↑↓",
                 label: Localization.tr("Hotkeys.Scroll")
             }
+            // TODO Exit from app
         ];
     }
 }

@@ -33,6 +33,7 @@ class HandlerBackend(QObject):
             LOGGER.warning("Нет вхождений")
             return
 
+        # * Вопрос-ответ
         if mode == 0:
             uid, content = entries[0]
 
@@ -56,6 +57,7 @@ class HandlerBackend(QObject):
             self.responseReady.emit(response)
             self.queriesProcessed.emit([uid])
 
+        # * Конвейер вопрос-ответ
         elif mode == 1:
             lines = "\n".join(f"[{i + 1}] Эхо: {text}" for i, (_, text) in enumerate(entries))
             response = f"Конвейер массовое создание ({len(entries)} шт.):\n{lines}"
@@ -64,6 +66,7 @@ class HandlerBackend(QObject):
             self.responseReady.emit(response)
             self.queriesProcessed.emit([uid for uid, _ in entries])
 
+        # * ???
         else:
             results = []
             for _, text in entries:

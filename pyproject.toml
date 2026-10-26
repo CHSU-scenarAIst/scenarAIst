@@ -32,11 +32,11 @@ source = ["src"]
 
 
 [project.scripts]
-scenaraist = "__main__:main"
+scenaraist = "src.__main__:main"
 
 # Настройки сборки wheel
 [tool.hatch.build.targets.wheel]
-packages = ["src/agent", "src/ui"]
+packages = ["src", "src/agent", "src/ui"]
 include = ["src/ui/qml"]
 
 

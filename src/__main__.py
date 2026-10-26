@@ -1,19 +1,19 @@
-"""Оркестрация системы: логирование, сборка LLM-агента, чтение файла конфигурации."""
-
 import logging
 import sys
 from pathlib import Path
 
 import yaml
+from pydantic import BaseModel
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 
-from ui import HandlerBackend
+from agent import ScenarAIstAgent
+from ui import QML_DIR
+from ui.handler import HandlerBackend, Invoke
 
 LOGGER = logging.getLogger(__name__)
 
-QML_DIR = Path(__file__).parent / "qml"
-QML_MAIN_PATH = QML_DIR / "Main.qml"
+UI_DIR = Path(__file__).parent / QML_DIR
 CONFIG_FILE = Path("config.yaml")
 LOG_FILE = "scenarAIst.log"
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -33,7 +33,9 @@ def main() -> int:
     LOGGER.debug(raw_cfg)
 
     try:
-        handler_backend = HandlerBackend(raw_cfg)
+        agent = ScenarAIstAgent(raw_cfg)
+        invoker = ImplInvoke(agent)
+        handler_backend = HandlerBackend(invoker)
     except Exception as e:
         LOGGER.exception(e)
         return -1
@@ -53,6 +55,16 @@ def main() -> int:
     del engine
     LOGGER.info("Завершение работы...")
     return exit_code
+
+
+class ImplInvoke(Invoke):
+    """Реализация интерфейса {@link Invoke}."""
+
+    def __init__(self, agent: ScenarAIstAgent):
+        self._agent = agent
+
+    def invoke(self, text: str, config) -> BaseModel:
+        return self._agent.invoke(text, config)
 
 
 if __name__ == "__main__":

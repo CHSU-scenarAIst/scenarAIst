@@ -8,7 +8,7 @@ import yaml
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 
-from scenaraist.agent import ScenarAIstAgentBuilder
+from scenaraist.agent import ScenarAIstAgentFactory
 from scenaraist.handler import HandlerBackend
 
 LOGGER = logging.getLogger(__name__)
@@ -30,11 +30,11 @@ def main() -> int:
     LOGGER.info("Запуск СценарИИста")
 
     with CONFIG_FILE.open(encoding="utf-8") as f:
-        cfg = yaml.safe_load(f)
-    LOGGER.debug(cfg)
+        raw_cfg = yaml.safe_load(f)
+    LOGGER.debug(raw_cfg)
 
     try:
-        agent = ScenarAIstAgentBuilder(cfg)
+        agent = ScenarAIstAgentFactory(raw_cfg).agent
     except Exception as e:
         LOGGER.exception(e)
         return -1
@@ -53,8 +53,8 @@ def main() -> int:
         return -2
 
     exit_code = app.exec()
-    LOGGER.info("Завершение работы...")
     del engine
+    LOGGER.info("Завершение работы...")
     return exit_code
 
 

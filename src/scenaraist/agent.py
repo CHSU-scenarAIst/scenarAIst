@@ -12,17 +12,18 @@ from langgraph.graph.state import StateGraph
 from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field
 
-from scenaraist.model import ScenarAIstModelConfig
+from scenaraist.model import ScenarAIstModelFactory
 
 LOGGER = logging.getLogger(__name__)
 
 
-class ScenarAIstAgentBuilder:
+class ScenarAIstAgentFactory:
     """Сборщик агента Сценариста."""
 
     # ? TODO with_structured_output()
-    def __init__(self, cfg: ScenarAIstModelConfig):
+    def __init__(self, raw_cfg):
         """Собирает LLM-агента."""
+        cfg = ScenarAIstModelFactory(raw_cfg)
         agent_llm = cfg.chat.bind_tools(cfg.tools)
 
         def retrieve_node(state: OrchestratorState):

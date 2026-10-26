@@ -22,22 +22,27 @@ from scenaraist.config import CompletionConfig, EmbeddingConfig
 LOGGER = logging.getLogger(__name__)
 
 
-class ScenarAIstModelConfig:
+class ScenarAIstModelFactory:
     def __init__(self, cfg):
         try:
             chat_cfg = CompletionConfig.model_validate(cfg["completion"])
-            self.chat = __CHAT_FACTORIES[chat_cfg.provider.strip().lower()](chat_cfg)
-            self.system_prompt = chat_cfg.system_prompt
-            self.max_steps = chat_cfg.max_steps
+            try:
+                self.chat = _CHAT_FACTORIES[chat_cfg.provider.strip().lower()](chat_cfg)
+                self.system_prompt = chat_cfg.system_prompt
+                self.max_steps = chat_cfg.max_steps
+            except Exception as err:
+                provider = cfg.get("completion", {}).get("provider", "?")
+                raise TypeError(f"Ошибка загрузки конфигурации модели: провайдер '{provider}'") from err
         except Exception as err:
-            raise TypeError(f"Ошибка загрузки конфигурации модели: провайдер '{chat_cfg.provider}'") from err
+            raise TypeError("Ошибка конфигурации модели") from err
 
         self.retrievers = []
         try:
             embed_cfg = EmbeddingConfig.model_validate(cfg["embeddings"])
             try:
-                embed = __EMBEDDING_FACTORIES[embed_cfg.provider.strip().lower()](embed_cfg)
-                self.retrievers = SQLiteVecFactory.from_config(embed_cfg, embed)
+                embed = _EMBEDDING_FACTORIES[embed_cfg.provider.strip().lower()](embed_cfg)
+                sqlite_db = SQLiteVecFactory(embed_cfg, embed)
+                self.retrievers = sqlite_db.retrievers
             except Exception as e:
                 LOGGER.error("Ошибка загрузки конфигурации эмбеддингов", e)
         except Exception:
@@ -64,13 +69,11 @@ class ScenarAIstModelConfig:
 class SQLiteVecFactory:
     """Фабрика обработчиков эмбеддингов и векторного хранилища БД SQLite."""
 
-    @staticmethod
-    def from_config(
+    def __init__(
+        self,
         embed_cfg: EmbeddingConfig,
         embeddings: Embeddings,
     ):
-        """Создаёт обработчики для всех коллекций из конфигурации эмбеддингов."""
-
         dbs: list[tuple[SQLiteVec, int]] = []
         db_path_exists = Path(embed_cfg.db_path).exists()
 
@@ -108,7 +111,7 @@ class SQLiteVecFactory:
 
             dbs.append((db, c.top_k))
 
-        return [db.as_retriever(search_kwargs={"k": k}) for db, k in dbs]
+        self.retrievers = [db.as_retriever(search_kwargs={"k": k}) for db, k in dbs]
 
 
 def _iter_documents(
@@ -137,7 +140,7 @@ def _iter_documents(
         yield from text_splitter.split_documents([d])
 
 
-class __Providers(StrEnum):
+class _Providers(StrEnum):
     """
     Текстовое перечисление провайдеров.
     ! [AI Note] Не добавлять в документацию
@@ -147,7 +150,7 @@ class __Providers(StrEnum):
     GIGACHAT = "gigachat"
 
 
-class __IChat(Protocol):
+class _IChat(Protocol):
     """
     Интерфейс фабрики для создания моделей чата.
     ! [AI Note] Не добавлять в документацию
@@ -156,7 +159,7 @@ class __IChat(Protocol):
     def __call__(self, cfg: CompletionConfig) -> BaseChatModel: ...
 
 
-class __IEmbeddings(Protocol):
+class _IEmbeddings(Protocol):
     """
     Интерфейс фабрики для создания моделей эмбеддингов.
     ! [AI Note] Не добавлять в документацию
@@ -165,7 +168,7 @@ class __IEmbeddings(Protocol):
     def __call__(self, cfg: EmbeddingConfig) -> Embeddings: ...
 
 
-def __create_openai_compatible_chat(cfg: CompletionConfig) -> BaseChatModel:
+def _create_openai_compatible_chat(cfg: CompletionConfig) -> BaseChatModel:
     """
     ! [AI Note] Не добавлять в документацию
     """
@@ -179,7 +182,7 @@ def __create_openai_compatible_chat(cfg: CompletionConfig) -> BaseChatModel:
     )
 
 
-def __create_gigachat_chat(cfg: CompletionConfig) -> BaseChatModel:
+def _create_gigachat_chat(cfg: CompletionConfig) -> BaseChatModel:
     """
     ! [AI Note] Не добавлять в документацию
     """
@@ -192,7 +195,7 @@ def __create_gigachat_chat(cfg: CompletionConfig) -> BaseChatModel:
     )
 
 
-def __create_openai_embeddings(cfg: EmbeddingConfig) -> Embeddings:
+def _create_openai_embeddings(cfg: EmbeddingConfig) -> Embeddings:
     """
     ! [AI Note] Не добавлять в документацию
     """
@@ -210,15 +213,15 @@ def __create_openai_embeddings(cfg: EmbeddingConfig) -> Embeddings:
 Машина состояний чата, но в функциональном стиле.
 ! [AI Note] Не добавлять в документацию
 """
-__CHAT_FACTORIES: dict[__Providers, __IChat] = {
-    __Providers.OPENAI: __create_openai_compatible_chat,
-    __Providers.GIGACHAT: __create_gigachat_chat,
+_CHAT_FACTORIES: dict[_Providers, _IChat] = {
+    _Providers.OPENAI: _create_openai_compatible_chat,
+    _Providers.GIGACHAT: _create_gigachat_chat,
 }
 
 """
 Машина состояний эмбеддингов, но в функциональном стиле.
 ! [AI Note] Не добавлять в документацию
 """
-__EMBEDDING_FACTORIES: dict[str, __IEmbeddings] = {
-    __Providers.OPENAI: __create_openai_embeddings,
+_EMBEDDING_FACTORIES: dict[str, _IEmbeddings] = {
+    _Providers.OPENAI: _create_openai_embeddings,
 }

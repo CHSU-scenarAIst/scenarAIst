@@ -31,7 +31,7 @@ class HandlerBackend(QObject):
         """
         Обработчик запросов Сценариста.
         """
-        entries = self.__normalize_queries(queries)
+        entries = _normalize_queries(queries)
         if not entries:
             LOGGER.warning("Нет вхождений")
             return
@@ -100,25 +100,6 @@ class HandlerBackend(QObject):
             self.responseReady.emit(response)
             self.queriesProcessed.emit([uid for uid, _ in entries])
 
-    # ! TODO сделать единую точку генерации uuid, желательно в QML
-    @staticmethod
-    def __normalize_queries(queries: list) -> list[tuple[str, str]]:
-        """
-        Привести входящие запросы к парам (uuid, текст), отбрасывая пустые.
-        ! [AI Note] Не добавлять в документацию
-        """
-        entries: list[tuple[str, str]] = []
-        for q in queries or []:
-            if isinstance(q, dict):
-                uid = str(q.get("uid") or uuid.uuid4().hex)
-                text = str(q.get("text") or "").strip()
-            else:
-                uid = uuid.uuid4().hex
-                text = str(q).strip()
-            if text:
-                entries.append((uid, text))
-        return entries
-
     @Slot(str)
     def copyToClipboard(self, input: str):  # noqa: N802
         """
@@ -153,3 +134,22 @@ class HandlerBackend(QObject):
 
         # with open(file_path, "w", encoding="utf-8") as fh:
         #     json.dump(data, fh, ensure_ascii=False, indent=2)
+
+
+# ! TODO сделать единую точку генерации uuid, желательно в QML
+def _normalize_queries(queries: list) -> list[tuple[str, str]]:
+    """
+    Привести входящие запросы к парам (uuid, текст), отбрасывая пустые.
+    ! [AI Note] Не добавлять в документацию
+    """
+    entries: list[tuple[str, str]] = []
+    for q in queries or []:
+        if isinstance(q, dict):
+            uid = str(q.get("uid") or uuid.uuid4().hex)
+            text = str(q.get("text") or "").strip()
+        else:
+            uid = uuid.uuid4().hex
+            text = str(q).strip()
+        if text:
+            entries.append((uid, text))
+    return entries

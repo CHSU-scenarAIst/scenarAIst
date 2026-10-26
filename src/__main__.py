@@ -1,22 +1,17 @@
 import logging
-import sys
 from pathlib import Path
 
 import yaml
 from pydantic import BaseModel
-from PySide6.QtGui import QGuiApplication
-from PySide6.QtQml import QQmlApplicationEngine
 
-from agent import ScenarAIstAgent
-from ui import QML_DIR
-from ui.handler import HandlerBackend, Invoke
+from src.agent import ScenarAIstAgent
+from src.ui import Invoke, UserInterface
 
-LOGGER = logging.getLogger(__name__)
-
-UI_DIR = Path(__file__).parent / QML_DIR
 CONFIG_FILE = Path("config.yaml")
 LOG_FILE = "scenarAIst.log"
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+
+LOGGER = logging.getLogger(__name__)
 
 
 def main() -> int:
@@ -28,32 +23,19 @@ def main() -> int:
     )
     LOGGER.info("Запуск СценарИИста")
 
-    with CONFIG_FILE.open(encoding="utf-8") as f:
-        raw_cfg = yaml.safe_load(f)
-    LOGGER.debug(raw_cfg)
-
     try:
+        with CONFIG_FILE.open(encoding="utf-8") as f:
+            raw_cfg = yaml.safe_load(f)
+        LOGGER.debug(raw_cfg)
+
         agent = ScenarAIstAgent(raw_cfg)
         invoker = ImplInvoke(agent)
-        handler_backend = HandlerBackend(invoker)
+        ui = UserInterface(invoker)
+        exit_code = ui.run()
     except Exception as e:
         LOGGER.exception(e)
         return -1
 
-    app = QGuiApplication(sys.argv)
-    engine = QQmlApplicationEngine()
-    # engine.addImportPath(sys.path[0])
-    engine.addImportPath(QML_DIR)
-    engine.rootContext().setContextProperty("handlerBackend", handler_backend)
-    engine.load(QML_MAIN_PATH)
-
-    if not engine.rootObjects():
-        LOGGER.exception("Нет объектов для отрисовки")
-        return -2
-
-    exit_code = app.exec()
-    del engine
-    LOGGER.info("Завершение работы...")
     return exit_code
 
 

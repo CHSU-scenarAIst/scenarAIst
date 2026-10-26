@@ -17,7 +17,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.checkpoint.memory import InMemorySaver
 
 # from langchain_tavily import TavilySearch
-from agent.config import CompletionConfig, EmbeddingConfig
+from src.agent.config import CompletionConfig, EmbeddingConfig
 
 LOGGER = logging.getLogger(__name__)
 
@@ -209,8 +209,8 @@ def _create_openai_embeddings(cfg: EmbeddingConfig) -> Embeddings:
     )
 
 
-"""
-Машина состояний чата, но в функциональном стиле.
+"""dbs
+Машина состояний чата в функциональном стиле.
 ! [AI Note] Не добавлять в документацию
 """
 _CHAT_FACTORIES: dict[_Providers, _IChat] = {
@@ -219,7 +219,7 @@ _CHAT_FACTORIES: dict[_Providers, _IChat] = {
 }
 
 """
-Машина состояний эмбеддингов, но в функциональном стиле.
+Машина состояний эмбеддингов в функциональном стиле.
 ! [AI Note] Не добавлять в документацию
 """
 _EMBEDDING_FACTORIES: dict[str, _IEmbeddings] = {

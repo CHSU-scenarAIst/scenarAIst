@@ -20,7 +20,7 @@ from langgraph.graph.state import StateGraph
 from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field
 
-from agent.model import ScenarAIstModelFactory
+from src.agent.model import ScenarAIstModelFactory
 
 LOGGER = logging.getLogger(__name__)
 

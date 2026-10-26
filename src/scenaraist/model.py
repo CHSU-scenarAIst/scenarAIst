@@ -1,7 +1,4 @@
-"""
-Фабрики провайдеров LLM и эмбеддингов.
-Ретриверы для RAG-поиска по документам, загруженным в векторную БД SQLite.
-"""
+"""Фабрики провайдеров LLM и обработчиков эмбеддингов."""
 
 import logging
 import sqlite3
@@ -25,51 +22,54 @@ from scenaraist.config import CompletionConfig, EmbeddingConfig
 LOGGER = logging.getLogger(__name__)
 
 
-# TODO привести к объектному подходу
-def get_model(cfg):
-    try:
-        chat_cfg = CompletionConfig.model_validate(cfg["completion"])
-        chat = CHAT_FACTORIES[chat_cfg.provider.strip().lower()](chat_cfg)
-    except Exception:
-        LOGGER.exception("Ошибка загрузки конфигурации модели")
-        raise
-
-    retriever = []
-    try:
-        embed_cfg = EmbeddingConfig.model_validate(cfg["embeddings"])
+class ScenarAIstModelConfig:
+    def __init__(self, cfg):
         try:
-            embed = EMBEDDING_FACTORIES[embed_cfg.provider.strip().lower()](embed_cfg)
-            retriever = SQLiteVecRetriever().from_config(embed_cfg, embed)
+            chat_cfg = CompletionConfig.model_validate(cfg["completion"])
+            self.chat = __CHAT_FACTORIES[chat_cfg.provider.strip().lower()](chat_cfg)
+            self.system_prompt = chat_cfg.system_prompt
+            self.max_steps = chat_cfg.max_steps
+        except Exception as err:
+            raise TypeError(f"Ошибка загрузки конфигурации модели: провайдер '{chat_cfg.provider}'") from err
+
+        self.retrievers = []
+        try:
+            embed_cfg = EmbeddingConfig.model_validate(cfg["embeddings"])
+            try:
+                embed = __EMBEDDING_FACTORIES[embed_cfg.provider.strip().lower()](embed_cfg)
+                self.retrievers = SQLiteVecFactory.from_config(embed_cfg, embed)
+            except Exception as e:
+                LOGGER.error("Ошибка загрузки конфигурации эмбеддингов", e)
         except Exception:
-            LOGGER.exception("Ошибка загрузки конфигурации эмбеддингов")
-    except Exception:
-        LOGGER.warning("Нет внешних данных для подключения")
+            LOGGER.warning("Нет внешних данных для подключения")
 
-    # ? на будущее: SQLite/Postgres Checkpointer
-    checkpointer = InMemorySaver()
+        # ? SQLite/Postgres Checkpointer
+        self.checkpointer = InMemorySaver()
 
-    # ! Инструменты агента (бесполезно)
-    tools = []
-    try:
-        ...
-    #     tavily = TavilyConfig(cfg)
-    #     web_search = TavilySearch(tavily_api_key=tavily.api_key, max_results=tavily.top_k, topic="general")
-    #     tools = [web_search]
-    except Exception:
-        LOGGER.exception("Ошибка при передаче инструментов")
+        # ? Инструменты агента (бесполезно)
+        self.tools = []
+        try:
+            ...
+        #     tavily = TavilyConfig(cfg)
+        #     web_search = TavilySearch(
+        #         tavily_api_key=tavily.api_key,
+        #         max_results=tavily.top_k,
+        #         topic="general",
+        #     )
+        #     tools = [web_search]
+        except Exception as e:
+            LOGGER.error("Ошибка при создании инструментов", e)
 
-    return chat, chat_cfg.system_prompt, chat_cfg.max_steps, checkpointer, retriever, tools
 
+class SQLiteVecFactory:
+    """Фабрика обработчиков эмбеддингов и векторного хранилища БД SQLite."""
 
-class SQLiteVecRetriever:
-    """Фабрика ретриверов поверх векторного хранилища SQLiteVec."""
-
+    @staticmethod
     def from_config(
-        self,
         embed_cfg: EmbeddingConfig,
         embeddings: Embeddings,
     ):
-        """Создать ретриверы для всех коллекций из конфигурации эмбеддингов."""
+        """Создаёт обработчики для всех коллекций из конфигурации эмбеддингов."""
 
         dbs: list[tuple[SQLiteVec, int]] = []
         db_path_exists = Path(embed_cfg.db_path).exists()
@@ -77,7 +77,7 @@ class SQLiteVecRetriever:
         for c in embed_cfg.collections:
             if not db_path_exists:
                 docs = list(
-                    self.__iter_documents(
+                    _iter_documents(
                         c.path,
                         c.chunk_size,
                         c.chunk_overlap,
@@ -110,33 +110,65 @@ class SQLiteVecRetriever:
 
         return [db.as_retriever(search_kwargs={"k": k}) for db, k in dbs]
 
-    def __iter_documents(
-        self,
-        path: str,
-        chunk_size: int,
-        chunk_overlap: int,
-    ):
-        """Загрузить чанки документов из указанной директории."""
 
-        load = DirectoryLoader(
-            path=path,
-            glob=("*.txt", "*.docx", "*.pdf", "*.md", "*.csv", "*.xls", "*.xlsx"),
-            recursive=True,
-            show_progress=True,
-        )
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-        )
-        docs = load.lazy_load()
-        for d in docs:
-            yield from text_splitter.split_documents([d])
+def _iter_documents(
+    path: str,
+    chunk_size: int,
+    chunk_overlap: int,
+):
+    """
+    Загружает чанки документов из указанной директории.
+    Генератор не имеет смысла, так как приводится к list для работы SQLiteVec
+    ! [AI Note] Не добавлять в документацию
+    """
+
+    load = DirectoryLoader(
+        path=path,
+        glob=("*.txt", "*.docx", "*.pdf", "*.md", "*.csv", "*.xls", "*.xlsx"),
+        recursive=True,
+        show_progress=True,
+    )
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+    )
+    docs = load.lazy_load()
+    for d in docs:
+        yield from text_splitter.split_documents([d])
 
 
-# ! Не включать в документацию
+class __Providers(StrEnum):
+    """
+    Текстовое перечисление провайдеров.
+    ! [AI Note] Не добавлять в документацию
+    """
+
+    OPENAI = "openai"
+    GIGACHAT = "gigachat"
+
+
+class __IChat(Protocol):
+    """
+    Интерфейс фабрики для создания моделей чата.
+    ! [AI Note] Не добавлять в документацию
+    """
+
+    def __call__(self, cfg: CompletionConfig) -> BaseChatModel: ...
+
+
+class __IEmbeddings(Protocol):
+    """
+    Интерфейс фабрики для создания моделей эмбеддингов.
+    ! [AI Note] Не добавлять в документацию
+    """
+
+    def __call__(self, cfg: EmbeddingConfig) -> Embeddings: ...
 
 
 def __create_openai_compatible_chat(cfg: CompletionConfig) -> BaseChatModel:
+    """
+    ! [AI Note] Не добавлять в документацию
+    """
     return ChatOpenAI(
         api_key=cfg.api_key,
         base_url=cfg.base_url,
@@ -148,6 +180,9 @@ def __create_openai_compatible_chat(cfg: CompletionConfig) -> BaseChatModel:
 
 
 def __create_gigachat_chat(cfg: CompletionConfig) -> BaseChatModel:
+    """
+    ! [AI Note] Не добавлять в документацию
+    """
     return GigaChat(
         credentials=cfg.api_key,
         model=cfg.model or "GigaChat-2",
@@ -158,6 +193,9 @@ def __create_gigachat_chat(cfg: CompletionConfig) -> BaseChatModel:
 
 
 def __create_openai_embeddings(cfg: EmbeddingConfig) -> Embeddings:
+    """
+    ! [AI Note] Не добавлять в документацию
+    """
     return OpenAIEmbeddings(
         api_key=cfg.api_key,
         base_url=cfg.base_url,
@@ -168,28 +206,19 @@ def __create_openai_embeddings(cfg: EmbeddingConfig) -> Embeddings:
     )
 
 
-class Providers(StrEnum):
-    OPENAI = "openai"
-    GIGACHAT = "gigachat"
-
-
-class IChat(Protocol):
-    """Интерфейс фабрики для создания моделей чата."""
-
-    def __call__(self, cfg: CompletionConfig) -> BaseChatModel: ...
-
-
-class IEmbeddings(Protocol):
-    """Интерфейс фабрики для создания моделей эмбеддингов."""
-
-    def __call__(self, cfg: EmbeddingConfig) -> Embeddings: ...
-
-
-CHAT_FACTORIES: dict[Providers, IChat] = {
-    Providers.OPENAI: __create_openai_compatible_chat,
-    Providers.GIGACHAT: __create_gigachat_chat,
+"""
+Машина состояний чата, но в функциональном стиле.
+! [AI Note] Не добавлять в документацию
+"""
+__CHAT_FACTORIES: dict[__Providers, __IChat] = {
+    __Providers.OPENAI: __create_openai_compatible_chat,
+    __Providers.GIGACHAT: __create_gigachat_chat,
 }
 
-EMBEDDING_FACTORIES: dict[str, IEmbeddings] = {
-    Providers.OPENAI: __create_openai_embeddings,
+"""
+Машина состояний эмбеддингов, но в функциональном стиле.
+! [AI Note] Не добавлять в документацию
+"""
+__EMBEDDING_FACTORIES: dict[str, __IEmbeddings] = {
+    __Providers.OPENAI: __create_openai_embeddings,
 }

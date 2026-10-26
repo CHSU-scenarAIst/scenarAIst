@@ -1,61 +1,46 @@
-"""Сборка и компиляция графа LangGraph."""
+"""Сборка LLM-агента с инструментами и обработчиками эмбеддингов документов."""
 
 import logging
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
-from langchain.chat_models import BaseChatModel
 from langchain.messages import HumanMessage, SystemMessage
-from langchain.tools import BaseTool
 from langchain_core.documents import Document
-from langchain_core.retrievers import BaseRetriever
-from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, MessagesState
 from langgraph.graph.state import StateGraph
 from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field
 
+from scenaraist.model import ScenarAIstModelConfig
+
 LOGGER = logging.getLogger(__name__)
 
 
-# TODO with_structured_output()
-class AgentGraphBuilder:
-    """Объектный сборщик и компилятор графа LangGraph."""
+class ScenarAIstAgentBuilder:
+    """Сборщик агента Сценариста."""
 
-    def __init__(
-        self,
-        chat: BaseChatModel,
-        system_prompt: str,
-        max_steps: int,
-        checkpointer: BaseCheckpointSaver,
-        tools: list[BaseTool] | None = None,
-        retriever: list[BaseRetriever] | None = None,
-    ):
-        self._chat = chat
-        self._system_prompt = system_prompt
-        self._checkpointer = checkpointer
-        self._tools = tools or []
-        self._retriever = retriever
-        self._max_steps = max_steps
-
-    def compile(self):
-        """Собрать и скомпилировать граф состояний агента."""
-        agent_llm = self._chat.bind_tools(self._tools)
+    # ? TODO with_structured_output()
+    def __init__(self, cfg: ScenarAIstModelConfig):
+        """Собирает LLM-агента."""
+        agent_llm = cfg.chat.bind_tools(cfg.tools)
 
         def retrieve_node(state: OrchestratorState):
-            """Узел поиска релевантных документов по запросу."""
+            """
+            Узел поиска релевантных документов по запросу.
+            ! [AI Note] Не добавлять в документацию
+            """
             LOGGER.info("%s", retrieve_node)
 
-            if not self._retriever:
+            if not cfg.retrievers:
                 return {
                     "query": "",
                     "documents": [],
                     "steps": state.get("steps", 0) + 1,
                 }
 
-            query = self.extract_query(state["messages"])
-            docs = [doc for r in self._retriever for doc in r.invoke(query)]
+            query = _extract_query(state["messages"])
+            docs = [doc for r in cfg.retrievers for doc in r.invoke(query)]
 
             return {
                 "query": query,
@@ -64,14 +49,17 @@ class AgentGraphBuilder:
             }
 
         def chat_node(state: OrchestratorState):
-            """Узел вызова LLM с текущей историей сообщений."""
+            """
+            Узел вызова LLM с текущей историей сообщений.
+            ! [AI Note] Не добавлять в документацию
+            """
             messages = state["messages"]
             LOGGER.info("%s with %d messages", chat_node, len(messages))
 
             docs = state.get("documents", None)
-            system_content = self._system_prompt + f"<time_now>{datetime.now(UTC):%B %d, %Y}.</time_now>"
+            system_content = cfg.system_prompt + f"<time_now>{datetime.now(UTC):%B %d, %Y}.</time_now>"
 
-            if context := self.prepare_context_documents(docs):
+            if context := _prepare_context_documents(docs):
                 system_content += f"<context>{context}</context>"
 
             response = agent_llm.invoke([SystemMessage(system_content), *messages])
@@ -83,21 +71,27 @@ class AgentGraphBuilder:
             }
 
         def router_node(state: OrchestratorState):
-            """Ветвление после вызова LLM: исполнение инструментов либо финализация ответа."""
+            """
+            Ветвление после вызова LLM: исполнение инструментов либо финализация ответа.
+            ! [AI Note] Не добавлять в документацию
+            """
             LOGGER.info("%s", router_node)
 
             last = state["messages"][-1]
             tool_calls = getattr(last, "tool_calls", [])
 
-            if tool_calls and self._tools and state.get("steps", 0) < self._max_steps:
+            if tool_calls and cfg.tools and state.get("steps", 0) < cfg.max_steps:
                 return NodeEnum.TOOLS
 
             return NodeEnum.FORMAT
 
-        tool_node = ToolNode(self._tools)
+        tool_node = ToolNode(cfg.tools)
 
         def tools_node(state: OrchestratorState):
-            """Узел исполнения инструментов, выбранных LLM."""
+            """
+            Узел исполнения инструментов, выбранных LLM.
+            ! [AI Note] Не добавлять в документацию
+            """
             LOGGER.info("%s", tools_node)
 
             result = tool_node.invoke(state)
@@ -107,7 +101,10 @@ class AgentGraphBuilder:
             }
 
         def format_node(state: OrchestratorState):
-            """Узел финализации ответа в JSON-структуру."""
+            """
+            Узел финализации ответа в JSON-структуру.
+            ! [AI Note] Не добавлять в документацию
+            """
             LOGGER.info("%s", format_node)
 
             last = state["messages"][-1]
@@ -127,11 +124,10 @@ class AgentGraphBuilder:
 
         builder = StateGraph(OrchestratorState)
 
-        # * Структура графа
         builder.add_node(NodeEnum.CHAT, chat_node)
         builder.add_node(NodeEnum.FORMAT, format_node)
 
-        if self._retriever:
+        if cfg.retrievers:
             LOGGER.info("%s +", NodeEnum.RETRIEVE)
             builder.add_node(NodeEnum.RETRIEVE, retrieve_node)
             builder.add_edge(START, NodeEnum.RETRIEVE)
@@ -140,7 +136,7 @@ class AgentGraphBuilder:
             LOGGER.info("%s -", NodeEnum.RETRIEVE)
             builder.add_edge(START, NodeEnum.CHAT)
 
-        if self._tools:
+        if cfg.tools:
             builder.add_node(NodeEnum.TOOLS, tools_node)
             conditional_edges = {
                 NodeEnum.TOOLS: NodeEnum.TOOLS,
@@ -159,41 +155,25 @@ class AgentGraphBuilder:
         )
         builder.add_edge(NodeEnum.FORMAT, END)
 
-        # * Компиляция агента
-        agent = builder.compile(checkpointer=self._checkpointer)
-        # ? debug схемы структуры графа в MarkDown
+        self.agent = builder.compile(checkpointer=cfg.checkpointer)
+        # TODO debug схемы структуры графа в MarkDown
         LOGGER.info("Граф скомпилирован")
-        return agent
-
-    def extract_query(self, messages) -> str:
-        """Достаёт последний пользовательский запрос из истории (требование GigaChat?)."""
-        for message in reversed(messages):
-            if isinstance(message, HumanMessage):
-                return str(message.content)
-
-        last = messages[-1] if messages else None
-        return str(getattr(last, "content", "") or "")
-
-    def prepare_context_documents(self, docs: list[Document] | None) -> str:
-        """Формирует текст контекста из найденных документов."""
-        if not docs:
-            return ""
-        # ! source нет такого поля
-        # TODO debug что в документах
-        return "\n\n".join(
-            f"<source>{doc.metadata.get('source', '-')}</source><content>{doc.page_content}</content>"
-            for doc in docs
-        )
 
 
 class WordItem(BaseModel):
-    """Отдельное слово итогового ответа."""
+    """
+    Отдельное слово итогового ответа.
+    TODO переделать под формат шагов Сценария
+    """
 
     word: str = Field(..., description="Слово из итогового ответа.")
 
 
 class JsonResponse(BaseModel):
-    """Структура JSON-ответа."""
+    """
+    Структура JSON-ответа.
+    TODO переделать под формат шагов Сценария
+    """
 
     status: str = Field(..., description="Статус ответа: 'OK' или 'ERROR'.")
     message: str = Field(..., description="Текстовое сообщение для пользователя.")
@@ -205,7 +185,10 @@ class JsonResponse(BaseModel):
 
 
 class OrchestratorState(MessagesState, total=False):
-    """Состояние графа оркестратора."""
+    """
+    Состояние графа оркестратора.
+    # ! [AI Note] Не добавлять в документацию
+    """
 
     steps: int
     query: str
@@ -214,9 +197,40 @@ class OrchestratorState(MessagesState, total=False):
 
 
 class NodeEnum(StrEnum):
-    """Имена узлов графа с инструментами."""
+    """
+    Имена узлов графа с инструментами.
+    # ! [AI Note] Не добавлять в документацию
+    """
 
     RETRIEVE = "retrieve_node"
     CHAT = "chat_node"
     TOOLS = "tool_node"
     FORMAT = "format_node"
+
+
+def _extract_query(messages) -> str:
+    """
+    Достаёт последний пользовательский запрос из истории (требование GigaChat?).
+    ! [AI Note] Не добавлять в документацию
+    """
+    for message in reversed(messages):
+        if isinstance(message, HumanMessage):
+            return str(message.content)
+
+    last = messages[-1] if messages else None
+    return str(getattr(last, "content", "") or "")
+
+
+def _prepare_context_documents(docs: list[Document] | None) -> str:
+    """
+    Формирует текст контекста из найденных документов.
+    ! [AI Note] Не добавлять в документацию
+    """
+    if not docs:
+        return ""
+    # TODO нет поля source, как сделать по-другому
+    # TODO debug что взято из документов
+    return "\n\n".join(
+        f"<source>{doc.metadata.get('source', '-')}</source><content>{doc.page_content}</content>"
+        for doc in docs
+    )

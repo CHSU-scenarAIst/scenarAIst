@@ -1,4 +1,4 @@
-"""Точка входа scenarAIst."""
+"""Оркестрация системы: логирование, сборка LLM-агента, чтение файла конфигурации."""
 
 import logging
 import sys
@@ -8,52 +8,49 @@ import yaml
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 
-from scenaraist.agent import AgentGraphBuilder
+from scenaraist.agent import ScenarAIstAgentBuilder
 from scenaraist.handler import HandlerBackend
-from scenaraist.model import get_model
 
 LOGGER = logging.getLogger(__name__)
+
 QML_DIR = Path(__file__).parent / "qml"
+QML_MAIN_PATH = QML_DIR / "Main.qml"
 CONFIG_FILE = Path("config.yaml")
 LOG_FILE = "scenarAIst.log"
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
 
-# * Запуск как приложение
 def main() -> int:
+    """Запуск как приложение"""
     logging.basicConfig(
         filename=LOG_FILE,
         level=logging.INFO,
         format=LOG_FORMAT,
     )
+    LOGGER.info("Запуск СценарИИста")
 
     with CONFIG_FILE.open(encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
     LOGGER.debug(cfg)
 
-    chat, system_prompt, max_steps, checkpointer, retriever, tools = get_model(cfg)
+    try:
+        agent = ScenarAIstAgentBuilder(cfg)
+    except Exception as e:
+        LOGGER.exception(e)
+        return -1
 
-    agent = AgentGraphBuilder(
-        chat=chat,
-        system_prompt=system_prompt,
-        max_steps=max_steps,
-        checkpointer=checkpointer,
-        retriever=retriever,
-        tools=tools,
-    ).compile()
-
-    # * QML-фронтенд
     app = QGuiApplication(sys.argv)
     engine = QQmlApplicationEngine()
-    # ? engine.addImportPath(sys.path[0])
+    # engine.addImportPath(sys.path[0])
     engine.addImportPath(QML_DIR)
 
     handler_backend = HandlerBackend(agent)
     engine.rootContext().setContextProperty("handlerBackend", handler_backend)
-    engine.load(QML_DIR / "Main.qml")
+    engine.load(QML_MAIN_PATH)
 
     if not engine.rootObjects():
-        return -1
+        LOGGER.exception("Нет объектов для отрисовки")
+        return -2
 
     exit_code = app.exec()
     LOGGER.info("Завершение работы...")
@@ -61,12 +58,11 @@ def main() -> int:
     return exit_code
 
 
-# * Запуск как модуль
 if __name__ == "__main__":
+    """Запуск как модуль"""
     logging.basicConfig(
         filename=LOG_FILE,
         level=logging.DEBUG,
         format=LOG_FORMAT,
     )
-    LOGGER.info("Запуск СценарИИста")
     raise SystemExit(main())

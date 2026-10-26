@@ -1,4 +1,4 @@
-"""Обработчик для {Main.qml}."""
+"""Управление пользовательским интерфейсом, бизнес-логика."""
 
 import json
 import logging
@@ -28,6 +28,9 @@ class HandlerBackend(QObject):
 
     @Slot(int, list)
     def runPipeline(self, mode: int, queries: list):  # noqa: N802
+        """
+        Обработчик запросов Сценариста.
+        """
         entries = self.__normalize_queries(queries)
         if not entries:
             LOGGER.warning("Нет вхождений")
@@ -45,13 +48,11 @@ class HandlerBackend(QObject):
                 model = result["response"]
 
                 if not isinstance(model, BaseModel):
-                    LOGGER.error("Ответ агента не является моделью Pydantic")
-                    raise
+                    raise TypeError("Ответ агента не является моделью Pydantic")
 
                 response = model.model_dump_json(indent=2, ensure_ascii=False)
-            except Exception as e:
-                response = "Ошибка при выполнении запроса"
-                LOGGER.exception(f"{response}: {e}")
+            except Exception as err:
+                raise TypeError(f"Ошибка в {self.runPipeline}") from err
 
             # TODO сначала сохранение в файл, потом чтение из файла, потом сохранение в currentResponse
             self.responseReady.emit(response)
@@ -78,12 +79,11 @@ class HandlerBackend(QObject):
                     model = result["response"]
 
                     if not isinstance(model, BaseModel):
-                        LOGGER.error("Ответ агента не является моделью Pydantic")
-                        raise
+                        raise TypeError("Ответ агента не является моделью Pydantic")
 
                     results.append(model.model_dump_json(indent=2, ensure_ascii=False))
-                except Exception as e:
-                    LOGGER.exception(f"Ошибка массовой проверки: {e}")
+                except Exception as err:
+                    LOGGER.error(f"Ошибка массовой проверки: {err}")
                     results.append(
                         json.dumps(
                             {
@@ -100,9 +100,13 @@ class HandlerBackend(QObject):
             self.responseReady.emit(response)
             self.queriesProcessed.emit([uid for uid, _ in entries])
 
+    # ! TODO сделать единую точку генерации uuid, желательно в QML
     @staticmethod
     def __normalize_queries(queries: list) -> list[tuple[str, str]]:
-        """Привести входящие запросы к парам (uuid, текст), отбрасывая пустые."""
+        """
+        Привести входящие запросы к парам (uuid, текст), отбрасывая пустые.
+        ! [AI Note] Не добавлять в документацию
+        """
         entries: list[tuple[str, str]] = []
         for q in queries or []:
             if isinstance(q, dict):
@@ -117,14 +121,23 @@ class HandlerBackend(QObject):
 
     @Slot(str)
     def copyToClipboard(self, input: str):  # noqa: N802
+        """
+        Копирование текста в буфер обмена.
+        """
         QGuiApplication.clipboard().setText(input)
 
     @Slot(result=str)
     def clipboardText(self):  # noqa: N802
+        """
+        Чтение текста из буфера обмена.
+        """
         return QGuiApplication.clipboard().text() or ""
 
     @Slot(str, str)
     def saveToJson(self, file_path: str, current_response: str):  # noqa: N802
+        """
+        Сохранение текста в файл в формате JSON.
+        """
         with open(file_path, "w", encoding="utf-8") as fh:
             json.dump(
                 current_response,

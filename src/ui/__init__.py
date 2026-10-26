@@ -1,14 +1,21 @@
-"""Управление пользовательским интерфейсом, бизнес-логика."""
+"""
+Пакет "Пользовательский интерфейс".
+Управление пользовательским интерфейсом, бизнес-логика.
+"""
+
+from importlib.metadata import version
+
+__version__ = version("scenaraist")
+
 
 import json
 import logging
 import uuid
 
-from langchain.messages import HumanMessage
-from langgraph.graph.state import CompiledStateGraph
-from pydantic import BaseModel
 from PySide6.QtCore import QObject, Signal, Slot
 from PySide6.QtGui import QGuiApplication
+
+from agent import ScenarAIstAgent
 
 LOGGER = logging.getLogger(__name__)
 
@@ -17,14 +24,14 @@ class HandlerBackend(QObject):
     queriesProcessed = Signal(list)  # noqa: N815
     responseReady = Signal(str)  # noqa: N815
 
-    def __init__(self, agent: CompiledStateGraph, parent=None):
+    def __init__(self, raw_cfg, parent=None):
         super().__init__(parent)
         self._config: dict[str, dict[str, str]] = {
             "configurable": {
                 "thread_id": uuid.uuid4().hex,
             }
         }
-        self._agent = agent
+        self._agent = ScenarAIstAgent(raw_cfg)
 
     @Slot(int, list)
     def runPipeline(self, mode: int, queries: list):  # noqa: N802
@@ -41,15 +48,7 @@ class HandlerBackend(QObject):
             uid, content = entries[0]
 
             try:
-                result = self._agent.invoke(
-                    input={"messages": [HumanMessage(content)]},
-                    config=self._config,
-                )
-                model = result["response"]
-
-                if not isinstance(model, BaseModel):
-                    raise TypeError("Ответ агента не является моделью Pydantic")
-
+                model = self._agent.invoke(content, self._config)
                 response = model.model_dump_json(indent=2, ensure_ascii=False)
             except Exception as err:
                 raise TypeError(f"Ошибка в {self.runPipeline}") from err
@@ -72,15 +71,7 @@ class HandlerBackend(QObject):
             results = []
             for _, text in entries:
                 try:
-                    result = self._agent.invoke(
-                        input={"messages": [HumanMessage(text)]},
-                        config=self._config,
-                    )
-                    model = result["response"]
-
-                    if not isinstance(model, BaseModel):
-                        raise TypeError("Ответ агента не является моделью Pydantic")
-
+                    model = self._agent.invoke(text, self._config)
                     results.append(model.model_dump_json(indent=2, ensure_ascii=False))
                 except Exception as err:
                     LOGGER.error(f"Ошибка массовой проверки: {err}")

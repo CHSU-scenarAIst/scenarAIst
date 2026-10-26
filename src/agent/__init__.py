@@ -1,4 +1,12 @@
-"""Сборка LLM-агента с инструментами и обработчиками эмбеддингов документов."""
+"""
+Главный пакет scenarAIst.
+Сборка LLM-агента с инструментами и обработчиками эмбеддингов документов.
+"""
+
+from importlib.metadata import version
+
+__version__ = version("scenaraist")
+
 
 import logging
 from datetime import UTC, datetime
@@ -12,12 +20,12 @@ from langgraph.graph.state import StateGraph
 from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field
 
-from scenaraist.model import ScenarAIstModelFactory
+from agent.model import ScenarAIstModelFactory
 
 LOGGER = logging.getLogger(__name__)
 
 
-class ScenarAIstAgentFactory:
+class ScenarAIstAgent:
     """Сборщик агента Сценариста."""
 
     # ? TODO with_structured_output()
@@ -159,6 +167,19 @@ class ScenarAIstAgentFactory:
         self.agent = builder.compile(checkpointer=cfg.checkpointer)
         # TODO debug схемы структуры графа в MarkDown
         LOGGER.info("Граф скомпилирован")
+
+    def invoke(self, text: str, config) -> BaseModel:
+        """Метод-обёртка для отправки запросов LLM-агенту извне."""
+        result = self.agent.invoke(
+            input={"messages": [HumanMessage(text)]},
+            config=config,
+        )
+        model = result["response"]
+
+        if not isinstance(model, BaseModel):
+            raise TypeError("Ответ агента не является моделью Pydantic")
+
+        return model
 
 
 class WordItem(BaseModel):

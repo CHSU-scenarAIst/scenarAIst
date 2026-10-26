@@ -27,17 +27,18 @@ dependencies = [
     "pyside6>=6.10,<6.11",
 ]
 
+[tool.coverage.run]
+source = ["src"]
+
+
 [project.scripts]
-scenaraist = "scenaraist.__main__:main"
+scenaraist = "__main__:main"
 
 # Настройки сборки wheel
 [tool.hatch.build.targets.wheel]
-packages = ["src/scenaraist"]
-include = ["src/scenaraist/qml"]
+packages = ["src/agent", "src/ui"]
+include = ["src/ui/qml"]
 
-
-[tool.coverage.run]
-source = ["scenaraist"]
 
 # Группы необязательных зависимостей
 [dependency-groups]

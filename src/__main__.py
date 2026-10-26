@@ -8,8 +8,7 @@ import yaml
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 
-from scenaraist.agent import ScenarAIstAgentFactory
-from scenaraist.handler import HandlerBackend
+from ui import HandlerBackend
 
 LOGGER = logging.getLogger(__name__)
 
@@ -34,7 +33,7 @@ def main() -> int:
     LOGGER.debug(raw_cfg)
 
     try:
-        agent = ScenarAIstAgentFactory(raw_cfg).agent
+        handler_backend = HandlerBackend(raw_cfg)
     except Exception as e:
         LOGGER.exception(e)
         return -1
@@ -43,8 +42,6 @@ def main() -> int:
     engine = QQmlApplicationEngine()
     # engine.addImportPath(sys.path[0])
     engine.addImportPath(QML_DIR)
-
-    handler_backend = HandlerBackend(agent)
     engine.rootContext().setContextProperty("handlerBackend", handler_backend)
     engine.load(QML_MAIN_PATH)
 

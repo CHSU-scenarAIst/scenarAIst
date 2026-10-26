@@ -17,7 +17,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.checkpoint.memory import InMemorySaver
 
 # from langchain_tavily import TavilySearch
-from scenaraist.config import CompletionConfig, EmbeddingConfig
+from agent.config import CompletionConfig, EmbeddingConfig
 
 LOGGER = logging.getLogger(__name__)
 

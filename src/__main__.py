@@ -26,6 +26,7 @@ def main() -> int:
     try:
         with CONFIG_FILE.open(encoding="utf-8") as f:
             raw_cfg = yaml.safe_load(f)
+        # TODO скрывать всё, что похоже на секрет {api-key=...}
         LOGGER.debug(raw_cfg)
 
         agent = ScenarAIstAgent(raw_cfg)

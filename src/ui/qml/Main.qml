@@ -99,13 +99,36 @@ ApplicationWindow {
         }
     }
 
-    // TODO возможность загрузки задач (1 задача = 1 строка) из тесктового файла + hotkey
+    // TODO фокус курсора должен быть в новом после сразу после создания
+    Shortcut {
+        sequence: "Ctrl+E"
+        context: Qt.ApplicationShortcut
+        onActivated: {
+            userQueries.addQuery("");
+            root.refreshStatus();
+        }
+    }
 
-    // TODO создать новую задачу Ctrl+E
+    Shortcut {
+        sequence: "Ctrl+D"
+        context: Qt.ApplicationShortcut
+        onActivated: {
+            userQueries.removeLast();
+            root.refreshStatus();
+        }
+    }
 
-    // TODO удалить последнюю задачу Ctrl+D
+    Shortcut {
+        sequence: "Ctrl+L"
+        context: Qt.ApplicationShortcut
+        onActivated: loadDialog.open()
+    }
 
-    // TODO Exit from app by Ctrl+Q with user confirm (by default No) with Enter press (base Linux/Windows buttons?)
+    Shortcut {
+        sequence: "Ctrl+Q"
+        context: Qt.ApplicationShortcut
+        onActivated: exitDialog.open()
+    }
 
     Shortcut {
         sequence: "Ctrl+Space"
@@ -181,6 +204,33 @@ ApplicationWindow {
             const path = root.toLocalPath(selectedFile);
             root.handler.saveToJson(path, root.currentResponse);
         }
+    }
+
+    FileDialog {
+        id: loadDialog
+        title: Localization.tr("Load.Tasks")
+        fileMode: FileDialog.OpenFile
+        nameFilters: ["Text files (*.txt)", "All files (*)"]
+
+        onAccepted: {
+            const path = root.toLocalPath(selectedFile);
+            const lines = root.handler.readLinesFromFile(path);
+            for (const line of lines) {
+                userQueries.addQuery(line);
+            }
+            root.refreshStatus();
+        }
+    }
+
+    // TODO испоользовать системные окна подтверждения
+    Dialog {
+        id: exitDialog
+        title: Localization.tr("Exit.Question")
+        modal: true
+        standardButtons: Dialog.Yes | Dialog.No
+        // По умолчанию фокус на кнопке "No", чтобы Enter не закрывал приложение случайно
+        onOpened: exitDialog.standardButton(Dialog.No).forceActiveFocus()
+        onAccepted: Qt.quit()
     }
 
     function runPipeline() {
@@ -268,6 +318,22 @@ ApplicationWindow {
             {
                 key: "^S",
                 label: Localization.tr("Hotkeys.Save")
+            },
+            {
+                key: "^E",
+                label: Localization.tr("Hotkeys.New")
+            },
+            {
+                key: "^D",
+                label: Localization.tr("Hotkeys.Delete")
+            },
+            {
+                key: "^L",
+                label: Localization.tr("Hotkeys.Load")
+            },
+            {
+                key: "^Q",
+                label: Localization.tr("Hotkeys.Exit")
             },
             {
                 key: "↑↓",

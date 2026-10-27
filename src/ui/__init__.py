@@ -21,6 +21,7 @@ from PySide6.QtQml import QQmlApplicationEngine
 
 QML_DIR = Path(__file__).parent / "qml"
 QML_MAIN_PATH = QML_DIR / "Main.qml"
+RESPONSES_DIR = Path("responses")
 
 LOGGER = logging.getLogger(__name__)
 
@@ -79,10 +80,12 @@ class HandlerBackend(QObject):
                 return
 
             uid, content = entries[0]
-            model = self._invoker.invoke(content, self._config)
-            response = model.model_dump_json(indent=2, ensure_ascii=False)
-            # TODO сначала сохранение в файл, потом чтение из файла, потом запись в responseReady
-            self.responseReady.emit(response)
+            json_text = _save_response(
+                uid,
+                self._invoker.invoke(content, self._config).model_dump_json(indent=2, ensure_ascii=False),
+            )
+            # Сначала сохранение в файл, потом чтение из файла, потом запись в responseReady
+            self.responseReady.emit(json_text)
             self.queriesProcessed.emit([uid])
         except Exception as err:
             raise TypeError(f"Ошибка в {self.createOne}") from err
@@ -97,13 +100,26 @@ class HandlerBackend(QObject):
                 return
 
             for uid, content in entries:
-                model = self._invoker.invoke(content, self._config)
-                response = model.model_dump_json(indent=2, ensure_ascii=False)
-                # TODO сначала сохранение в файл, потом чтение из файла, потом запись в responseReady
-                self.responseReady.emit(response)
+                json_text = _save_response(
+                    uid,
+                    self._invoker.invoke(content, self._config).model_dump_json(indent=2, ensure_ascii=False),
+                )
+                # Сначала сохранение в файл, потом чтение из файла, потом запись в responseReady
+                self.responseReady.emit(json_text)
                 self.queriesProcessed.emit([uid])
         except Exception as err:
             raise TypeError(f"Ошибка в {self.createSome}") from err
+
+    @Slot(str, result=list)
+    def readLinesFromFile(self, file_path: str):  # noqa: N802
+        """Чтение задач (1 задача = 1 строка) из текстового файла."""
+        path = Path(file_path)
+        if not path.exists():
+            LOGGER.warning("Файл задач не найден: %s", path)
+            return []
+
+        with path.open(encoding="utf-8") as fh:
+            return [line.strip() for line in fh if line.strip()]
 
     @Slot(str)
     def copyToClipboard(self, input: str):  # noqa: N802
@@ -118,39 +134,49 @@ class HandlerBackend(QObject):
     @Slot(str, str)
     def saveToJson(self, file_path: str, current_response: str):  # noqa: N802
         """Сохранение текста в файл в формате JSON."""
+        try:
+            data = json.loads(current_response)
+        except json.JSONDecodeError:
+            data = current_response
+
         with open(file_path, "w", encoding="utf-8") as fh:
-            json.dump(
-                current_response,
-                fh,
-                ensure_ascii=False,
-                indent=2,
-            )
-
-        # try:
-        #     data = json.loads(self._current_response)
-        # except json.JSONDecodeError:
-        #     data = self._current_response
-
-        # with open(file_path, "w", encoding="utf-8") as fh:
-        #     json.dump(data, fh, ensure_ascii=False, indent=2)
+            json.dump(data, fh, ensure_ascii=False, indent=2)
 
 
-# TODO сделать единую точку генерации uuid, желательно в QML
+def _save_response(uid: str, json_text: str) -> str:
+    """
+    Сохранить ответ агента в файл `responses/{uid}.json` и вернуть его содержимое.
+    Порядок: запись в файл -> чтение из файла -> передача в responseReady.
+    ! [AI Note] Не добавлять в документацию
+    """
+    RESPONSES_DIR.mkdir(parents=True, exist_ok=True)
+    file_path = RESPONSES_DIR / f"{uid}.json"
+    data = json.loads(json_text)
+    file_path.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return file_path.read_text(encoding="utf-8")
+
+
+# TODO можно удалить?
 def _normalize_queries(queries: list) -> list[tuple[str, str]]:
     """
-    Привести входящие запросы к парам (uuid, текст), отбрасывая пустые.
+    Привести входящие запросы к парам (uid, текст), отбрасывая пустые.
+    Единая точка генерации uid — QML (UserQueries._newUuid),
+    здесь uid только принимается; uuid.uuid4() служит запасным вариантом.
     ! [AI Note] Не добавлять в документацию
     """
     entries: list[tuple[str, str]] = []
     for q in queries or []:
         if isinstance(q, dict):
-            uid = str(q.get("uid") or uuid.uuid4().hex)
+            uid = str(q.get("uid") or "").strip()
             text = str(q.get("text") or "").strip()
         else:
-            uid = uuid.uuid4().hex
+            uid = ""
             text = str(q).strip()
         if text:
-            entries.append((uid, text))
+            entries.append((uid or uuid.uuid4().hex, text))
     return entries
 
 

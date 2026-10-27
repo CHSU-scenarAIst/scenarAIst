@@ -35,6 +35,14 @@ QtObject {
                 "en": "Save LLM response as JSON",
                 "ru": "Сохранить ответ LLM в JSON"
             },
+            "Load.Tasks": {
+                "en": "Load tasks from file (1 task = 1 line)",
+                "ru": "Загрузить задачи из файла (1 задача = 1 строка)"
+            },
+            "Exit.Question": {
+                "en": "Are you sure you want to exit?",
+                "ru": "Вы уверены, что хотите выйти?"
+            },
             "Hotkeys.Send": {
                 "en": "Send",
                 "ru": "Отправить"
@@ -58,6 +66,22 @@ QtObject {
             "Hotkeys.Scroll": {
                 "en": "Scroll Response",
                 "ru": "Прокрутка ответа"
+            },
+            "Hotkeys.New": {
+                "en": "Add task",
+                "ru": "Новая задача"
+            },
+            "Hotkeys.Delete": {
+                "en": "Delete last task",
+                "ru": "Удалить последнюю задачу"
+            },
+            "Hotkeys.Load": {
+                "en": "Load tasks from file",
+                "ru": "Загрузить задачи из файла"
+            },
+            "Hotkeys.Exit": {
+                "en": "Exit",
+                "ru": "Выход"
             },
             "Mode.CreateOne": {
                 "en": "Question & Answer",

@@ -35,12 +35,12 @@ uv sync --dev
 
 ### Команды
 
-| Command                   | Description             |
-| ------------------------- | ----------------------- |
-| `uv run pytest`           | Run tests with coverage |
-| `uv run ruff check --fix` | Lint the codebase       |
-| `uv run ruff format`      | Format the codebase     |
-| `uv run mypy`             | Type-check the codebase |
+| Command            | Description             |
+| ------------------ | ----------------------- |
+| `pytest`           | Run tests with coverage |
+| `ruff check --fix` | Lint the codebase       |
+| `ruff format`      | Format the codebase     |
+| `mypy`             | Type-check the codebase |
 
 ### Pre-commit Hooks
 
@@ -74,6 +74,7 @@ BotHub, KodikRouter,
 | GigaChat-2     | salutedevices |
 | GigaChat-2-Max | salutedevices |
 | GigaChat-2-Pro | salutedevices |
+| ...            | ...           |
 
 ## Литература
 

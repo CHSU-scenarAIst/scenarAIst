@@ -46,3 +46,4 @@ docs/*
 !docs/zhopka
 
 config.yaml
+responses

@@ -156,6 +156,12 @@ Item {
         }
     }
 
+    function removeLast() {
+        if (queriesModel.count > 0) {
+            queriesModel.remove(queriesModel.count - 1);
+        }
+    }
+
     function clear() {
         queriesModel.clear();
     }
@@ -163,12 +169,11 @@ Item {
     function texts() {
         const arr = [];
         for (let i = 0; i < queriesModel.count; i++) {
-            arr.push(queriesModel.get(i).text);
-            // const item = queriesModel.get(i);
-            // arr.push({
-            //     uid: item.uid,
-            //     text: item.text
-            // });
+            const item = queriesModel.get(i);
+            arr.push({
+                uid: item.uid,
+                text: item.text
+            });
         }
         return arr;
     }

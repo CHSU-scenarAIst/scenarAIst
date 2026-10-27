@@ -2,44 +2,48 @@
 
 from pydantic import BaseModel, Field
 
-# TODO дать описание каждому полю через Field
-
 
 class CompletionConfig(BaseModel):
-    provider: str
+    """Конфигурация модели генерации (LLM-чата)."""
 
-    api_key: str = Field(repr=False)
-    verify_ssl_certs: bool = False
-    base_url: str | None = None
-    model: str | None = None
-    temperature: float = 0.1
-    max_tokens: int = 10000
-    timeout: int = 60
-    max_steps: int = Field(default=20, ge=1)
-    system_prompt: str = "You are a scenarAIst."
+    provider: str = Field(description="Провайдер LLM.")
+
+    api_key: str = Field(repr=False, description="Ключ API для доступа к провайдеру.")
+    verify_ssl_certs: bool = Field(default=False, description="Проверять ли SSL-сертификаты.")
+    base_url: str | None = Field(default=None, description="Базовый URL API для OpenAI-провайдеров.")
+    model: str | None = Field(default=None, description="Имя модели.")
+    temperature: float = Field(default=0.1, description="Температура выборки токенов (0..1).")
+    max_tokens: int = Field(default=10000, description="Максимальное число токенов в одном ответе модели.")
+    timeout: int = Field(default=60, description="Таймаут запроса к API, в секундах.")
+    max_steps: int = Field(default=20, ge=1, description="Максимальное число шагов агента.")
+    system_prompt: str = Field(default="You are a scenarAIst.", description="Системный промпт.")
 
 
 class CollectionConfig(BaseModel):
-    path: str
-    name: str
+    """Конфигурация одной коллекции документов для векторного поиска."""
 
-    top_k: int = 5
-    chunk_size: int = 512
-    chunk_overlap: int = 64
+    path: str = Field(description="Путь к папке с документами коллекции.")
+    name: str = Field(description="Имя таблицы коллекции в векторном хранилище.")
+
+    top_k: int = Field(default=5, ge=1, description="Сколько наиболее близких чанков возвращать.")
+    chunk_size: int = Field(default=512, ge=1, description="Размер чанка (в символах).")
+    chunk_overlap: int = Field(default=64, ge=0, description="Перекрытие чанков для сохранения контекста.")
 
 
 class EmbeddingConfig(BaseModel):
-    provider: str
+    """Конфигурация модели эмбеддингов и векторного хранилища."""
 
-    api_key: str = Field(default="None", repr=False)
-    collections: list[CollectionConfig]
-    verify_ssl_certs: bool = False
-    base_url: str | None = None
-    model: str | None = None
-    dim: int = 1024
-    db_path: str = "./rag.sqlite3"
-    batch_size: int = 4
-    timeout: int = 60
+    provider: str = Field(description="Провайдер эмбеддингов: 'openai' и совместимые.")
+
+    api_key: str = Field(default="None", repr=False, description="Ключ API провайдера эмбеддингов.")
+    collections: list[CollectionConfig] = Field(description="Список коллекций документов.")
+    verify_ssl_certs: bool = Field(default=False, description="Проверять ли SSL-сертификаты.")
+    base_url: str | None = Field(default=None, description="Базовый URL API для OpenAI-провайдеров.")
+    model: str | None = Field(default=None, description="Имя модели эмбеддингов.")
+    dim: int = Field(default=1024, ge=1, description="Размерность вектора эмбеддинга.")
+    db_path: str = Field(default="./rag.sqlite3", description="Путь к файлу векторной базы данных.")
+    batch_size: int = Field(default=4, ge=1, description="Сколько документов обрабатывается за один запрос.")
+    timeout: int = Field(default=60, description="Таймаут запроса к API, в секундах.")
 
 
 # class TavilyConfig(BaseModel):

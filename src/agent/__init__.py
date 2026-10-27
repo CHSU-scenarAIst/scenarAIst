@@ -26,11 +26,12 @@ LOGGER = logging.getLogger(__name__)
 
 
 class ScenarAIstAgent:
-    """Сборщик агента Сценариста."""
+    """Сборщик агента-Сценариста с инструментами и источниками знаний."""
 
     # ? with_structured_output()
     def __init__(self, raw_cfg):
-        """Собирает LLM-агента."""
+        """Сборка LLM-агента."""
+
         cfg = ScenarAIstModelFactory(raw_cfg)
         agent_llm = cfg.chat.bind_tools(cfg.tools)
 
@@ -39,7 +40,6 @@ class ScenarAIstAgent:
             Узел поиска релевантных документов по запросу.
             ! [AI Note] Не добавлять в документацию
             """
-            LOGGER.info("%s", _retrieve_node)
 
             if not cfg.retrievers:
                 return {
@@ -63,8 +63,6 @@ class ScenarAIstAgent:
             ! [AI Note] Не добавлять в документацию
             """
             messages = state["messages"]
-            LOGGER.info("%s with %d messages", _chat_node, len(messages))
-
             docs = state.get("documents", None)
             system_content = cfg.system_prompt + f"<time_now>{datetime.now(UTC):%B %d, %Y}.</time_now>"
 
@@ -72,7 +70,6 @@ class ScenarAIstAgent:
                 system_content += f"<context>{context}</context>"
 
             response = agent_llm.invoke([SystemMessage(system_content), *messages])
-            LOGGER.info("LLM response: %s", response)
 
             return {
                 "messages": [response],
@@ -84,7 +81,6 @@ class ScenarAIstAgent:
             Ветвление после вызова LLM: исполнение инструментов либо финализация ответа.
             ! [AI Note] Не добавлять в документацию
             """
-            LOGGER.info("%s", _router_node)
 
             last = state["messages"][-1]
             tool_calls = getattr(last, "tool_calls", [])
@@ -101,7 +97,6 @@ class ScenarAIstAgent:
             Узел исполнения инструментов, выбранных LLM.
             ! [AI Note] Не добавлять в документацию
             """
-            LOGGER.info("%s", _tools_node)
 
             result = tool_node.invoke(state)
             return {
@@ -114,7 +109,6 @@ class ScenarAIstAgent:
             Узел финализации ответа в JSON-структуру.
             ! [AI Note] Не добавлять в документацию
             """
-            LOGGER.info("%s", _format_node)
 
             last = state["messages"][-1]
             message = last.content
@@ -163,11 +157,11 @@ class ScenarAIstAgent:
         builder.add_edge(_NodeEnum.FORMAT, END)
 
         self.agent = builder.compile(checkpointer=cfg.checkpointer)
-        # TODO debug схемы структуры графа в MarkDown
-        LOGGER.info("Граф скомпилирован")
+        LOGGER.debug("Схема графа (Mermaid):\n%s", self.agent.get_graph().draw_mermaid())
 
     def invoke(self, text: str, config: dict) -> BaseModel:
         """Метод-обёртка для отправки запросов LLM-агенту извне."""
+
         result = self.agent.invoke(
             input={"messages": [HumanMessage(text)]},
             config=config,
@@ -248,8 +242,14 @@ def _prepare_context_documents(docs: list[Document] | None) -> str:
     """
     if not docs:
         return ""
+
     # ? нет поля source, как сделать по-другому
-    # TODO debug что взято из документов
+    # Для отладки: какие документы и их фрагменты вошли в контекст
+    LOGGER.debug(
+        "Контекст собран из %d документов:\n%s",
+        len(docs),
+        "\n".join(f"- {doc.metadata.get('source', '-')} [{len(doc.page_content)} симв.]" for doc in docs),
+    )
     return "\n\n".join(
         f"<source>{doc.metadata.get('source', '-')}</source><content>{doc.page_content}</content>"
         for doc in docs

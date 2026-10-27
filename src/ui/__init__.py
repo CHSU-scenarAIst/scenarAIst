@@ -15,7 +15,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from pydantic import BaseModel
-from PySide6.QtCore import QObject, Signal, Slot
+from PySide6.QtCore import QMessageLogContext, QObject, QtMsgType, Signal, Slot, qInstallMessageHandler
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 
@@ -29,20 +29,21 @@ class Invoke(ABC):
     """Интерфейс для работы с ответами Сценариста по API."""
 
     @abstractmethod
-    def invoke(self, text: str, config) -> BaseModel:
+    def invoke(self, text: str, config: dict) -> BaseModel:
         """Объявление метода для отправки запросов LLM-агенту."""
         ...
 
 
 class UserInterface:
     def __init__(self, invoker: Invoke):
+        qInstallMessageHandler(_qt_message_handler)
         self._app = QGuiApplication(sys.argv)
         self._engine = QQmlApplicationEngine()
         # engine.addImportPath(sys.path[0])
         self._engine.addImportPath(QML_DIR)
 
-        handler_backend = HandlerBackend(invoker)
-        self._engine.rootContext().setContextProperty("handlerBackend", handler_backend)
+        self._handler_backend = HandlerBackend(invoker)
+        self._engine.rootContext().setContextProperty("handlerBackend", self._handler_backend)
         self._engine.load(QML_MAIN_PATH)
 
     def run(self) -> int:
@@ -68,84 +69,55 @@ class HandlerBackend(QObject):
         }
         self._invoker = invoker
 
-    @Slot(int, list)
-    def runPipeline(self, mode: int, queries: list):  # noqa: N802
-        """
-        Обработчик запросов Сценариста.
-        """
-        entries = _normalize_queries(queries)
-        if not entries:
-            LOGGER.warning("Нет вхождений")
-            return
+    @Slot(list)
+    def createOne(self, queries: list):  # noqa: N802
+        """Создать один Сценарий."""
+        try:
+            entries = _normalize_queries(queries)
+            if not entries:
+                LOGGER.warning("Нет вхождений")
+                return
 
-        # TODO переделать под паттерн состояние
-        # * Вопрос-ответ
-        if mode == 0:
             uid, content = entries[0]
-
-            try:
-                model = self._invoker.invoke(content, self._config)
-                response = model.model_dump_json(indent=2, ensure_ascii=False)
-            except Exception as err:
-                raise TypeError(f"Ошибка в {self.runPipeline}") from err
-
-            # TODO сначала сохранение в файл, потом чтение из файла, потом запись в currentResponse
+            model = self._invoker.invoke(content, self._config)
+            response = model.model_dump_json(indent=2, ensure_ascii=False)
+            # TODO сначала сохранение в файл, потом чтение из файла, потом запись в responseReady
             self.responseReady.emit(response)
             self.queriesProcessed.emit([uid])
+        except Exception as err:
+            raise TypeError(f"Ошибка в {self.createOne}") from err
 
-        # * Конвейер вопрос-ответ
-        elif mode == 1:
-            lines = "\n".join(f"[{i + 1}] Эхо: {text}" for i, (_, text) in enumerate(entries))
-            response = f"Конвейер массовое создание ({len(entries)} шт.):\n{lines}"
+    @Slot(list)
+    def createSome(self, queries: list):  # noqa: N802
+        """Создать несколько Сценариев."""
+        try:
+            entries = _normalize_queries(queries)
+            if not entries:
+                LOGGER.warning("Нет вхождений")
+                return
 
-            # TODO сначала сохранение в файл, потом чтение из файла, потом запись в currentResponse
-            self.responseReady.emit(response)
-            self.queriesProcessed.emit([uid for uid, _ in entries])
-
-        # TODO ???
-        else:
-            results = []
-            for _, text in entries:
-                try:
-                    model = self._invoker.invoke(text, self._config)
-                    results.append(model.model_dump_json(indent=2, ensure_ascii=False))
-                except Exception as err:
-                    LOGGER.error(f"Ошибка массовой проверки: {err}")
-                    results.append(
-                        json.dumps(
-                            {
-                                "status": "EX",
-                                "message": "Ошибка при выполнении запроса",
-                            },
-                            ensure_ascii=False,
-                        )
-                    )
-
-            response = "\n\n---\n\n".join(results)
-
-            # TODO сначала сохранение в файл, потом чтение из файла, потом запись в currentResponse
-            self.responseReady.emit(response)
-            self.queriesProcessed.emit([uid for uid, _ in entries])
+            for uid, content in entries:
+                model = self._invoker.invoke(content, self._config)
+                response = model.model_dump_json(indent=2, ensure_ascii=False)
+                # TODO сначала сохранение в файл, потом чтение из файла, потом запись в responseReady
+                self.responseReady.emit(response)
+                self.queriesProcessed.emit([uid])
+        except Exception as err:
+            raise TypeError(f"Ошибка в {self.createSome}") from err
 
     @Slot(str)
     def copyToClipboard(self, input: str):  # noqa: N802
-        """
-        Копирование текста в буфер обмена.
-        """
+        """Копирование текста в буфер обмена."""
         QGuiApplication.clipboard().setText(input)
 
     @Slot(result=str)
     def clipboardText(self):  # noqa: N802
-        """
-        Чтение текста из буфера обмена.
-        """
+        """Чтение текста из буфера обмена."""
         return QGuiApplication.clipboard().text() or ""
 
     @Slot(str, str)
     def saveToJson(self, file_path: str, current_response: str):  # noqa: N802
-        """
-        Сохранение текста в файл в формате JSON.
-        """
+        """Сохранение текста в файл в формате JSON."""
         with open(file_path, "w", encoding="utf-8") as fh:
             json.dump(
                 current_response,
@@ -180,3 +152,24 @@ def _normalize_queries(queries: list) -> list[tuple[str, str]]:
         if text:
             entries.append((uid, text))
     return entries
+
+
+def _qt_message_handler(mode: QtMsgType, context: QMessageLogContext, message: str):
+    """
+    Перехватчик потока ошибок из QML.
+    ! [AI Note] Не добавлять в документацию
+    """
+
+    out = f"{context.file}: {message}"
+
+    if mode == QtMsgType.QtDebugMsg:
+        LOGGER.debug(out)
+    elif mode == QtMsgType.QtInfoMsg:
+        LOGGER.info(out)
+    elif mode == QtMsgType.QtWarningMsg:
+        LOGGER.warning(out)
+    elif mode == QtMsgType.QtCriticalMsg:
+        LOGGER.error(out)
+    elif mode == QtMsgType.QtFatalMsg:
+        LOGGER.critical(out)
+        sys.exit(-1)

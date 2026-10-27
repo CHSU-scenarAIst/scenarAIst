@@ -40,12 +40,12 @@ def main() -> int:
 
 
 class ImplInvoke(Invoke):
-    """Реализация интерфейса {@link Invoke}."""
+    """Реализация интерфейса `Invoke`."""
 
     def __init__(self, agent: ScenarAIstAgent):
         self._agent = agent
 
-    def invoke(self, text: str, config) -> BaseModel:
+    def invoke(self, text: str, config: dict) -> BaseModel:
         return self._agent.invoke(text, config)
 
 

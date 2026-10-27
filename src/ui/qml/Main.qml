@@ -20,9 +20,8 @@ ApplicationWindow {
     property var handler: handlerBackend // qmllint disable unqualified
     property int currentMode: 0
     property var modes: {
-        0: "Mode.QuestionAnswer",
-        1: "Mode.ConveyorCreate",
-        2: "Mode.ConveyorCheck"
+        0: "Mode.CreateOne",
+        1: "Mode.CreateSome"
     }
     readonly property int modesLength: Object.keys(modes).length
     property string currentResponse: ""
@@ -100,6 +99,14 @@ ApplicationWindow {
         }
     }
 
+    // TODO возможность загрузки задач (1 задача = 1 строка) из тесктового файла + hotkey
+
+    // TODO создать новую задачу Ctrl+E
+
+    // TODO удалить последнюю задачу Ctrl+D
+
+    // TODO Exit from app by Ctrl+Q with user confirm (by default No) with Enter press (base Linux/Windows buttons?)
+
     Shortcut {
         sequence: "Ctrl+Space"
         context: Qt.ApplicationShortcut
@@ -145,8 +152,6 @@ ApplicationWindow {
         onActivated: llmResponse.scrollBy(40)
     }
 
-    // TODO Exit from app by user confirm (by default No) with Enter press (base Linux/Windows buttons?)
-
     Connections {
         target: root.handler
 
@@ -154,10 +159,8 @@ ApplicationWindow {
             root.currentResponse = response;
         }
 
-        function onQueriesProcessed(indices) {
-            userQueries.removeByIndices(indices);
-            // function onQueriesProcessed(uids) {
-            //     userQueries.removeByUids(uids);
+        function onQueriesProcessed(uids) {
+            userQueries.removeByUids(uids);
             root.refreshStatus();
         }
     }
@@ -185,7 +188,16 @@ ApplicationWindow {
         if (queries.length <= 0) {
             return;
         }
-        handler.runPipeline(root.currentMode, queries);
+
+        if (root.currentMode === 0) {
+            handler.createOne(queries);
+        } else if (root.currentMode === 1) {
+            handler.createSome(queries);
+        } else if (root.currentMode === 2) {
+            handler.createOne(queries);
+        } else {
+            handler.createOne(queries);
+        }
     }
 
     function pasteFromClipboard() {
@@ -261,7 +273,6 @@ ApplicationWindow {
                 key: "↑↓",
                 label: Localization.tr("Hotkeys.Scroll")
             }
-            // TODO Exit from app
         ];
     }
 }

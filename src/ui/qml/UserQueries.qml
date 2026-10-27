@@ -97,7 +97,7 @@ Item {
                     ToolTip.text: Localization.tr("Query.Delete.Tip")
                     ToolTip.visible: hovered
 
-                    onClicked: root.removeAt(delegate.index)
+                    onClicked: root.removeByUids(delegate.index)
                 }
             }
         }
@@ -130,45 +130,31 @@ Item {
         return queriesModel.count;
     }
 
-    // function _newUuid() {
-    //     return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
-    //         const r = Math.random() * 16 | 0;
-    //         const v = c === "x" ? r : (r & 0x3 | 0x8);
-    //         return v.toString(16);
-    //     });
-    // }
+    function _newUuid() {
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            const v = c === "x" ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
 
     function addQuery(text) {
         queriesModel.append({
-            // uid: _newUuid(),
+            uid: _newUuid(),
             text: text
         });
         Qt.callLater(() => queriesView.positionViewAtEnd());
     }
 
-    function removeAt(i) {
-        if (i >= 0 && i < queriesModel.count) {
-            queriesModel.remove(i);
+    function removeByUids(uids) {
+        const uidSet = new Set(uids.map(String));
+
+        for (let i = queriesModel.count - 1; i >= 0; i--) {
+            if (uidSet.has(String(queriesModel.get(i).uid))) {
+                queriesModel.remove(i);
+            }
         }
     }
-
-    function removeByIndices(indices) {
-        const sorted = indices.slice().sort((a, b) => b - a);
-
-        for (const index of sorted) {
-            removeAt(index);
-        }
-    }
-
-    // function removeByUids(uids) {
-    //     const uidSet = new Set(uids.map(String));
-
-    //     for (let i = queriesModel.count - 1; i >= 0; i--) {
-    //         if (uidSet.has(String(queriesModel.get(i).uid))) {
-    //             queriesModel.remove(i);
-    //         }
-    //     }
-    // }
 
     function clear() {
         queriesModel.clear();

@@ -28,18 +28,18 @@ LOGGER = logging.getLogger(__name__)
 class ScenarAIstAgent:
     """Сборщик агента Сценариста."""
 
-    # ? TODO with_structured_output()
+    # ? with_structured_output()
     def __init__(self, raw_cfg):
         """Собирает LLM-агента."""
         cfg = ScenarAIstModelFactory(raw_cfg)
         agent_llm = cfg.chat.bind_tools(cfg.tools)
 
-        def retrieve_node(state: OrchestratorState):
+        def _retrieve_node(state: _OrchestratorState):
             """
             Узел поиска релевантных документов по запросу.
             ! [AI Note] Не добавлять в документацию
             """
-            LOGGER.info("%s", retrieve_node)
+            LOGGER.info("%s", _retrieve_node)
 
             if not cfg.retrievers:
                 return {
@@ -57,13 +57,13 @@ class ScenarAIstAgent:
                 "steps": state.get("steps", 0) + 1,
             }
 
-        def chat_node(state: OrchestratorState):
+        def _chat_node(state: _OrchestratorState):
             """
             Узел вызова LLM с текущей историей сообщений.
             ! [AI Note] Не добавлять в документацию
             """
             messages = state["messages"]
-            LOGGER.info("%s with %d messages", chat_node, len(messages))
+            LOGGER.info("%s with %d messages", _chat_node, len(messages))
 
             docs = state.get("documents", None)
             system_content = cfg.system_prompt + f"<time_now>{datetime.now(UTC):%B %d, %Y}.</time_now>"
@@ -72,36 +72,36 @@ class ScenarAIstAgent:
                 system_content += f"<context>{context}</context>"
 
             response = agent_llm.invoke([SystemMessage(system_content), *messages])
-            LOGGER.info("LLM response: response=%s", response)
+            LOGGER.info("LLM response: %s", response)
 
             return {
                 "messages": [response],
                 "steps": state.get("steps", 0) + 1,
             }
 
-        def router_node(state: OrchestratorState):
+        def _router_node(state: _OrchestratorState):
             """
             Ветвление после вызова LLM: исполнение инструментов либо финализация ответа.
             ! [AI Note] Не добавлять в документацию
             """
-            LOGGER.info("%s", router_node)
+            LOGGER.info("%s", _router_node)
 
             last = state["messages"][-1]
             tool_calls = getattr(last, "tool_calls", [])
 
             if tool_calls and cfg.tools and state.get("steps", 0) < cfg.max_steps:
-                return NodeEnum.TOOLS
+                return _NodeEnum.TOOLS
 
-            return NodeEnum.FORMAT
+            return _NodeEnum.FORMAT
 
         tool_node = ToolNode(cfg.tools)
 
-        def tools_node(state: OrchestratorState):
+        def _tools_node(state: _OrchestratorState):
             """
             Узел исполнения инструментов, выбранных LLM.
             ! [AI Note] Не добавлять в документацию
             """
-            LOGGER.info("%s", tools_node)
+            LOGGER.info("%s", _tools_node)
 
             result = tool_node.invoke(state)
             return {
@@ -109,12 +109,12 @@ class ScenarAIstAgent:
                 "steps": state.get("steps", 0) + 1,
             }
 
-        def format_node(state: OrchestratorState):
+        def _format_node(state: _OrchestratorState):
             """
             Узел финализации ответа в JSON-структуру.
             ! [AI Note] Не добавлять в документацию
             """
-            LOGGER.info("%s", format_node)
+            LOGGER.info("%s", _format_node)
 
             last = state["messages"][-1]
             message = last.content
@@ -131,44 +131,42 @@ class ScenarAIstAgent:
                 "steps": state.get("steps", 0) + 1,
             }
 
-        builder = StateGraph(OrchestratorState)
+        builder = StateGraph(_OrchestratorState)
 
-        builder.add_node(NodeEnum.CHAT, chat_node)
-        builder.add_node(NodeEnum.FORMAT, format_node)
+        builder.add_node(_NodeEnum.CHAT, _chat_node)
+        builder.add_node(_NodeEnum.FORMAT, _format_node)
 
         if cfg.retrievers:
-            LOGGER.info("%s +", NodeEnum.RETRIEVE)
-            builder.add_node(NodeEnum.RETRIEVE, retrieve_node)
-            builder.add_edge(START, NodeEnum.RETRIEVE)
-            builder.add_edge(NodeEnum.RETRIEVE, NodeEnum.CHAT)
+            builder.add_node(_NodeEnum.RETRIEVE, _retrieve_node)
+            builder.add_edge(START, _NodeEnum.RETRIEVE)
+            builder.add_edge(_NodeEnum.RETRIEVE, _NodeEnum.CHAT)
         else:
-            LOGGER.info("%s -", NodeEnum.RETRIEVE)
-            builder.add_edge(START, NodeEnum.CHAT)
+            builder.add_edge(START, _NodeEnum.CHAT)
 
         if cfg.tools:
-            builder.add_node(NodeEnum.TOOLS, tools_node)
+            builder.add_node(_NodeEnum.TOOLS, _tools_node)
             conditional_edges = {
-                NodeEnum.TOOLS: NodeEnum.TOOLS,
-                NodeEnum.FORMAT: NodeEnum.FORMAT,
+                _NodeEnum.TOOLS: _NodeEnum.TOOLS,
+                _NodeEnum.FORMAT: _NodeEnum.FORMAT,
             }
-            builder.add_edge(NodeEnum.TOOLS, NodeEnum.CHAT)
+            builder.add_edge(_NodeEnum.TOOLS, _NodeEnum.CHAT)
         else:
             conditional_edges = {
-                NodeEnum.FORMAT: NodeEnum.FORMAT,
+                _NodeEnum.FORMAT: _NodeEnum.FORMAT,
             }
 
         builder.add_conditional_edges(
-            NodeEnum.CHAT,
-            router_node,
+            _NodeEnum.CHAT,
+            _router_node,
             conditional_edges,
         )
-        builder.add_edge(NodeEnum.FORMAT, END)
+        builder.add_edge(_NodeEnum.FORMAT, END)
 
         self.agent = builder.compile(checkpointer=cfg.checkpointer)
         # TODO debug схемы структуры графа в MarkDown
         LOGGER.info("Граф скомпилирован")
 
-    def invoke(self, text: str, config) -> BaseModel:
+    def invoke(self, text: str, config: dict) -> BaseModel:
         """Метод-обёртка для отправки запросов LLM-агенту извне."""
         result = self.agent.invoke(
             input={"messages": [HumanMessage(text)]},
@@ -185,7 +183,7 @@ class ScenarAIstAgent:
 class WordItem(BaseModel):
     """
     Отдельное слово итогового ответа.
-    TODO переделать под формат шагов Сценария
+    ? переделать под формат шагов Сценария
     """
 
     word: str = Field(..., description="Слово из итогового ответа.")
@@ -194,7 +192,7 @@ class WordItem(BaseModel):
 class JsonResponse(BaseModel):
     """
     Структура JSON-ответа.
-    TODO переделать под формат шагов Сценария
+    ? переделать под формат шагов Сценария
     """
 
     status: str = Field(..., description="Статус ответа: 'OK' или 'ERROR'.")
@@ -206,7 +204,7 @@ class JsonResponse(BaseModel):
     )
 
 
-class OrchestratorState(MessagesState, total=False):
+class _OrchestratorState(MessagesState, total=False):
     """
     Состояние графа оркестратора.
     # ! [AI Note] Не добавлять в документацию
@@ -218,7 +216,7 @@ class OrchestratorState(MessagesState, total=False):
     response: JsonResponse
 
 
-class NodeEnum(StrEnum):
+class _NodeEnum(StrEnum):
     """
     Имена узлов графа с инструментами.
     # ! [AI Note] Не добавлять в документацию
@@ -250,7 +248,7 @@ def _prepare_context_documents(docs: list[Document] | None) -> str:
     """
     if not docs:
         return ""
-    # TODO нет поля source, как сделать по-другому
+    # ? нет поля source, как сделать по-другому
     # TODO debug что взято из документов
     return "\n\n".join(
         f"<source>{doc.metadata.get('source', '-')}</source><content>{doc.page_content}</content>"

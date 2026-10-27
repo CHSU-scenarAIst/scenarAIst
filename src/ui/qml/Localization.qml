@@ -59,17 +59,13 @@ QtObject {
                 "en": "Scroll Response",
                 "ru": "Прокрутка ответа"
             },
-            "Mode.QuestionAnswer": {
+            "Mode.CreateOne": {
                 "en": "Question & Answer",
                 "ru": "Вопрос–ответ"
             },
-            "Mode.ConveyorCreate": {
+            "Mode.CreateSome": {
                 "en": "Bulk creation",
                 "ru": "Массовое создание"
-            },
-            "Mode.ConveyorCheck": {
-                "en": "Bulk check & edit",
-                "ru": "Массовая проверка и редактирование"
             },
             "Query.Add.Text": {
                 "en": "+",
@@ -99,7 +95,6 @@ QtObject {
                 "en": "Copy LLM response",
                 "ru": "Копировать ответ LLM"
             }
-            // TODO Exit from app
         })
 
     function tr(key) {

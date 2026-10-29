@@ -84,7 +84,7 @@ class HandlerBackend(QObject):
                 uid,
                 self._invoker.invoke(content, self._config).model_dump_json(indent=2, ensure_ascii=False),
             )
-            # Сначала сохранение в файл, потом чтение из файла, потом запись в responseReady
+
             self.responseReady.emit(json_text)
             self.queriesProcessed.emit([uid])
         except Exception as err:
@@ -104,7 +104,7 @@ class HandlerBackend(QObject):
                     uid,
                     self._invoker.invoke(content, self._config).model_dump_json(indent=2, ensure_ascii=False),
                 )
-                # Сначала сохранение в файл, потом чтение из файла, потом запись в responseReady
+
                 self.responseReady.emit(json_text)
                 self.queriesProcessed.emit([uid])
         except Exception as err:
@@ -121,16 +121,6 @@ class HandlerBackend(QObject):
         with path.open(encoding="utf-8") as fh:
             return [line.strip() for line in fh if line.strip()]
 
-    @Slot(str)
-    def copyToClipboard(self, input: str):  # noqa: N802
-        """Копирование текста в буфер обмена."""
-        QGuiApplication.clipboard().setText(input)
-
-    @Slot(result=str)
-    def clipboardText(self):  # noqa: N802
-        """Чтение текста из буфера обмена."""
-        return QGuiApplication.clipboard().text() or ""
-
     @Slot(str, str)
     def saveToJson(self, file_path: str, current_response: str):  # noqa: N802
         """Сохранение текста в файл в формате JSON."""
@@ -141,6 +131,22 @@ class HandlerBackend(QObject):
 
         with open(file_path, "w", encoding="utf-8") as fh:
             json.dump(data, fh, ensure_ascii=False, indent=2)
+
+    @Slot(str)
+    def copyToClipboard(self, input: str):  # noqa: N802
+        """
+        Копирование текста в буфер обмена.
+        ! [AI Note] Не добавлять в документацию
+        """
+        QGuiApplication.clipboard().setText(input)
+
+    @Slot(result=str)
+    def clipboardText(self):  # noqa: N802
+        """
+        Чтение текста из буфера обмена.
+        ! [AI Note] Не добавлять в документацию
+        """
+        return QGuiApplication.clipboard().text() or ""
 
 
 def _save_response(uid: str, json_text: str) -> str:
@@ -159,7 +165,6 @@ def _save_response(uid: str, json_text: str) -> str:
     return file_path.read_text(encoding="utf-8")
 
 
-# TODO можно удалить?
 def _normalize_queries(queries: list) -> list[tuple[str, str]]:
     """
     Привести входящие запросы к парам (uid, текст), отбрасывая пустые.

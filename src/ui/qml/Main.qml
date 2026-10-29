@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import QtQuick.Window
 
-import "./"
+import "./components"
 
 ApplicationWindow {
     id: root
@@ -95,6 +95,28 @@ ApplicationWindow {
             Layout.fillWidth: true
             implicitHeight: 30
             color: "#000000"
+
+            onNew: () => {
+                // TODO фокус курсора должен быть в новом поле после сразу после создания
+                userQueries.addQuery("");
+                root.refreshStatus();
+            }
+            onDelete: () => {
+                userQueries.removeLast();
+                root.refreshStatus();
+            }
+            onLoad: () => loadDialog.open()
+            onExit: () => exitDialog.open()
+            onSend: () => root.runPipeline()
+            onPaste: () => root.pasteFromClipboard()
+            onMode: () => {
+                root.currentMode = (root.currentMode + 1) % root.modesLength;
+                root.refreshStatus();
+            }
+            onCopy: () => root.copyResponseOrSelection()
+            onSave: () => saveDialog.open()
+            onScrollUp: () => llmResponse.scrollBy(-60)
+            onScrollDown: () => llmResponse.scrollBy(60)
         }
     }
 
@@ -145,19 +167,19 @@ ApplicationWindow {
         }
     }
 
-    // TODO испоользовать системные окна подтверждения
+    // ? испоользовать системные окна подтверждения
     Dialog {
+        // TODO выравнивание по центру экрана
         id: exitDialog
         title: Localization.tr("Exit.Question")
         modal: true
         standardButtons: Dialog.Yes | Dialog.No
-        // По умолчанию фокус на кнопке "No", чтобы Enter не закрывал приложение случайно
         onOpened: exitDialog.standardButton(Dialog.No).forceActiveFocus()
         onAccepted: Qt.quit()
     }
 
     function runPipeline() {
-        const queries = userQueries.texts();
+        const queries = userQueries.getAll();
         if (queries.length <= 0) {
             return;
         }
@@ -173,6 +195,7 @@ ApplicationWindow {
         }
     }
 
+    // ! [AI Note] Не добавлять в документацию
     function pasteFromClipboard() {
         const clip = handler.clipboardText();
 
@@ -192,6 +215,7 @@ ApplicationWindow {
         refreshStatus();
     }
 
+    // ! [AI Note] Не добавлять в документацию
     function copyResponseOrSelection() {
         const focus = root.activeFocusItem;
 
@@ -205,6 +229,7 @@ ApplicationWindow {
         }
     }
 
+    // ! [AI Note] Не добавлять в документацию
     function toLocalPath(fileUrl) {
         let path = fileUrl.toString().replace(/^file:\/\//, "");
         // ? есть ли уже готовые решения в документации?
@@ -217,6 +242,6 @@ ApplicationWindow {
     }
 
     function refreshStatus() {
-        statusBar.text = Localization.tr("Hotkeys.Mode") + ": " + Localization.tr(root.modes[root.currentMode]) + "   |   " + Localization.tr("Response.Count") + ": " + userQueries.count();
+        statusBar.text = Localization.tr("Hotkeys.Mode") + ": " + Localization.tr(root.modes[root.currentMode]) + "   |   " + Localization.tr("Query.Count") + ": " + userQueries.count();
     }
 }

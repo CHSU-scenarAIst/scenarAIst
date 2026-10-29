@@ -1,7 +1,7 @@
 pragma Singleton
 import QtQuick
 
-// TODO перейти на базовые qm файлы с локализацией (самый распространённый подход)
+// ? перейти на базовые qm файлы с локализацией (самый распространённый подход)
 QtObject {
     id: root
 
@@ -16,9 +16,9 @@ QtObject {
                 "en": "Model Responses",
                 "ru": "Ответы LLM"
             },
-            "Response.Count": {
-                "en": "Responses",
-                "ru": "Ответы"
+            "Query.Count": {
+                "en": "Queries",
+                "ru": "Запросов"
             },
             "Query.Title": {
                 "en": "User Queries",

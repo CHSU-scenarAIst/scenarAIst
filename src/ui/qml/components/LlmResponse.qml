@@ -7,6 +7,7 @@ Item {
 
     property string text
 
+    // ! [AI Note] Не добавлять в документацию
     signal copyRequested
 
     ColumnLayout {
@@ -69,6 +70,7 @@ Item {
         }
     }
 
+    // ! [AI Note] Не добавлять в документацию
     function scrollBy(delta) {
         const flickable = scroll.contentItem as Flickable;
         if (!flickable) {

@@ -1,13 +1,23 @@
 import QtQuick
 import QtQuick.Layouts
 
-// TODO динамическое количество рядов в зависимости от ширины занимаемого пространства
+// ? динамическое количество рядов в зависимости от ширины занимаемого пространства
 Rectangle {
     id: root
 
     property var bindings: []
 
-    required property var funcAdd
+    required property var onNew
+    required property var onDelete
+    required property var onLoad
+    required property var onExit
+    required property var onSend
+    required property var onPaste
+    required property var onMode
+    required property var onCopy
+    required property var onSave
+    required property var onScrollUp
+    required property var onScrollDown
 
     RowLayout {
         anchors.fill: parent
@@ -34,82 +44,73 @@ Rectangle {
         }
     }
 
-    // TODO фокус курсора должен быть в новом после сразу после создания
     Shortcut {
         sequence: "Ctrl+E"
         context: Qt.ApplicationShortcut
-        onActivated: {
-            userQueries.addQuery("");
-            root.refreshStatus();
-        }
+        onActivated: root.onNew()
     }
 
     Shortcut {
         sequence: "Ctrl+D"
         context: Qt.ApplicationShortcut
-        onActivated: {
-            userQueries.removeLast();
-            root.refreshStatus();
-        }
+        onActivated: root.onDelete()
     }
 
     Shortcut {
         sequence: "Ctrl+L"
         context: Qt.ApplicationShortcut
-        onActivated: loadDialog.open()
+        onActivated: root.onLoad()
     }
 
     Shortcut {
         sequence: "Ctrl+Q"
         context: Qt.ApplicationShortcut
-        onActivated: exitDialog.open()
+        onActivated: root.onExit()
     }
 
     Shortcut {
         sequence: "Ctrl+Space"
         context: Qt.ApplicationShortcut
-        onActivated: root.runPipeline()
+        onActivated: root.onSend()
     }
 
     Shortcut {
         sequence: "Ctrl+V"
         context: Qt.ApplicationShortcut
-        onActivated: root.pasteFromClipboard()
+        onActivated: root.onPaste()
     }
 
     Shortcut {
         sequence: "Ctrl+M"
         context: Qt.ApplicationShortcut
-        onActivated: function onCurrentModeChanged() {
-            root.currentMode = (root.currentMode + 1) % root.modesLength;
-            root.refreshStatus();
-        }
+        onActivated: root.onMode()
     }
 
     Shortcut {
         sequence: "Ctrl+C"
         context: Qt.ApplicationShortcut
-        onActivated: root.copyResponseOrSelection()
+        onActivated: root.onCopy()
     }
 
     Shortcut {
         sequence: "Ctrl+S"
         context: Qt.ApplicationShortcut
-        onActivated: saveDialog.open()
+        onActivated: root.onSave()
     }
 
     Shortcut {
         sequence: "Up"
         context: Qt.ApplicationShortcut
-        onActivated: llmResponse.scrollBy(-40)
+        onActivated: root.onScrollUp()
     }
 
     Shortcut {
         sequence: "Down"
         context: Qt.ApplicationShortcut
-        onActivated: llmResponse.scrollBy(40)
+        onActivated: root.onScrollDown()
     }
 
+    // ! [AI Note] Не добавлять в документацию
     function refreshHotkeys() {
         bindings = [
             {

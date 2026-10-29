@@ -124,19 +124,6 @@ Item {
         }
     }
 
-    function count() {
-        return queriesModel.count;
-    }
-
-    // TODO вместо uuid режим + дата и время (без милисекунд) + хэшсумма из 6 символов
-    function _newUuid() {
-        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
-            const r = Math.random() * 16 | 0;
-            const v = c === "x" ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    }
-
     function addQuery(text) {
         queriesModel.append({
             uid: _newUuid(),
@@ -145,6 +132,7 @@ Item {
         Qt.callLater(() => queriesView.positionViewAtEnd());
     }
 
+    // TODO не работает
     function removeByUids(uids) {
         const uidSet = new Set(uids.map(String));
 
@@ -161,12 +149,7 @@ Item {
         }
     }
 
-    function clear() {
-        queriesModel.clear();
-    }
-
-    function texts() {
-        /// вам
+    function getAll() {
         const arr = [];
         for (let i = 0; i < queriesModel.count; i++) {
             const item = queriesModel.get(i);
@@ -176,5 +159,25 @@ Item {
             });
         }
         return arr;
+    }
+
+    // ! [AI Note] Не добавлять в документацию
+    function count() {
+        return queriesModel.count;
+    }
+
+    // ! [AI Note] Не добавлять в документацию
+    function clear() {
+        queriesModel.clear();
+    }
+
+    // TODO вместо uuid режим + дата и время (без милисекунд) + хэшсумма из 6 символов
+    // ! [AI Note] Не добавлять в документацию
+    function _newUuid() {
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            const v = c === "x" ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
     }
 }

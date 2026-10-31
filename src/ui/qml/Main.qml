@@ -66,7 +66,7 @@ ApplicationWindow {
                 id: userQueries
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                onRunRequested: root.runPipeline()
+                onRunRequested: root.send()
             }
         }
 
@@ -97,7 +97,6 @@ ApplicationWindow {
             color: "#000000"
 
             onNew: () => {
-                // TODO фокус курсора должен быть в новом поле после сразу после создания
                 userQueries.addQuery("");
                 root.refreshStatus();
             }
@@ -107,7 +106,7 @@ ApplicationWindow {
             }
             onLoad: () => loadDialog.open()
             onExit: () => exitDialog.open()
-            onSend: () => root.runPipeline()
+            onSend: () => root.send()
             onPaste: () => root.pasteFromClipboard()
             onMode: () => {
                 root.currentMode = (root.currentMode + 1) % root.modesLength;
@@ -167,18 +166,31 @@ ApplicationWindow {
         }
     }
 
-    // ? испоользовать системные окна подтверждения
+    // ? использовать системные окна подтверждения
+    // TODO цветовая обводка активного выбора кнопки
     Dialog {
-        // TODO выравнивание по центру экрана
         id: exitDialog
         title: Localization.tr("Exit.Question")
         modal: true
         standardButtons: Dialog.Yes | Dialog.No
-        onOpened: exitDialog.standardButton(Dialog.No).forceActiveFocus()
+        onOpened: {
+            Qt.callLater(() => {
+                const overlay = Overlay.overlay;
+                exitDialog.x = Math.max(0, (overlay.width - exitDialog.width) / 2);
+                exitDialog.y = Math.max(0, (overlay.height - exitDialog.height) / 2);
+                exitDialog.standardButton(Dialog.No).forceActiveFocus();
+            });
+        }
         onAccepted: Qt.quit()
     }
 
-    function runPipeline() {
+    function refreshStatus() {
+        const mode = Localization.tr("Hotkeys.Mode") + ": " + Localization.tr(root.modes[root.currentMode]);
+        const query = Localization.tr("Query.Count") + ": " + userQueries.count();
+        statusBar.text = mode + "   |   " + query;
+    }
+
+    function send() {
         const queries = userQueries.getAll();
         if (queries.length <= 0) {
             return;
@@ -239,9 +251,5 @@ ApplicationWindow {
         }
 
         return path;
-    }
-
-    function refreshStatus() {
-        statusBar.text = Localization.tr("Hotkeys.Mode") + ": " + Localization.tr(root.modes[root.currentMode]) + "   |   " + Localization.tr("Query.Count") + ": " + userQueries.count();
     }
 }

@@ -4,6 +4,7 @@
 """
 
 from importlib.metadata import version
+from typing import Protocol
 
 __version__ = version("scenaraist")
 
@@ -11,7 +12,6 @@ import json
 import logging
 import sys
 import uuid
-from abc import ABC, abstractmethod
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -26,10 +26,9 @@ RESPONSES_DIR = Path("responses")
 LOGGER = logging.getLogger(__name__)
 
 
-class Invoke(ABC):
+class Invoke(Protocol):
     """Интерфейс для работы с ответами Сценариста по API."""
 
-    @abstractmethod
     def invoke(self, text: str, config: dict) -> BaseModel:
         """Объявление метода для отправки запросов LLM-агенту."""
         ...
@@ -71,7 +70,7 @@ class HandlerBackend(QObject):
         self._invoker = invoker
 
     @Slot(list)
-    def createOne(self, queries: list):  # noqa: N802
+    def createOne(self, queries: list) -> None:  # noqa: N802
         """Создать один Сценарий."""
         try:
             entries = _normalize_queries(queries)
@@ -91,7 +90,7 @@ class HandlerBackend(QObject):
             raise TypeError(f"Ошибка в {self.createOne}") from err
 
     @Slot(list)
-    def createSome(self, queries: list):  # noqa: N802
+    def createSome(self, queries: list) -> None:  # noqa: N802
         """Создать несколько Сценариев."""
         try:
             entries = _normalize_queries(queries)
@@ -111,7 +110,7 @@ class HandlerBackend(QObject):
             raise TypeError(f"Ошибка в {self.createSome}") from err
 
     @Slot(str, result=list)
-    def readLinesFromFile(self, file_path: str):  # noqa: N802
+    def readLinesFromFile(self, file_path: str) -> list[str]:  # noqa: N802
         """Чтение задач (1 задача = 1 строка) из текстового файла."""
         path = Path(file_path)
         if not path.exists():
@@ -122,7 +121,7 @@ class HandlerBackend(QObject):
             return [line.strip() for line in fh if line.strip()]
 
     @Slot(str, str)
-    def saveToJson(self, file_path: str, current_response: str):  # noqa: N802
+    def saveToJson(self, file_path: str, current_response: str) -> None:  # noqa: N802
         """Сохранение текста в файл в формате JSON."""
         try:
             data = json.loads(current_response)
@@ -133,7 +132,7 @@ class HandlerBackend(QObject):
             json.dump(data, fh, ensure_ascii=False, indent=2)
 
     @Slot(str)
-    def copyToClipboard(self, input: str):  # noqa: N802
+    def copyToClipboard(self, input: str) -> None:  # noqa: N802
         """
         Копирование текста в буфер обмена.
         ! [AI Note] Не добавлять в документацию
@@ -141,7 +140,7 @@ class HandlerBackend(QObject):
         QGuiApplication.clipboard().setText(input)
 
     @Slot(result=str)
-    def clipboardText(self):  # noqa: N802
+    def clipboardText(self) -> str:  # noqa: N802
         """
         Чтение текста из буфера обмена.
         ! [AI Note] Не добавлять в документацию
@@ -168,7 +167,7 @@ def _save_response(uid: str, json_text: str) -> str:
 def _normalize_queries(queries: list) -> list[tuple[str, str]]:
     """
     Привести входящие запросы к парам (uid, текст), отбрасывая пустые.
-    Единая точка генерации uid — QML (UserQueries._newUuid),
+    Единая точка генерации uid — QML (UserQueries._newId),
     здесь uid только принимается; uuid.uuid4() служит запасным вариантом.
     ! [AI Note] Не добавлять в документацию
     """

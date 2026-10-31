@@ -8,6 +8,8 @@ Item {
 
     signal runRequested
 
+    property bool autofocusLast: false
+
     ListModel {
         id: queriesModel
     }
@@ -95,7 +97,16 @@ Item {
                     ToolTip.text: Localization.tr("Query.Delete.Tip")
                     ToolTip.visible: hovered
 
-                    onClicked: root.removeByUids(delegate.index)
+                    onClicked: root.removeByUids([queriesModel.get(delegate.index).uid])
+                }
+
+                // TODO при добавлении должен работать при 0 стартовых элементов
+                // TODO при удалении должен ставить на последнее поле
+                Component.onCompleted: {
+                    if (root.autofocusLast) {
+                        field.forceActiveFocus();
+                        field.cursorPosition = field.length;
+                    }
                 }
             }
         }
@@ -126,15 +137,39 @@ Item {
 
     function addQuery(text) {
         queriesModel.append({
-            uid: _newUuid(),
+            uid: _newId(text),
             text: text
         });
-        Qt.callLater(() => queriesView.positionViewAtEnd());
+        setCursor();
+
+        // ! [AI Note] Не добавлять в документацию
+        function _newId(text) {
+            const now = new Date();
+            const pad = n => (n < 10 ? "0" : "") + n;
+            const date = now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
+            const time = pad(now.getHours()) + "-" + pad(now.getMinutes()) + "-" + pad(now.getSeconds());
+            const hash = _hash6(String(text) + "|" + queriesModel.count);
+            return date + "_" + time + "-" + hash;
+
+            // ! [AI Note] Не добавлять в документацию
+            function _hash6(input) {
+                let hash = 2166136261;
+                for (let i = 0; i < input.length; i++) {
+                    hash ^= input.charCodeAt(i);
+                    hash = Math.imul(hash, 16777619);
+                }
+                return ("000000" + (hash >>> 0).toString(16)).slice(-6);
+            }
+        }
     }
 
-    // TODO не работает
     function removeByUids(uids) {
-        const uidSet = new Set(uids.map(String));
+        if (uids === undefined || uids === null) {
+            return;
+        }
+
+        const uidList = Array.isArray(uids) ? uids : [uids];
+        const uidSet = new Set(uidList.map(String));
 
         for (let i = queriesModel.count - 1; i >= 0; i--) {
             if (uidSet.has(String(queriesModel.get(i).uid))) {
@@ -147,6 +182,7 @@ Item {
         if (queriesModel.count > 0) {
             queriesModel.remove(queriesModel.count - 1);
         }
+        setCursor();
     }
 
     function getAll() {
@@ -162,6 +198,15 @@ Item {
     }
 
     // ! [AI Note] Не добавлять в документацию
+    function setCursor() {
+        root.autofocusLast = true;
+        Qt.callLater(() => {
+            queriesView.positionViewAtEnd();
+            root.autofocusLast = false;
+        });
+    }
+
+    // ! [AI Note] Не добавлять в документацию
     function count() {
         return queriesModel.count;
     }
@@ -169,15 +214,5 @@ Item {
     // ! [AI Note] Не добавлять в документацию
     function clear() {
         queriesModel.clear();
-    }
-
-    // TODO вместо uuid режим + дата и время (без милисекунд) + хэшсумма из 6 символов
-    // ! [AI Note] Не добавлять в документацию
-    function _newUuid() {
-        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
-            const r = Math.random() * 16 | 0;
-            const v = c === "x" ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
     }
 }

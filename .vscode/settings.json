@@ -7,11 +7,16 @@
     "editor.defaultFormatter": "charliermarsh.ruff",
     "editor.formatOnSave": true,
     "editor.insertSpaces": true,
-    "editor.tabSize": 4,
+    // "editor.tabSize": 4,
     "editor.codeActionsOnSave": {
       "source.fixAll.ruff": "always",
       "source.organizeImports.ruff": "always"
     }
+  },
+
+  "[toml]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true
   },
 
   "[qml]": {

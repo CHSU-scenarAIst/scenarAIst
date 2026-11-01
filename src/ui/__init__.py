@@ -1,10 +1,6 @@
-"""
-Пакет "Пользовательский интерфейс".
-Управление пользовательским интерфейсом, бизнес-логика.
-"""
+"""Пакет "Пользовательский интерфейс". Управление пользовательским интерфейсом, бизнес-логика."""
 
 from importlib.metadata import version
-from typing import Protocol
 
 __version__ = version("scenaraist")
 
@@ -13,6 +9,7 @@ import logging
 import sys
 import uuid
 from pathlib import Path
+from typing import Any, Protocol
 
 from pydantic import BaseModel
 from PySide6.QtCore import QMessageLogContext, QObject, QtMsgType, Signal, Slot, qInstallMessageHandler
@@ -29,7 +26,7 @@ LOGGER = logging.getLogger(__name__)
 class Invoke(Protocol):
     """Интерфейс для работы с ответами Сценариста по API."""
 
-    def invoke(self, text: str, config: dict) -> BaseModel:
+    def invoke(self, text: str) -> BaseModel:
         """Объявление метода для отправки запросов LLM-агенту."""
         ...
 
@@ -60,17 +57,12 @@ class HandlerBackend(QObject):
     queriesProcessed = Signal(list)  # noqa: N815
     responseReady = Signal(str)  # noqa: N815
 
-    def __init__(self, invoker: Invoke, parent=None):
+    def __init__(self, invoker: Invoke, parent: QObject | None = None) -> None:
         super().__init__(parent)
-        self._config = {
-            "configurable": {
-                "thread_id": uuid.uuid4().hex,
-            }
-        }
         self._invoker = invoker
 
     @Slot(list)
-    def createOne(self, queries: list) -> None:  # noqa: N802
+    def createOne(self, queries: list[Any]) -> None:  # noqa: N802
         """Создать один Сценарий."""
         try:
             entries = _normalize_queries(queries)
@@ -81,16 +73,16 @@ class HandlerBackend(QObject):
             uid, content = entries[0]
             json_text = _save_response(
                 uid,
-                self._invoker.invoke(content, self._config).model_dump_json(indent=2, ensure_ascii=False),
+                self._invoker.invoke(content).model_dump_json(indent=2, ensure_ascii=False),
             )
 
             self.responseReady.emit(json_text)
             self.queriesProcessed.emit([uid])
         except Exception as err:
-            raise TypeError(f"Ошибка в {self.createOne}") from err
+            raise TypeError("Ошибка в %s", self.createOne) from err
 
     @Slot(list)
-    def createSome(self, queries: list) -> None:  # noqa: N802
+    def createSome(self, queries: list[Any]) -> None:  # noqa: N802
         """Создать несколько Сценариев."""
         try:
             entries = _normalize_queries(queries)
@@ -101,13 +93,13 @@ class HandlerBackend(QObject):
             for uid, content in entries:
                 json_text = _save_response(
                     uid,
-                    self._invoker.invoke(content, self._config).model_dump_json(indent=2, ensure_ascii=False),
+                    self._invoker.invoke(content).model_dump_json(indent=2, ensure_ascii=False),
                 )
 
                 self.responseReady.emit(json_text)
                 self.queriesProcessed.emit([uid])
         except Exception as err:
-            raise TypeError(f"Ошибка в {self.createSome}") from err
+            raise TypeError("Ошибка в %s", self.createSome) from err
 
     @Slot(str, result=list)
     def readLinesFromFile(self, file_path: str) -> list[str]:  # noqa: N802
@@ -164,7 +156,7 @@ def _save_response(uid: str, json_text: str) -> str:
     return file_path.read_text(encoding="utf-8")
 
 
-def _normalize_queries(queries: list) -> list[tuple[str, str]]:
+def _normalize_queries(queries: list[Any]) -> list[tuple[str, str]]:
     """
     Привести входящие запросы к парам (uid, текст), отбрасывая пустые.
     Единая точка генерации uid — QML (UserQueries._newId),
@@ -184,7 +176,7 @@ def _normalize_queries(queries: list) -> list[tuple[str, str]]:
     return entries
 
 
-def _qt_message_handler(mode: QtMsgType, context: QMessageLogContext, message: str):
+def _qt_message_handler(mode: QtMsgType, context: QMessageLogContext, message: str) -> None:
     """
     Перехватчик потока ошибок из QML.
     ! [AI Note] Не добавлять в документацию

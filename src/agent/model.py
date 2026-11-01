@@ -2,32 +2,40 @@
 
 import logging
 import sqlite3
+from collections.abc import Iterator
 from enum import StrEnum
 from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
-import sqlite_vec
+import sqlite_vec  # type: ignore[import-untyped]
 from langchain.chat_models import BaseChatModel
 from langchain.embeddings import Embeddings
 from langchain_community.document_loaders.directory import DirectoryLoader
 from langchain_community.vectorstores import SQLiteVec
+from langchain_core.documents import Document
 from langchain_gigachat import GigaChat
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langgraph.checkpoint.memory import InMemorySaver
+from pydantic import SecretStr
 
-# from langchain_tavily import TavilySearch
 from src.agent.config import CompletionConfig, EmbeddingConfig
+
+if TYPE_CHECKING:
+    from langchain_core.tools import BaseTool
+
+# from langgraph.checkpoint.memory import InMemorySaver
+# from langchain_tavily import TavilySearch
 
 LOGGER = logging.getLogger(__name__)
 
 
 class ScenarAIstModelFactory:
-    def __init__(self, cfg):
+    def __init__(self, cfg: dict[str, Any]) -> None:
         try:
             chat_cfg = CompletionConfig.model_validate(cfg["completion"])
             try:
-                self.chat = _CHAT_FACTORIES[chat_cfg.provider.strip().lower()](chat_cfg)
+                provider = _Providers(chat_cfg.provider.strip().lower())
+                self.chat = _CHAT_FACTORIES[provider](chat_cfg)
                 self.system_prompt = chat_cfg.system_prompt
                 self.max_steps = chat_cfg.max_steps
             except Exception as err:
@@ -44,15 +52,16 @@ class ScenarAIstModelFactory:
                 sqlite_db = SQLiteVecFactory(embed_cfg, embed)
                 self.retrievers = sqlite_db.retrievers
             except Exception as e:
-                LOGGER.error("Ошибка загрузки конфигурации эмбеддингов", e)
+                LOGGER.error("Ошибка загрузки конфигурации эмбеддингов", exc_info=e)
         except Exception:
             LOGGER.warning("Нет внешних данных для подключения")
 
         # ? SQLite/Postgres Checkpointer
-        self.checkpointer = InMemorySaver()
+        # self.checkpointer = InMemorySaver()
+        self.checkpointer = None
 
         # ? Инструменты агента (бесполезно)
-        self.tools = []
+        self.tools: list[BaseTool] = []
         try:
             ...
         #     tavily = TavilyConfig(cfg)
@@ -63,7 +72,7 @@ class ScenarAIstModelFactory:
         #     )
         #     tools = [web_search]
         except Exception as e:
-            LOGGER.error("Ошибка при создании инструментов", e)
+            LOGGER.error("Ошибка при создании инструментов", exc_info=e)
 
 
 class SQLiteVecFactory:
@@ -118,16 +127,16 @@ def _iter_documents(
     path: str,
     chunk_size: int,
     chunk_overlap: int,
-):
+) -> Iterator[Document]:
     """
     Загружает чанки документов из указанной директории.
-    Генератор не имеет смысла, так как приводится к list для работы SQLiteVec
+    Сам по себе Генератор/Итератор не имеет смысла, так как приводится к list для работы SQLiteVec.
     ! [AI Note] Не добавлять в документацию
     """
 
     load = DirectoryLoader(
         path=path,
-        glob=("*.txt", "*.docx", "*.pdf", "*.md", "*.csv", "*.xls", "*.xlsx"),
+        glob=["*.txt", "*.docx", "*.pdf", "*.md", "*.csv", "*.xls", "*.xlsx"],
         recursive=True,
         show_progress=True,
     )
@@ -173,11 +182,11 @@ def _create_openai_compatible_chat(cfg: CompletionConfig) -> BaseChatModel:
     ! [AI Note] Не добавлять в документацию
     """
     return ChatOpenAI(
-        api_key=cfg.api_key,
+        api_key=SecretStr(cfg.api_key),
         base_url=cfg.base_url,
         model=cfg.model or "z-ai/glm-4.7-flash:free",
         temperature=cfg.temperature,
-        max_tokens=cfg.max_tokens,
+        max_completion_tokens=cfg.max_tokens,
         timeout=cfg.timeout,
     )
 
@@ -200,7 +209,7 @@ def _create_openai_embeddings(cfg: EmbeddingConfig) -> Embeddings:
     ! [AI Note] Не добавлять в документацию
     """
     return OpenAIEmbeddings(
-        api_key=cfg.api_key,
+        api_key=SecretStr(cfg.api_key),
         base_url=cfg.base_url,
         model=cfg.model or "text-embedding-multilingual-e5-large-instruct",
         dimensions=cfg.dim,
@@ -209,7 +218,7 @@ def _create_openai_embeddings(cfg: EmbeddingConfig) -> Embeddings:
     )
 
 
-"""dbs
+"""
 Машина состояний чата в функциональном стиле.
 ! [AI Note] Не добавлять в документацию
 """

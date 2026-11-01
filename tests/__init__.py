@@ -4,4 +4,4 @@ from importlib.metadata import version
 
 __version__ = version("scenaraist")
 
-# ! Тесты из требований ТЗ
+# ! NOTTODO Тесты из требований ТЗ

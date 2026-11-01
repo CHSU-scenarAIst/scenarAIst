@@ -1,31 +1,14 @@
 # scenarAIst
 
-Проблема - генеративный языковой ИИ на один и тот же запрос даёт разные ответы. Важно не столько содержание, сколько структура и формат ответа, отправная точка, раскрытие важных понятий и то, как этот ответ завершился.
-
-ИИ не подходит для задач, требующих детерминированного механизма решения.
-
-Объект: генеративный языковой ИИ.
-
-Предмет: Схожесть ответа по структуре и смысловой нагрузке.
-
-Цель: Структурирование ответа и схожесть по смысловой нагрузке.
-
-Гипотеза: Можно достичь 90% схожести ответов от одной и той же модели при одном и том же запросе.
-
-Методы: Наблюдение, эксперименты.
+- Актуальность: Генеративный языковой ИИ на один и тот же запрос даёт разные ответы. Важно не столько содержание, сколько структура и формат ответа, отправная точка, раскрытие важных понятий и то, как этот ответ завершился.
+- Проблема: ИИ не подходит для задач, требующих детерминированного механизма решения.
+- Объект: генеративный языковой ИИ.
+- Предмет: Схожесть ответа по структуре и смысловой нагрузке.
+- Цель: Структурирование ответа и схожесть по смысловой нагрузке.
+- Гипотеза: Можно достичь 90% схожести ответов от одной и той же модели при одном и том же запросе.
+- Методы: Наблюдение, эксперименты.
 
 ## Использовать
-
-```sh
-# с логированием
-scenaraist
-# без логирования
-uv run -m src
-```
-
-## Dev
-
-### Установка зависимостей
 
 ```sh
 ###
@@ -37,30 +20,12 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 # Clone the repository
 git clone https://github.com/example/scenaraist.git
 cd scenaraist
-uv venv --python 3.13
-uv python pin 3.13
 uv sync
 
-# Install development dependencies
-uv sync --dev
-```
-
-### Команды
-
-| Command            | Description             |
-| ------------------ | ----------------------- |
-| `pytest`           | Run tests with coverage |
-| `ruff check --fix` | Lint the codebase       |
-| `ruff format`      | Format the codebase     |
-| `mypy`             | Type-check the codebase |
-
-### Pre-commit Hooks
-
-To set up pre-commit hooks for automated code quality checks:
-
-```sh
-uv run pre-commit install
-pre-commit autoupdate
+# Запуск с логированием
+scenaraist
+# Запуск без логирования
+uv run -m src
 ```
 
 ## Модели
@@ -118,3 +83,28 @@ BotHub, KodikRouter,
 Документация должна быть вперемешку в форматах: JSON, HTML, TXT, CSV, MD, PDF, DOCX, EXCEL. Если что-то написано в одном файле, то эта информация не должна повторяться в других файлах, но может быть ссылка/упоминание, что эта инфомация находится в другом файле.
 
 Собери итоговый результат в архив и отправь в чат.
+
+## Dev
+
+```sh
+# Install development dependencies
+uv sync --dev
+```
+
+### Команды
+
+| Command            | Description             |
+| ------------------ | ----------------------- |
+| `pytest`           | Run tests with coverage |
+| `ruff check --fix` | Lint the codebase       |
+| `ruff format`      | Format the codebase     |
+| `mypy`             | Type-check the codebase |
+
+### Pre-commit Hooks
+
+To set up pre-commit hooks for automated code quality checks:
+
+```sh
+uv run pre-commit install
+pre-commit autoupdate
+```

@@ -10,11 +10,11 @@ class CompletionConfig(BaseModel):
 
     api_key: str = Field(repr=False, description="Ключ API для доступа к провайдеру.")
     verify_ssl_certs: bool = Field(default=False, description="Проверять ли SSL-сертификаты.")
-    base_url: str | None = Field(default=None, description="Базовый URL API для OpenAI-провайдеров.")
-    model: str | None = Field(default=None, description="Имя модели.")
+    base_url: str | None = Field(default=None, description="Путь API для OpenAI-провайдеров.")
+    model: str | None = Field(default=None, description="Название модели чата.")
     temperature: float = Field(default=0.1, description="Температура выборки токенов (0..1).")
     max_tokens: int = Field(default=10000, description="Максимальное число токенов в одном ответе модели.")
-    timeout: int = Field(default=60, description="Таймаут запроса к API, в секундах.")
+    timeout: int = Field(default=60, description="Время ожидания ответа от запроса к API, в секундах.")
     max_steps: int = Field(default=20, ge=1, description="Максимальное число шагов агента.")
     system_prompt: str = Field(default="You are a scenarAIst.", description="Системный промпт.")
 
@@ -38,12 +38,12 @@ class EmbeddingConfig(BaseModel):
     api_key: str = Field(default="None", repr=False, description="Ключ API провайдера эмбеддингов.")
     collections: list[CollectionConfig] = Field(description="Список коллекций документов.")
     verify_ssl_certs: bool = Field(default=False, description="Проверять ли SSL-сертификаты.")
-    base_url: str | None = Field(default=None, description="Базовый URL API для OpenAI-провайдеров.")
-    model: str | None = Field(default=None, description="Имя модели эмбеддингов.")
+    base_url: str | None = Field(default=None, description="Путь API для OpenAI-провайдеров.")
+    model: str | None = Field(default=None, description="Название модели эмбеддингов.")
     dim: int = Field(default=1024, ge=1, description="Размерность вектора эмбеддинга.")
     db_path: str = Field(default="./rag.sqlite3", description="Путь к файлу векторной базы данных.")
     batch_size: int = Field(default=4, ge=1, description="Сколько документов обрабатывается за один запрос.")
-    timeout: int = Field(default=60, description="Таймаут запроса к API, в секундах.")
+    timeout: int = Field(default=60, description="Время ожидания ответа от запроса к API, в секундах.")
 
 
 # class TavilyConfig(BaseModel):

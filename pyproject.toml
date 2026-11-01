@@ -37,18 +37,19 @@ scenaraist = "src.__main__:main"
 # Настройки сборки wheel
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
-include = ["src/ui/qml"]
+# include = ["src/ui/qml"]
 
 
 # Группы необязательных зависимостей
 [dependency-groups]
 dev = [
-    "mypy>=2.2.0",                # Статическая проверка типов
-    "pre-commit>=4.6.0",          # Git hooks
-    "pytest>=9.1.1",              # Тестирование
-    "pytest-cov>=7.1.0",          # Покрытие тестами
-    "ruff>=0.15.21",              # Линтер и форматтер
-    "types-python-dateutil>=2.9", # Типы для python-dateutil
+    "mypy>=2.2.0",                              # Статическая проверка типов
+    "pre-commit>=4.6.0",                        # Git hooks
+    "pytest>=9.1.1",                            # Тестирование
+    "pytest-cov>=7.1.0",                        # Покрытие тестами
+    "ruff>=0.15.21",                            # Линтер и форматтер
+    "types-python-dateutil>=2.9.0.20260807",    # Типы для python-dateutil
+    "types-pyyaml>=6.0.12.20261030",
 ]
 
 # Настройки mypy

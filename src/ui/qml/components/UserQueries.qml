@@ -100,8 +100,8 @@ Item {
                     onClicked: root.removeByUids([queriesModel.get(delegate.index).uid])
                 }
 
-                // TODO при добавлении должен работать при 0 стартовых элементов
-                // TODO при удалении должен ставить на последнее поле
+                // TODO при добавлении должен работать при 0 стартовых полей
+                // TODO при удалении должен ставить фокус на последнее поле
                 Component.onCompleted: {
                     if (root.autofocusLast) {
                         field.forceActiveFocus();

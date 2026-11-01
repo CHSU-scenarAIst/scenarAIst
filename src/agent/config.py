@@ -41,7 +41,7 @@ class EmbeddingConfig(BaseModel):
     base_url: str | None = Field(default=None, description="Путь API для OpenAI-провайдеров.")
     model: str | None = Field(default=None, description="Название модели эмбеддингов.")
     dim: int = Field(default=1024, ge=1, description="Размерность вектора эмбеддинга.")
-    db_path: str = Field(default="./rag.sqlite3", description="Путь к файлу векторной базы данных.")
+    db_path: str = Field(default="./responses/rag.sqlite3", description="Путь к файлу векторной базы данных.")
     batch_size: int = Field(default=4, ge=1, description="Сколько документов обрабатывается за один запрос.")
     timeout: int = Field(default=60, description="Время ожидания ответа от запроса к API, в секундах.")
 

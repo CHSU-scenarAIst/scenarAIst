@@ -108,3 +108,20 @@ To set up pre-commit hooks for automated code quality checks:
 uv run pre-commit install
 pre-commit autoupdate
 ```
+
+## NOTTODO
+
+.qmlformat.ini
+
+```ini
+[General]
+FunctionsSpacing=false
+IndentWidth=4
+MaxColumnWidth=100
+NewlineType=native
+NormalizeOrder=false
+ObjectsSpacing=false
+SemicolonRule=always
+SortImports=false
+UseTabs=false
+```

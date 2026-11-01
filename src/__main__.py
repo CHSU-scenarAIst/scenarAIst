@@ -6,10 +6,10 @@ from pydantic import BaseModel
 
 from src.agent import ScenarAIstAgent
 from src.agent.model import ScenarAIstModelFactory
-from src.ui import Invoke, UserInterface
+from src.ui.handler import Invoke, UserInterface
 
 CONFIG_FILE = Path("config.yaml")
-LOG_FILE = "scenarAIst.log"
+LOG_FILE = Path("responses") / "scenarAIst.log"
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
 LOGGER = logging.getLogger(__name__)

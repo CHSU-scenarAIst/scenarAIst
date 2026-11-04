@@ -53,8 +53,9 @@ class ScenarAIstModelFactory:
                 self.retrievers = sqlite_db.retrievers
             except Exception as e:
                 LOGGER.error("Ошибка загрузки конфигурации эмбеддингов", exc_info=e)
-        except Exception:
-            LOGGER.warning("Нет внешних данных для подключения")
+        except Exception as e:
+            LOGGER.warning("Нет внешних данных для подключения: %s", e)
+            LOGGER.debug("Причина отсутствия внешних данных", exc_info=e)
 
         # ? SQLite/Postgres Checkpointer
         # self.checkpointer = InMemorySaver()

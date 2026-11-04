@@ -9,7 +9,7 @@ from src.agent.model import ScenarAIstModelFactory
 from src.ui.handler import Invoke, UserInterface
 
 CONFIG_FILE = Path("config.yaml")
-LOG_FILE = Path("responses") / "scenarAIst.log"
+LOG_FILE = "scenarAIst.log"
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
 LOGGER = logging.getLogger(__name__)

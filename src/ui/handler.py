@@ -48,52 +48,29 @@ class UserInterface:
 
 
 class HandlerBackend(QObject):
-    queriesProcessed = Signal(list)  # noqa: N815
+    queryProcessed = Signal(list)  # noqa: N815
     responseReady = Signal(str)  # noqa: N815
 
     def __init__(self, invoker: Invoke, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._invoker = invoker
 
-    @Slot(list)
-    def createOne(self, queries: list[Any]) -> None:  # noqa: N802
+    @Slot("QVariant")
+    def createOne(self, query: Any) -> None:  # noqa: N802
         """Создать один Сценарий."""
-        try:
-            entries = _normalize_queries(queries)
-            if not entries:
-                LOGGER.warning("Нет вхождений")
-                return
+        entry = _normalize_query(query)
+        if not entry:
+            LOGGER.warning("Нет вхождений")
+            return
 
-            uid, content = entries[0]
-            json_text = _save_response(
-                uid,
-                self._invoker.invoke(content).model_dump_json(indent=2, ensure_ascii=False),
-            )
+        uid, text = entry
+        json_text = _save_response(
+            uid,
+            self._invoker.invoke(text).model_dump_json(indent=2, ensure_ascii=False),
+        )
 
-            self.responseReady.emit(json_text)
-            self.queriesProcessed.emit([uid])
-        except Exception as err:
-            raise TypeError("Ошибка в %s", self.createOne) from err
-
-    @Slot(list)
-    def createSome(self, queries: list[Any]) -> None:  # noqa: N802
-        """Создать несколько Сценариев."""
-        try:
-            entries = _normalize_queries(queries)
-            if not entries:
-                LOGGER.warning("Нет вхождений")
-                return
-
-            for uid, content in entries:
-                json_text = _save_response(
-                    uid,
-                    self._invoker.invoke(content).model_dump_json(indent=2, ensure_ascii=False),
-                )
-
-                self.responseReady.emit(json_text)
-                self.queriesProcessed.emit([uid])
-        except Exception as err:
-            raise TypeError("Ошибка в %s", self.createSome) from err
+        self.responseReady.emit(json_text)
+        self.queryProcessed.emit([uid])
 
     @Slot(str, result=list)
     def readLinesFromFile(self, file_path: str) -> list[str]:  # noqa: N802
@@ -150,24 +127,23 @@ def _save_response(uid: str, json_text: str) -> str:
     return file_path.read_text(encoding="utf-8")
 
 
-def _normalize_queries(queries: list[Any]) -> list[tuple[str, str]]:
+def _normalize_query(query: Any) -> tuple[str, str] | None:
     """
     Привести входящие запросы к парам (uid, текст), отбрасывая пустые.
     Единая точка генерации uid — QML (UserQueries._newId),
-    здесь uid только принимается; uuid.uuid4() служит запасным вариантом.
     ! [AI Note] Не добавлять в документацию
     """
-    entries: list[tuple[str, str]] = []
-    for q in queries or []:
-        if isinstance(q, dict):
-            uid = str(q.get("uid") or "").strip()
-            text = str(q.get("text") or "").strip()
-        else:
-            uid = ""
-            text = str(q).strip()
-        if text:
-            entries.append((uid or uuid.uuid4().hex, text))
-    return entries
+    if isinstance(query, dict):
+        uid = str(query.get("uid") or "").strip()
+        text = str(query.get("text") or "").strip()
+    else:
+        uid = ""
+        text = str(query).strip()
+
+    if text:
+        return (uid or uuid.uuid4().hex, text)
+
+    return None
 
 
 def _qt_message_handler(mode: QtMsgType, context: QMessageLogContext, message: str) -> None:

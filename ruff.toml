@@ -1,58 +1,32 @@
-# ! NOTTODO вернуть комментарии в строки
-# Версия Python, под которую проверяется код
-target-version = "py313"
-# Максимальная длина строки
-line-length = 110
+target-version = "py313"	# Версия Python, под которую проверяется код
+line-length = 110	        # Максимальная длина строки
 
 [lint]
-# Какие наборы правил использовать
 select = [
-    # pycodestyle errors
-    "E",
-    # pycodestyle warnings
-    "W",
-    # pyflakes
-    "F",
-    # isort
-    "I",
-    # pep8-naming
-    "N",
-    # pyupgrade
-    "UP",
-    # bandit security
-    "S",
-    # flake8-bugbear
-    "B",
-    # Pylint
-    "PL",
-    # flake8-simplify
-    "SIM",
-    # flake8-type-checking
-    "TCH",
-    # flake8-comprehensions
-    "C4",
-    # flake8-return
-    "RET",
-    # собственные правила Ruff
-    "RUF",
-    # missing-return-type-undocumented-public-function
-    "ANN201",
+	"E",	    # pycodestyle errors
+	"W",	    # pycodestyle warnings
+	"F",	    # pyflakes
+	"I",    	# isort
+	"N",	    # pep8-naming
+	"UP",   	# pyupgrade
+	"S",	    # bandit security
+	"B",	    # flake8-bugbear
+	"PL",	    # Pylint
+	"SIM",	    # flake8-simplify
+	"TCH",	    # flake8-type-checking
+	"C4",	    # flake8-comprehensions
+	"RET",	    # flake8-return
+	"RUF",	    # собственные правила Ruff
+	"ANN201",	# missing-return-type-undocumented-public-function
 ]
 
 [lint.per-file-ignores]
-# Разрешить реэкспорт через __init__.py
-"__init__.py" = ["F401"]
-# Разрешить assert в тестах
-"tests/**/*" = ["S101"]
-# Отключить проверку русского текста
-"./*" = ["RUF001", "RUF002", "RUF003"]
+"__init__.py" = ["F401"]	            # Разрешить реэкспорт через __init__.py
+"tests/**/*" = ["S101"]	                # Разрешить assert в тестах
+"./*" = ["RUF001", "RUF002", "RUF003",]	# Отключить проверку русского текста
 
 [format]
-# Использовать двойные кавычки
-quote-style = "double"
-# Использовать пробелы вместо табов
-indent-style = "space"
-# Автоматически определять окончания строк
-line-ending = "auto"
-# Всегда добавлять запятую в многострочных структурах
-skip-magic-trailing-comma = false
+quote-style = "double"	            # Использовать двойные кавычки
+indent-style = "space"	            # Использовать пробелы вместо табов
+line-ending = "auto"	            # Автоматически определять окончания строк
+skip-magic-trailing-comma = false	# Всегда добавлять запятую в многострочных структурах

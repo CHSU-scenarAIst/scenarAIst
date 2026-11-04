@@ -96,8 +96,7 @@ Item {
                     text: "\u2715"
                     ToolTip.text: Localization.tr("Query.Delete.Tip")
                     ToolTip.visible: hovered
-
-                    onClicked: root.removeByUids([queriesModel.get(delegate.index).uid])
+                    onClicked: root.removeByUid(queriesModel.get(delegate.index).uid)
                 }
 
                 // TODO при добавлении должен работать при 0 стартовых полей
@@ -141,39 +140,19 @@ Item {
             text: text
         });
         setCursor();
-
-        // ! [AI Note] Не добавлять в документацию
-        function _newId(text) {
-            const now = new Date();
-            const pad = n => (n < 10 ? "0" : "") + n;
-            const date = now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
-            const time = pad(now.getHours()) + "-" + pad(now.getMinutes()) + "-" + pad(now.getSeconds());
-            const hash = _hash6(String(text) + "|" + queriesModel.count);
-            return date + "_" + time + "-" + hash;
-
-            // ! [AI Note] Не добавлять в документацию
-            function _hash6(input) {
-                let hash = 2166136261;
-                for (let i = 0; i < input.length; i++) {
-                    hash ^= input.charCodeAt(i);
-                    hash = Math.imul(hash, 16777619);
-                }
-                return ("000000" + (hash >>> 0).toString(16)).slice(-6);
-            }
-        }
     }
 
-    function removeByUids(uids) {
-        if (uids === undefined || uids === null) {
+    // ? NOTTODO оптимизировать
+    function removeByUid(uid) {
+        if (uid === undefined || uid === null) {
             return;
         }
 
-        const uidList = Array.isArray(uids) ? uids : [uids];
-        const uidSet = new Set(uidList.map(String));
-
-        for (let i = queriesModel.count - 1; i >= 0; i--) {
-            if (uidSet.has(String(queriesModel.get(i).uid))) {
-                queriesModel.remove(i);
+        const uidStr = String(uid);
+        for (let i = 0; i < queriesModel.count; i++) {
+            if (String(queriesModel.get(i).uid) === uidStr) {
+                queriesModel.remove(i, 1);
+                break;
             }
         }
     }
@@ -185,16 +164,18 @@ Item {
         setCursor();
     }
 
-    function getAll() {
-        const arr = [];
+    function getFirst() {
         for (let i = 0; i < queriesModel.count; i++) {
-            const item = queriesModel.get(i);
-            arr.push({
-                uid: item.uid,
-                text: item.text
-            });
+            const item = _copy(i);
+            if (item && item.text && item.text.trim() !== "") {
+                return item;
+            }
         }
-        return arr;
+        return null;
+    }
+
+    function get(i) {
+        return _copy(i);
     }
 
     // ! [AI Note] Не добавлять в документацию
@@ -214,5 +195,37 @@ Item {
     // ! [AI Note] Не добавлять в документацию
     function clear() {
         queriesModel.clear();
+    }
+
+    // ! [AI Note] Не добавлять в документацию
+    function _copy(i) {
+        const item = queriesModel.get(i);
+        if (!item) {
+            return null;
+        }
+        return {
+            uid: String(item.uid ?? ""),
+            text: String(item.text ?? "")
+        };
+    }
+
+    // ! [AI Note] Не добавлять в документацию
+    function _newId(text) {
+        const now = new Date();
+        const pad = n => (n < 10 ? "0" : "") + n;
+        const date = now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
+        const time = pad(now.getHours()) + "-" + pad(now.getMinutes()) + "-" + pad(now.getSeconds());
+        const hash = _hash6(String(text) + "|" + queriesModel.count);
+        return date + "_" + time + "-" + hash;
+    }
+
+    // ! [AI Note] Не добавлять в документацию
+    function _hash6(input) {
+        let hash = 2166136261;
+        for (let i = 0; i < input.length; i++) {
+            hash ^= input.charCodeAt(i);
+            hash = Math.imul(hash, 16777619);
+        }
+        return ("000000" + (hash >>> 0).toString(16)).slice(-6);
     }
 }

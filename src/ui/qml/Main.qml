@@ -126,8 +126,8 @@ ApplicationWindow {
             root.currentResponse = response;
         }
 
-        function onQueriesProcessed(uids) {
-            userQueries.removeByUids(uids);
+        function onQueryProcessed(uid) {
+            userQueries.removeByUid(uid);
             root.refreshStatus();
         }
     }
@@ -166,7 +166,7 @@ ApplicationWindow {
         }
     }
 
-    // ! NOTTODO использовать системные окна подтверждения
+    // ? NOTTODO использовать системные окна подтверждения
     // TODO цветовая обводка активного выбора кнопки
     Dialog {
         id: exitDialog
@@ -184,27 +184,26 @@ ApplicationWindow {
         onAccepted: Qt.quit()
     }
 
+    function send() {
+        if (root.currentMode === 0) {
+            const field = userQueries.getFirst();
+            if (field) {
+                handler.createOne(field);
+            }
+        } else if (root.currentMode === 1) {
+            for (let i = 0; i < userQueries.count(); i++) {
+                const field = userQueries.get(i);
+                if (field && field.text.trim() !== "") {
+                    handler.createOne(field);
+                }
+            }
+        }
+    }
+
     function refreshStatus() {
         const mode = Localization.tr("Hotkeys.Mode") + ": " + Localization.tr(root.modes[root.currentMode]);
         const query = Localization.tr("Query.Count") + ": " + userQueries.count();
         statusBar.text = mode + "   |   " + query;
-    }
-
-    function send() {
-        const queries = userQueries.getAll();
-        if (queries.length <= 0) {
-            return;
-        }
-
-        if (root.currentMode === 0) {
-            handler.createOne(queries);
-        } else if (root.currentMode === 1) {
-            handler.createSome(queries);
-        } else if (root.currentMode === 2) {
-            handler.createOne(queries);
-        } else {
-            handler.createOne(queries);
-        }
     }
 
     // ! [AI Note] Не добавлять в документацию

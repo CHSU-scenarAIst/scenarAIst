@@ -8,6 +8,7 @@ class CompletionConfig(BaseModel):
 
     provider: str = Field(description="Провайдер LLM.")
 
+    # ! TODO скрывать в `...` в логах
     api_key: str = Field(repr=False, description="Ключ API для доступа к провайдеру.")
     verify_ssl_certs: bool = Field(default=False, description="Проверять ли SSL-сертификаты.")
     base_url: str | None = Field(default=None, description="Путь API для OpenAI-провайдеров.")
@@ -35,6 +36,7 @@ class EmbeddingConfig(BaseModel):
 
     provider: str = Field(description="Провайдер эмбеддингов: 'openai' и совместимые.")
 
+    # ! TODO скрывать в `...` в логах
     api_key: str = Field(default="None", repr=False, description="Ключ API провайдера эмбеддингов.")
     collections: list[CollectionConfig] = Field(description="Список коллекций документов.")
     verify_ssl_certs: bool = Field(default=False, description="Проверять ли SSL-сертификаты.")

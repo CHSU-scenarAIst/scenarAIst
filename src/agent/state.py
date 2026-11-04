@@ -10,26 +10,25 @@ from langgraph.graph import MessagesState
 from pydantic import BaseModel, Field
 
 
-class WordItem(BaseModel):
+class ActionItem(BaseModel):
     """
-    Отдельное слово итогового ответа.
+    TODO ...
     ? переделать под формат шагов Сценария
     """
 
-    word: str = Field(..., description="Слово из итогового ответа.")
+    action: str = Field(..., description="Действие.")
 
 
 class JsonResponse(BaseModel):
     """
-    Структура JSON-ответа.
-    ? переделать под формат шагов Сценария
+    Структура общения между Сценаристом и LLM.
     """
 
     query: str = Field(..., description="Запрос Сценариста.")
-    message: str = Field(..., description="Текстовое сообщение LLM.")
-    data: dict[str, Any] | None = Field(default=None, description="Словарь с техническими данными.")
-    words: list[WordItem] | None = Field(default=None, description="Массив слов итогового ответа.")
-    add_instruct: str | None = Field(default=None, description="Дополнительные инструкции от Сценариста.")
+    message: str = Field(default="", description="Текстовое сообщение LLM.")
+    data: dict[str, Any] = Field(default_factory=dict, description="Словарь с техническими данными.")
+    actions: list[ActionItem] = Field(default_factory=list, description="Массив Действий итогового Сценария.")
+    add_instruct: str = Field(default="", description="Дополнительные инструкции от Сценариста.")
 
 
 class OrchestratorState(MessagesState, total=False):
@@ -40,9 +39,9 @@ class OrchestratorState(MessagesState, total=False):
 
     steps: int
     query: str
-    documents: list[Document] | None
+    documents: list[Document]
     response: JsonResponse
-    add_instruct: str | None
+    add_instruct: str
 
 
 class NodeEnum(StrEnum):

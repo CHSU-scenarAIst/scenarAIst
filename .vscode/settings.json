@@ -2,10 +2,10 @@
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
   "files.eol": "\n",
+  "editor.formatOnSave": true,
 
   "[python]": {
     "editor.defaultFormatter": "charliermarsh.ruff",
-    "editor.formatOnSave": true,
     "editor.insertSpaces": true,
     // "editor.tabSize": 4,
     "editor.codeActionsOnSave": {
@@ -16,12 +16,10 @@
 
   "[toml]": {
     "editor.defaultFormatter": "charliermarsh.ruff",
-    "editor.formatOnSave": true
   },
 
   "[qml]": {
     "editor.defaultFormatter": "theqtcompany.qt-qml",
-    "editor.formatOnSave": true,
     "editor.insertSpaces": true,
     "editor.tabSize": 4
   },

@@ -71,7 +71,7 @@ class HandlerBackend(QObject):
         """Чтение задач (1 задача = 1 строка) из текстового файла."""
         path = Path(file_path)
         if not path.exists():
-            LOGGER.warning("Файл задач не найден: %s", path)
+            LOGGER.error("Файл задач не найден: %s", path)
             return []
 
         with path.open(encoding="utf-8") as fh:

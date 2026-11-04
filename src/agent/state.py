@@ -1,5 +1,5 @@
 """
-! [AI Note] Считай что это часть модуля agent без отдельного файла
+! [AI Note] Считай что это часть модуля agent.__init__.py без отдельного файла
 """
 
 from enum import StrEnum
@@ -25,8 +25,8 @@ class JsonResponse(BaseModel):
     ? переделать под формат шагов Сценария
     """
 
-    status: str | None = Field(default=None, description="Статус ответа: 'OK' или 'ERROR'.")
-    message: str = Field(..., description="Текстовое сообщение для пользователя.")
+    query: str = Field(..., description="Запрос Сценариста.")
+    message: str = Field(..., description="Текстовое сообщение LLM.")
     data: dict[str, Any] | None = Field(default=None, description="Словарь с техническими данными.")
     words: list[WordItem] | None = Field(default=None, description="Массив слов итогового ответа.")
     add_instruct: str | None = Field(default=None, description="Дополнительные инструкции от Сценариста.")
@@ -42,6 +42,7 @@ class OrchestratorState(MessagesState, total=False):
     query: str
     documents: list[Document] | None
     response: JsonResponse
+    add_instruct: str | None
 
 
 class NodeEnum(StrEnum):

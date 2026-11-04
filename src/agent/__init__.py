@@ -15,7 +15,7 @@ from langchain_core.documents import Document
 from langgraph.graph import END, START
 from langgraph.graph.state import StateGraph
 from langgraph.prebuilt import ToolNode
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from src.agent.model import ScenarAIstModelFactory
 from src.agent.state import JsonResponse, NodeEnum, OrchestratorState, WordItem
@@ -50,8 +50,8 @@ class ScenarAIstAgent:
         builder.add_node(NodeEnum.FORMAT, self._format_node)
 
         if self._cfg.retrievers:
-            builder.add_node(NodeEnum.RETRIEVE, self._retrieve_node)
             builder.add_edge(START, NodeEnum.RETRIEVE)
+            builder.add_node(NodeEnum.RETRIEVE, self._retrieve_node)
             builder.add_edge(NodeEnum.RETRIEVE, NodeEnum.CHAT)
         else:
             builder.add_edge(START, NodeEnum.CHAT)
@@ -77,15 +77,30 @@ class ScenarAIstAgent:
     def invoke(self, text: str) -> BaseModel:
         """Метод-обёртка для отправки запросов LLM-агенту извне."""
 
+        add_instruct = None
+        try:
+            back_response = JsonResponse.model_validate_json(text)
+        except ValidationError:
+            LOGGER.debug("Запрос не является JSON-структурой")
+        else:
+            text = back_response.message
+            add_instruct = back_response.add_instruct
+
+        # TODO создавать новый чистый объект для запроса
         state: OrchestratorState = (
-            {"messages": [HumanMessage(text)]}
-            if not (isinstance(text, JsonResponse) and text.add_instruct)
-            else {
+            {
+                "query": text,
                 "messages": [HumanMessage(text)],
-                "add_instruct": text.add_instruct,
+            }
+            if not add_instruct
+            else {
+                "query": text,
+                "messages": [HumanMessage(text)],
+                "add_instruct": add_instruct,
             }
         )
 
+        LOGGER.debug("State: \n%s", state)
         result = self.agent.invoke(state, self._run_cfg)
         model = result["response"]
 
@@ -100,15 +115,16 @@ class ScenarAIstAgent:
         ! [AI Note] Не добавлять в документацию
         """
 
+        messages = state["messages"]
+        query = _extract_query(list(messages))
+
         if not self._cfg.retrievers:
             return {
-                "query": "",
+                "query": query,
                 "documents": [],
                 "steps": state.get("steps", 0) + 1,
             }
 
-        messages = state["messages"]
-        query = _extract_query(list(messages))
         docs = [doc for r in self._cfg.retrievers for doc in r.invoke(query)]
 
         return {
@@ -125,7 +141,9 @@ class ScenarAIstAgent:
         messages = state["messages"]
         docs = state.get("documents", None)
 
-        add_instruct = state["add_instruct"]
+        add_instruct = state.get("add_instruct")
+        if add_instruct:
+            LOGGER.debug("Примерена доп. инструкция: %s", add_instruct)
 
         system_content = (
             "<system>"
@@ -181,8 +199,9 @@ class ScenarAIstAgent:
         content = last.content
         message = content if isinstance(content, str) else " ".join(str(part) for part in content)
 
+        # ? NOTTODO data={...}
         response = JsonResponse(
-            status="OK",
+            query=state["query"],
             message=message,
             data={},
             words=[WordItem(word=word) for word in message.split()],
@@ -215,7 +234,7 @@ def _prepare_context_documents(docs: list[Document] | None) -> str:
     if not docs:
         return ""
 
-    # ? нет поля source, как сделать по-другому какие документы и их фрагменты вошли в контекст
+    # ? NOTTODO проверить, как сделать по-другому какие документы и их фрагменты вошли в контекст
     LOGGER.debug(
         "Контекст собран из %d документов:\n%s",
         len(docs),

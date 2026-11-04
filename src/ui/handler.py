@@ -60,10 +60,8 @@ class HandlerBackend(QObject):
         uid = str(query.get("uid") or uuid.uuid4().hex).strip()
         text = str(query.get("text") or "").strip()
 
-        json_text = _save_response(
-            uid,
-            self._invoker.invoke(text).model_dump_json(indent=2, ensure_ascii=False),
-        )
+        result = self._invoker.invoke(text).model_dump_json(indent=2, ensure_ascii=False)
+        json_text = _save_response(uid, result)
 
         self.responseReady.emit(json_text)
         self.queryProcessed.emit(uid)

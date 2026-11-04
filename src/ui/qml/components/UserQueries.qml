@@ -165,8 +165,8 @@ Item {
     }
 
     function getFirst() {
-        for (const field of queriesModel) {
-            const item = _copy(field);
+        for (let i = 0; i < queriesModel.count; i++) {
+            const item = _copy(queriesModel.get(i));
             if (item && item.text && item.text.trim() !== "") {
                 return item;
             }

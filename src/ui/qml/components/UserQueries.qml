@@ -144,15 +144,23 @@ Item {
 
     // ? NOTTODO оптимизировать
     function removeByUid(uid) {
-        if (uid === undefined || uid === null) {
-            return;
-        }
+        // if (uid === undefined || uid === null) {
+        //     return;
+        // }
 
-        const uidStr = String(uid);
-        for (let i = 0; i < queriesModel.count; i++) {
-            if (String(queriesModel.get(i).uid) === uidStr) {
-                queriesModel.remove(i, 1);
-                break;
+        // const uidStr = String(uid);
+        // for (let i = 0; i < queriesModel.count; i++) {
+        //     if (String(queriesModel.get(i).uid) === uidStr) {
+        //         queriesModel.remove(i, 1);
+        //         break;
+        //     }
+        // }
+
+        const uidList = [uid];
+        const uidSet = new Set(uidList.map(String));
+        for (let i = queriesModel.count - 1; i >= 0; i--) {
+            if (uidSet.has(String(queriesModel.get(i).uid))) {
+                queriesModel.remove(i);
             }
         }
     }

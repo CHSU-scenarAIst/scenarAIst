@@ -3,7 +3,7 @@ import logging
 import sys
 import uuid
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Protocol
 
 from pydantic import BaseModel
 from PySide6.QtCore import QMessageLogContext, QObject, QtMsgType, Signal, Slot, qInstallMessageHandler
@@ -48,29 +48,26 @@ class UserInterface:
 
 
 class HandlerBackend(QObject):
-    queryProcessed = Signal(list)  # noqa: N815
+    queryProcessed = Signal(str)  # noqa: N815
     responseReady = Signal(str)  # noqa: N815
 
     def __init__(self, invoker: Invoke, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._invoker = invoker
 
-    @Slot("QVariant")
-    def createOne(self, query: Any) -> None:  # noqa: N802
+    @Slot(dict)
+    def createOne(self, query: dict) -> None:  # noqa: N802
         """Создать один Сценарий."""
-        entry = _normalize_query(query)
-        if not entry:
-            LOGGER.warning("Нет вхождений")
-            return
+        uid = str(query.get("uid") or uuid.uuid4().hex).strip()
+        text = str(query.get("text") or "").strip()
 
-        uid, text = entry
         json_text = _save_response(
             uid,
             self._invoker.invoke(text).model_dump_json(indent=2, ensure_ascii=False),
         )
 
         self.responseReady.emit(json_text)
-        self.queryProcessed.emit([uid])
+        self.queryProcessed.emit(uid)
 
     @Slot(str, result=list)
     def readLinesFromFile(self, file_path: str) -> list[str]:  # noqa: N802
@@ -125,25 +122,6 @@ def _save_response(uid: str, json_text: str) -> str:
         encoding="utf-8",
     )
     return file_path.read_text(encoding="utf-8")
-
-
-def _normalize_query(query: Any) -> tuple[str, str] | None:
-    """
-    Привести входящие запросы к парам (uid, текст), отбрасывая пустые.
-    Единая точка генерации uid — QML (UserQueries._newId),
-    ! [AI Note] Не добавлять в документацию
-    """
-    if isinstance(query, dict):
-        uid = str(query.get("uid") or "").strip()
-        text = str(query.get("text") or "").strip()
-    else:
-        uid = ""
-        text = str(query).strip()
-
-    if text:
-        return (uid or uuid.uuid4().hex, text)
-
-    return None
 
 
 def _qt_message_handler(mode: QtMsgType, context: QMessageLogContext, message: str) -> None:

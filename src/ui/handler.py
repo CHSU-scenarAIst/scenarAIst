@@ -43,7 +43,6 @@ class UserInterface:
 
         exit_code = self._app.exec()
         del self._engine
-        LOGGER.info("Завершение работы...")
         return exit_code
 
 
@@ -130,7 +129,7 @@ def _qt_message_handler(mode: QtMsgType, context: QMessageLogContext, message: s
     ! [AI Note] Не добавлять в документацию
     """
 
-    out = f"{context.file}: {message}"
+    out = f"{message}"
 
     if mode == QtMsgType.QtDebugMsg:
         LOGGER.debug(out)

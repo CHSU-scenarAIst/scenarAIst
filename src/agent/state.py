@@ -25,13 +25,11 @@ class JsonResponse(BaseModel):
     ? переделать под формат шагов Сценария
     """
 
-    status: str = Field(..., description="Статус ответа: 'OK' или 'ERROR'.")
+    status: str | None = Field(default=None, description="Статус ответа: 'OK' или 'ERROR'.")
     message: str = Field(..., description="Текстовое сообщение для пользователя.")
-    data: dict[str, Any] = Field(default_factory=dict, description="Словарь с техническими данными.")
-    words: list[WordItem] = Field(
-        default_factory=list,
-        description="Массив слов итогового ответа.",
-    )
+    data: dict[str, Any] | None = Field(default=None, description="Словарь с техническими данными.")
+    words: list[WordItem] | None = Field(default=None, description="Массив слов итогового ответа.")
+    add_instruct: str | None = Field(default=None, description="Дополнительные инструкции от Сценариста.")
 
 
 class OrchestratorState(MessagesState, total=False):

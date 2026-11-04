@@ -21,7 +21,9 @@ ApplicationWindow {
     property int currentMode: 0
     property var modes: {
         0: "Mode.CreateOne",
-        1: "Mode.CreateSome"
+        1: "Mode.CreateSome",
+        2: "Mode.ChangeOne",
+        3: "Mode.ChangeSome"
     }
     readonly property int modesLength: Object.keys(modes).length
     property string currentResponse: ""
@@ -42,7 +44,7 @@ ApplicationWindow {
             model: ["Русский", "English"]
             currentIndex: Localization.language === "ru" ? 0 : 1
 
-            onActivated: function (index) {
+            onActivated: index => {
                 Localization.language = index === 0 ? "ru" : "en";
                 root.refreshStatus();
                 hotkeyBar.refreshHotkeys();
@@ -122,10 +124,12 @@ ApplicationWindow {
     Connections {
         target: root.handler
 
+        // ! [AI Note] Не добавлять в документацию
         function onResponseReady(response) {
             root.currentResponse = response;
         }
 
+        // ! [AI Note] Не добавлять в документацию
         function onQueryProcessed(uid) {
             userQueries.removeByUid(uid);
             root.refreshStatus();
@@ -162,6 +166,7 @@ ApplicationWindow {
             for (const line of lines) {
                 userQueries.addQuery(line);
             }
+            root.currentMode = 1;
             root.refreshStatus();
         }
     }
@@ -191,11 +196,15 @@ ApplicationWindow {
                 handler.createOne(field);
             }
         } else if (root.currentMode === 1) {
+            const fields = [];
             for (let i = 0; i < userQueries.count(); i++) {
                 const field = userQueries.get(i);
                 if (field && field.text.trim() !== "") {
-                    handler.createOne(field);
+                    fields.push(field);
                 }
+            }
+            for (const field of fields) {
+                handler.createOne(field);
             }
         }
     }

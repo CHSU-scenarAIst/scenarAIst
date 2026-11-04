@@ -77,7 +77,15 @@ class ScenarAIstAgent:
     def invoke(self, text: str) -> BaseModel:
         """Метод-обёртка для отправки запросов LLM-агенту извне."""
 
-        state: OrchestratorState = {"messages": [HumanMessage(text)]}
+        state: OrchestratorState = (
+            {"messages": [HumanMessage(text)]}
+            if not (isinstance(text, JsonResponse) and text.add_instruct)
+            else {
+                "messages": [HumanMessage(text)],
+                "add_instruct": text.add_instruct,
+            }
+        )
+
         result = self.agent.invoke(state, self._run_cfg)
         model = result["response"]
 
@@ -116,7 +124,16 @@ class ScenarAIstAgent:
         """
         messages = state["messages"]
         docs = state.get("documents", None)
-        system_content = self._cfg.system_prompt + f"<time_now>{datetime.now(UTC):%B %d, %Y}.</time_now>"
+
+        add_instruct = state["add_instruct"]
+
+        system_content = (
+            "<system>"
+            + self._cfg.system_prompt
+            + (add_instruct if add_instruct else "")
+            + "</system>"
+            + f"<time_now>{datetime.now(UTC):%B %d, %Y}.</time_now>"
+        )
 
         if context := _prepare_context_documents(docs):
             system_content += f"<context>{context}</context>"

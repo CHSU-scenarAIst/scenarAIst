@@ -144,23 +144,15 @@ Item {
 
     // ? NOTTODO оптимизировать
     function removeByUid(uid) {
-        // if (uid === undefined || uid === null) {
-        //     return;
-        // }
+        if (uid === undefined || uid === null) {
+            return;
+        }
 
-        // const uidStr = String(uid);
-        // for (let i = 0; i < queriesModel.count; i++) {
-        //     if (String(queriesModel.get(i).uid) === uidStr) {
-        //         queriesModel.remove(i, 1);
-        //         break;
-        //     }
-        // }
-
-        const uidList = [uid];
-        const uidSet = new Set(uidList.map(String));
-        for (let i = queriesModel.count - 1; i >= 0; i--) {
-            if (uidSet.has(String(queriesModel.get(i).uid))) {
-                queriesModel.remove(i);
+        const uidStr = String(uid);
+        for (let i = 0; i < queriesModel.count; i++) {
+            if (String(queriesModel.get(i).uid) === uidStr) {
+                queriesModel.remove(i, 1);
+                break;
             }
         }
     }
@@ -173,17 +165,19 @@ Item {
     }
 
     function getFirst() {
-        for (let i = 0; i < queriesModel.count; i++) {
-            const item = _copy(i);
+        for (const field of queriesModel) {
+            const item = _copy(field);
             if (item && item.text && item.text.trim() !== "") {
                 return item;
             }
         }
+
         return null;
     }
 
     function get(i) {
-        return _copy(i);
+        const field = queriesModel.get(i);
+        return _copy(field);
     }
 
     // ! [AI Note] Не добавлять в документацию
@@ -196,6 +190,7 @@ Item {
     }
 
     // ! [AI Note] Не добавлять в документацию
+    // TODO вместо count() вернуть итератор iter()
     function count() {
         return queriesModel.count;
     }
@@ -206,14 +201,10 @@ Item {
     }
 
     // ! [AI Note] Не добавлять в документацию
-    function _copy(i) {
-        const item = queriesModel.get(i);
-        if (!item) {
-            return null;
-        }
+    function _copy(field) {
         return {
-            uid: String(item.uid ?? ""),
-            text: String(item.text ?? "")
+            uid: String(field.uid ?? ""),
+            text: String(field.text ?? "")
         };
     }
 

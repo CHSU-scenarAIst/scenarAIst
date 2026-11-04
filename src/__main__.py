@@ -11,6 +11,7 @@ from src.ui.handler import Invoke, UserInterface
 CONFIG_FILE = Path("config.yaml")
 LOG_FILE = "scenarAIst.log"
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+BLANK_LINE = "=" * 26
 
 LOGGER = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ def main() -> int:
         level=logging.INFO,
         format=LOG_FORMAT,
     )
-    LOGGER.info("Запуск СценарИИста")
+    LOGGER.info("\n%s\n%s\n%s", BLANK_LINE, "=== Запуск СценарИИста ===", BLANK_LINE)
 
     try:
         with CONFIG_FILE.open(encoding="utf-8") as f:
@@ -39,6 +40,7 @@ def main() -> int:
         LOGGER.exception(e)
         return -1
 
+    LOGGER.info("\n%s\n%s\n%s", BLANK_LINE, "== Завершение работы... ==", BLANK_LINE)
     return exit_code
 
 

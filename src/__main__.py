@@ -28,7 +28,7 @@ def main() -> int:
     try:
         with CONFIG_FILE.open(encoding="utf-8") as f:
             raw_cfg = yaml.safe_load(f)
-        LOGGER.debug(raw_cfg)
+            LOGGER.debug(raw_cfg)
 
         cfg = ScenarAIstModelFactory(raw_cfg)
         agent = ScenarAIstAgent(cfg)

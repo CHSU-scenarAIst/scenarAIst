@@ -22,6 +22,7 @@ class Invoke(Protocol):
         ...
 
 
+# TODO Асинхронная обработка запросов с кругом загрузки/обработки из точек
 class UserInterface:
     def __init__(self, invoker: Invoke):
         qml_dir = Path(__file__).parent / "qml"

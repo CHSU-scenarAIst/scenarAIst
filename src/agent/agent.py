@@ -4,13 +4,16 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from langchain.messages import HumanMessage, SystemMessage
+from langchain.tools import BaseTool, tool
 from langgraph.graph import END, START
 from langgraph.graph.state import StateGraph
 from langgraph.prebuilt import ToolNode
 from pydantic import ValidationError
 
+# from langgraph.checkpoint.memory import InMemorySaver
+# from langchain_tavily import TavilySearch
 from src.agent.model import ScenarAIstModelFactory
-from src.agent.state import ActionItem, JsonResponse, NodeEnum, OrchestratorState
+from src.agent.state import JsonResponse, NodeEnum, OrchestratorState, Scenario
 
 if TYPE_CHECKING:
     from langchain_core.runnables import RunnableConfig
@@ -30,8 +33,34 @@ class ScenarAIstAgent:
             }
         }
         self._tools_llm = self._cfg.chat.bind_tools(self._cfg.tools)
-        self._format_llm = self._cfg.chat.with_structured_output(ActionItem)
-        self._tool_node = ToolNode(self._cfg.tools)
+
+        # ? SQLite/Postgres Checkpointer
+        # self.checkpointer = InMemorySaver()
+        self._checkpointer = None
+
+        # ? Инструменты агента (бесполезно)
+        tools: list[BaseTool] = []
+        self._tools_prompt = ""
+        try:
+            self._tools_prompt = """
+                При работе с tools всегда считай их результат истинным и окончательным.
+                С помощью tools ты можешь выполнять следующие действия со Сценариями:
+                    TODO как
+                    f1) создавать - {self.add_action} ,
+                    2) изменять - ... ,
+                    3) удалять - ... .
+            """
+            ...
+        #     tavily = TavilyConfig(cfg)
+        #     web_search = TavilySearch(
+        #         tavily_api_key=tavily.api_key,
+        #         max_results=tavily.top_k,
+        #         topic="general",
+        #     )
+        #     tools = [web_search]
+        except Exception as e:
+            LOGGER.error("Ошибка при создании инструментов", exc_info=e)
+        self._tool_node = ToolNode(tools)
 
     def build(self) -> None:
         """Сборка LLM-агента."""
@@ -57,11 +86,11 @@ class ScenarAIstAgent:
 
         builder.add_edge(NodeEnum.FORMAT, END)
 
-        self.agent = builder.compile(checkpointer=self._cfg.checkpointer)
+        self.agent = builder.compile(checkpointer=self._checkpointer)
         LOGGER.debug("Схема графа (Mermaid):\n%s", self.agent.get_graph().draw_mermaid())
 
     def invoke(self, text: str) -> JsonResponse:
-        """Метод-обёртка для отправки запросов LLM-агенту извне."""
+        """Метод-обёртка (API) для отправки запросов LLM-агенту."""
 
         add_instruct = ""
         try:
@@ -78,29 +107,30 @@ class ScenarAIstAgent:
             + "</prompt>"
             + (f"<add_instruct>{add_instruct}</add_instruct>" if add_instruct else "")
             + f"<time_now>{datetime.now(UTC):%B %d, %Y}.</time_now>"
+            + "<tools>"
+            + self._tools_prompt
+            + "</tools>"
         )
-
         state: OrchestratorState = {
+            # ? NOTTODO можно ли избаватья от HumanMessage?
             "messages": [HumanMessage(text)],
             "query": text,
             "system_prompt": system_prompt,
-            "actions": [],
             "sources": {},
             "add_instruct": add_instruct,
-            "steps": 0,
+            "steps_count": 0,
         }
-
         LOGGER.debug("Начальный OrchestratorState -- %s", state)
         response = self.agent.invoke(input=state, config=self._run_cfg)
         result = response["result"]
         return JsonResponse.model_validate(result)
 
+    # TODO
     # ! [AI Note] Не добавлять в документацию
     def _retrieve_node(self, state: OrchestratorState) -> dict[str, Any]:
         """Узел поиска релевантных документов по запросу."""
         query = state["query"]
         docs = [doc for r in self._cfg.retrievers for doc in r.invoke(query)]
-
         LOGGER.info(
             "Контекст собран из %d документов:\n%s",
             len(docs),
@@ -118,54 +148,47 @@ class ScenarAIstAgent:
         LOGGER.debug("%s -- %s", self._retrieve_node, sources)
         return {
             "sources": sources,
-            "steps": state["steps"] + 1,
+            "steps_count": state["steps_count"] + 1,
         }
 
     # ! [AI Note] Не добавлять в документацию
     def _chat_node(self, state: OrchestratorState) -> dict[str, Any]:
-        """Узел вызова LLM с текущей историей сообщений."""
-
+        """Узел вызова LLM."""
         messages = state["messages"]
         system_prompt = state["system_prompt"]
         docs = state.get("docs", "")
         system_prompt += f"<context>{docs}</context>"
-
         response = self._tools_llm.invoke(
             input=[SystemMessage(system_prompt), *messages],
             # config=self._run_cfg,
         )
-
         LOGGER.debug("%s -- %s", self._chat_node, response.content)
         return {
             "messages": [response],
-            "steps": state["steps"] + 1,
+            "steps_count": state["steps_count"] + 1,
         }
 
     # ! [AI Note] Не добавлять в документацию
     def _router_node(self, state: OrchestratorState) -> str:
-        """Ветвление после вызова LLM: исполнение инструментов либо финализация ответа."""
-
+        """Ветвление."""
         messages = state["messages"]
         last_content = messages[-1].content if messages else ""
         tool_calls = getattr(last_content, "tool_calls", [])
-
-        step = state["steps"]
+        step = state["steps_count"]
         if tool_calls and self._cfg.tools and step < self._cfg.max_steps:
             LOGGER.debug("%s -- step %s -- %s", self._router_node, step, NodeEnum.TOOLS)
             return NodeEnum.TOOLS
-
         LOGGER.debug("%s -- step %s -- %s", self._router_node, step, NodeEnum.FORMAT)
         return NodeEnum.FORMAT
 
     # ! [AI Note] Не добавлять в документацию
     def _tools_node(self, state: OrchestratorState) -> dict[str, Any]:
         """Узел исполнения инструментов, выбранных LLM."""
-
         result = self._tool_node.invoke(state)
         LOGGER.debug("%s:\n%s", self._tools_node, result)
         return {
             **result,
-            "steps": state["steps"] + 1,
+            "steps_count": state["steps_count"] + 1,
         }
 
     # ! [AI Note] Не добавлять в документацию
@@ -175,19 +198,33 @@ class ScenarAIstAgent:
         messages = state["messages"]
         last_content = messages[-1].content if messages else ""
 
-        system_prompt = "Систематизируй, отформатируй и упакуй итоговый ответ"
-        response = self._format_llm.invoke(
-            input=[SystemMessage(system_prompt), last_content],
-            # config=self._run_cfg,
-        )
-        response = ActionItem.model_validate(response)
-
         result = JsonResponse(
             query=state["query"],
+            answer=last_content,
             add_instruct=state["add_instruct"],
             sources=state["sources"],
-            actions=state["actions"],
+            scenario=state["scenario"],
         )
 
         LOGGER.debug("%s:\n%s", self._format_node, result)
         return {"result": result}
+
+    @tool
+    async def get_scenario(self) -> Scenario:
+        # TODO - Инструмент возвращения всего сценария с order в списке
+        ...
+
+    @tool
+    async def add_action(self, actions) -> bool:
+        # TODO - Инструмент добавления в сценарий [(hash-id после которого вставить, шаг), ...]
+        ...
+
+    @tool
+    async def update_action(self, actions) -> bool:
+        # TODO - Инструмент изменения шагов [(hash-id, действие), ...]
+        ...
+
+    @tool
+    async def delete_action(self, action_ids) -> bool:
+        # TODO - Инструмент удаления шагов [hash-id, ...]
+        ...

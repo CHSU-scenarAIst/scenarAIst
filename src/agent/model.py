@@ -5,7 +5,7 @@ import sqlite3
 from collections.abc import Iterator
 from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import Any, Protocol
 
 import sqlite_vec  # type: ignore[import-untyped]
 from langchain.chat_models import BaseChatModel
@@ -19,12 +19,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import SecretStr
 
 from src.agent.config import CompletionConfig, EmbeddingConfig
-
-if TYPE_CHECKING:
-    from langchain_core.tools import BaseTool
-
-# from langgraph.checkpoint.memory import InMemorySaver
-# from langchain_tavily import TavilySearch
 
 LOGGER = logging.getLogger(__name__)
 
@@ -55,24 +49,6 @@ class ScenarAIstModelFactory:
                 LOGGER.error("Ошибка загрузки конфигурации эмбеддингов", exc_info=e)
         except Exception as e:
             LOGGER.debug("Нет внешних данных для подключения", exc_info=e)
-
-        # ? SQLite/Postgres Checkpointer
-        # self.checkpointer = InMemorySaver()
-        self.checkpointer = None
-
-        # ? Инструменты агента (бесполезно)
-        self.tools: list[BaseTool] = []
-        try:
-            ...
-        #     tavily = TavilyConfig(cfg)
-        #     web_search = TavilySearch(
-        #         tavily_api_key=tavily.api_key,
-        #         max_results=tavily.top_k,
-        #         topic="general",
-        #     )
-        #     tools = [web_search]
-        except Exception as e:
-            LOGGER.error("Ошибка при создании инструментов", exc_info=e)
 
 
 class SQLiteVecFactory:

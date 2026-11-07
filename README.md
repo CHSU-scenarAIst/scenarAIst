@@ -27,13 +27,13 @@
 ## Использовать
 
 ```sh
-### install `uv`
+### Установить `uv`
 wget -qO- https://astral.sh/uv/install.sh | sh
 curl -LsSf https://astral.sh/uv/install.sh | sh
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ###
 
-git clone https://github.com/example/scenaraist.git
+git clone https://github.com/CHSU-scenarAIst/scenarAIst
 cd scenaraist
 uv sync
 
@@ -94,6 +94,7 @@ uv sync --dev   # Install development dependencies
 
 ### Pre-commit Hooks
 
+TODO перевести на русский, проверить работу
 To set up pre-commit hooks for automated code quality checks:
 
 ```sh

@@ -5,9 +5,8 @@ build-backend = "hatchling.build" # Бэкенд сборки
 
 [project]
 name = "scenaraist"
-version = "0.2.5"
+version = "0.3.0"
 requires-python = ">=3.13"
-
 dependencies = [
     "langgraph>=1.2.16",
     "langchain>=1.4.6",
@@ -27,12 +26,14 @@ dependencies = [
     "pyside6>=6.10,<6.11",
 ]
 
-[tool.coverage.run]
-source = ["src"]
-
+[project.urls]
+Repository = "https://github.com/CHSU-scenarAIst/scenarAIst"
 
 [project.scripts]
 scenaraist = "src.__main__:main"
+
+[tool.coverage.run]
+source = ["src"]
 
 # Настройки сборки wheel
 [tool.hatch.build.targets.wheel]

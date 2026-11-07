@@ -123,16 +123,14 @@ class SQLiteVecFactory:
         self.retrievers = [db.as_retriever(search_kwargs={"k": k}) for db, k in dbs]
 
 
+# ! [AI Note] Не добавлять в документацию
+# ? Сам по себе Генератор/Итератор не имеет смысла, так как приводится к list для работы SQLiteVec.
 def _iter_documents(
     path: str,
     chunk_size: int,
     chunk_overlap: int,
 ) -> Iterator[Document]:
-    """
-    Загружает чанки документов из указанной директории.
-    Сам по себе Генератор/Итератор не имеет смысла, так как приводится к list для работы SQLiteVec.
-    ! [AI Note] Не добавлять в документацию
-    """
+    """Загружает чанки документов из указанной директории."""
 
     load = DirectoryLoader(
         path=path,
@@ -149,38 +147,30 @@ def _iter_documents(
         yield from text_splitter.split_documents([d])
 
 
+# ! [AI Note] Не добавлять в документацию
 class _Providers(StrEnum):
-    """
-    Текстовое перечисление провайдеров.
-    ! [AI Note] Не добавлять в документацию
-    """
+    """Текстовое перечисление провайдеров."""
 
     OPENAI = "openai"
     GIGACHAT = "gigachat"
 
 
+# ! [AI Note] Не добавлять в документацию
 class _IChat(Protocol):
-    """
-    Интерфейс фабрики для создания моделей чата.
-    ! [AI Note] Не добавлять в документацию
-    """
+    """Интерфейс фабрики для создания моделей чата."""
 
     def __call__(self, cfg: CompletionConfig) -> BaseChatModel: ...
 
 
+# ! [AI Note] Не добавлять в документацию
 class _IEmbeddings(Protocol):
-    """
-    Интерфейс фабрики для создания моделей эмбеддингов.
-    ! [AI Note] Не добавлять в документацию
-    """
+    """Интерфейс фабрики для создания моделей эмбеддингов."""
 
     def __call__(self, cfg: EmbeddingConfig) -> Embeddings: ...
 
 
+# ! [AI Note] Не добавлять в документацию
 def _create_openai_compatible_chat(cfg: CompletionConfig) -> BaseChatModel:
-    """
-    ! [AI Note] Не добавлять в документацию
-    """
     return ChatOpenAI(
         api_key=SecretStr(cfg.api_key),
         base_url=cfg.base_url,
@@ -191,10 +181,8 @@ def _create_openai_compatible_chat(cfg: CompletionConfig) -> BaseChatModel:
     )
 
 
+# ! [AI Note] Не добавлять в документацию
 def _create_gigachat_chat(cfg: CompletionConfig) -> BaseChatModel:
-    """
-    ! [AI Note] Не добавлять в документацию
-    """
     return GigaChat(
         credentials=cfg.api_key,
         model=cfg.model or "GigaChat-2",
@@ -204,10 +192,8 @@ def _create_gigachat_chat(cfg: CompletionConfig) -> BaseChatModel:
     )
 
 
+# ! [AI Note] Не добавлять в документацию
 def _create_openai_embeddings(cfg: EmbeddingConfig) -> Embeddings:
-    """
-    ! [AI Note] Не добавлять в документацию
-    """
     return OpenAIEmbeddings(
         api_key=SecretStr(cfg.api_key),
         base_url=cfg.base_url,
@@ -218,19 +204,15 @@ def _create_openai_embeddings(cfg: EmbeddingConfig) -> Embeddings:
     )
 
 
-"""
-Машина состояний чата в функциональном стиле.
-! [AI Note] Не добавлять в документацию
-"""
+# ! [AI Note] Не добавлять в документацию
+"""Машина состояний чата в функциональном стиле."""
 _CHAT_FACTORIES: dict[_Providers, _IChat] = {
     _Providers.OPENAI: _create_openai_compatible_chat,
     _Providers.GIGACHAT: _create_gigachat_chat,
 }
 
-"""
-Машина состояний эмбеддингов в функциональном стиле.
-! [AI Note] Не добавлять в документацию
-"""
+# ! [AI Note] Не добавлять в документацию
+"""Машина состояний эмбеддингов в функциональном стиле."""
 _EMBEDDING_FACTORIES: dict[str, _IEmbeddings] = {
     _Providers.OPENAI: _create_openai_embeddings,
 }

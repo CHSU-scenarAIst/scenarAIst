@@ -4,7 +4,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel
 
-from src.agent import ScenarAIstAgent
+from src.agent.agent import ScenarAIstAgent
 from src.agent.model import ScenarAIstModelFactory
 from src.ui.handler import Invoke, UserInterface
 

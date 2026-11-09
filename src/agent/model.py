@@ -145,7 +145,6 @@ class SQLiteVecFactory:
         return None
 
     # ! [AI Note] Не добавлять в документацию
-
     def _update_meta_and_cleanup(self, conn: sqlite3.Connection, folder: str, hash: str, table: str) -> None:
         """Обновляет указатель на активную таблицу и удаляет старую версию таблицы."""
         row = conn.execute(

@@ -45,8 +45,16 @@ uv run -m src   # Запуск без логирования
 
 - OpenRouter: API не работает в РФ
 - DeepSeek Open Platform: требует деньги
-- OfoxAI: [OK](https://ofox.ai/ru/models/z-ai/glm-4.7-flash%3Afree)
+- OfoxAI: нет бесплатных вариантов
 - GigaChat: [Studio - Личный кабинет технологических продуктов Сбера](https://developers.sber.ru/studio/workspaces/)
+
+  | GigaChat Model   |
+  | ---------------- |
+  | GigaChat-2       |
+  | GigaChat-2-Pro   |
+  | GigaChat-2-Max   |
+  | GigaChat-3-Ultra |
+
 - ProxyAPI: РФ, требует деньги
 - AITunnel: РФ, требует деньги
 - RouterAI: РФ, требует деньги
@@ -59,14 +67,6 @@ uv run -m src   # Запуск без логирования
 - `https://freerouter.eu.cc/`
 - BotHub,
 - KodikRouter,
-- GigaChat
-
-  | GigaChat Model | Owner         |
-  | -------------- | ------------- |
-  | GigaChat-2     | salutedevices |
-  | GigaChat-2-Max | salutedevices |
-  | GigaChat-2-Pro | salutedevices |
-  | ...            | ...           |
 
 ## Литература
 

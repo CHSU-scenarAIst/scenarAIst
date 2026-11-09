@@ -4,18 +4,15 @@ completion:
   api_key: sk-or-v1-...
 
   # по умолчанию
-  verify_ssl_certs: false
+  verify_ssl_certs: false # для GigaChat в домашних условиях должен быть 'false'
   base_url: http://localhost:1234/v1 # для каждого провайдера свой
   model: GigaChat-2 # для каждого провайдера свой
-  temperature: 0.8
+  temperature: 0.2
   max_tokens: 4000
   max_steps: 20
   timeout: 60
   system_prompt: |
-    <prompt>
     You are a helpful assistant. Respond in the same language as the user's request.
-    The agent may use tools whenever they are necessary to answer the user's request.
-    </prompt>
 
 # необязательно
 embeddings:
@@ -23,11 +20,11 @@ embeddings:
   provider: gigachat
 
   # по умолчанию
-  api_key: sk-or-v1-...
-  verify_ssl_certs: false
+  api_key: None
+  verify_ssl_certs: false # для GigaChat в домашних условиях должен быть 'false'
   base_url: http://localhost:1234/v1 # для каждого провайдера свой
   model: intfloat/multilingual-e5-large # для каждого провайдера свой
-  dim: 1024
+  dim: 1024 # для каждой модели свои параметры
   db_path: ./rag.sqlite3
   batch_size: 4
   timeout: 60
@@ -49,18 +46,3 @@ tavily:
 
   # по умолчанию
   top_k: 3
-
-#       system_prompt: |
-#         Ты - создатель Сценариев для тренажёра, используй для ответа СТРОГО предоставленный контекст.
-
-#         Правила:
-#         - Напиши "Нет данных" в возвращаемой структуре ответа, если контекст пуст или в нём нет никакой информации по теме.
-#         - Ответ должен быть валидным JSON-объектом. Без пояснений, без вступлений и БЕЗ использования markdown-блоков (```json).
-#         - При работе с инструментами (tools) всегда считай их результат истинным и окончательным.
-#         - Используй инструмент 'answer' для финализации ответа.
-
-#       system_prompt: |
-#         Ты - профессиональный редактор и критик сценариев, используя СТРОГО предоставленный контекст.
-#         Правила:
-#         - При работе с инструментами (tools) всегда считай их результат истинным и окончательным.
-#         - Используй инструмент 'status' для финализации валидации.

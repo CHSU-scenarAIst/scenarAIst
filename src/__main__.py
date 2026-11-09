@@ -1,4 +1,5 @@
 import logging
+import sys
 from pathlib import Path
 
 import yaml
@@ -8,10 +9,12 @@ from src.agent.agent import ScenarAIstAgent
 from src.agent.model import ScenarAIstModelFactory
 from src.ui.handler import Invoke, UserInterface
 
-CONFIG_FILE = Path("config.yaml")
 LOG_FILE = "scenarAIst.log"
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-BLANK_LINE = "=" * 26
+LOG_BLANK_LINE = "=" * 26
+
+APP_CONFIG_FILE = Path("config.yaml")
+APP_WITH_WRITE_RESPONSE = True
 
 LOGGER = logging.getLogger(__name__)
 
@@ -23,24 +26,29 @@ def main() -> int:
         level=logging.INFO,
         format=LOG_FORMAT,
     )
-    LOGGER.info("\n%s\n%s\n%s", BLANK_LINE, "=== Запуск СценарИИста ===", BLANK_LINE)
+    LOGGER.info("\n%s\n%s\n%s", LOG_BLANK_LINE, "=== Запуск СценарИИста ===", LOG_BLANK_LINE)
+
+    with APP_CONFIG_FILE.open(encoding="utf-8") as f:
+        raw_cfg = yaml.safe_load(f)
 
     try:
-        with CONFIG_FILE.open(encoding="utf-8") as f:
-            raw_cfg = yaml.safe_load(f)
-            LOGGER.debug(raw_cfg)
-
-        cfg = ScenarAIstModelFactory(raw_cfg)
-        agent = ScenarAIstAgent(cfg)
-        agent.build()
-        invoker = ImplInvoke(agent)
-        ui = UserInterface(invoker)
-        exit_code = ui.run()
+        model = ScenarAIstModelFactory(raw_cfg)
     except Exception as e:
-        LOGGER.exception(e)
+        LOGGER.critical(e)
         return -1
 
-    LOGGER.info("\n%s\n%s\n%s", BLANK_LINE, "== Завершение работы... ==", BLANK_LINE)
+    agent = ScenarAIstAgent(model)
+    agent.build()
+    invoker = ImplInvoke(agent)
+    ui = UserInterface(sys.argv, invoker, APP_WITH_WRITE_RESPONSE)
+
+    try:
+        exit_code = ui.run()
+    except Exception as e:
+        LOGGER.critical(e)
+        return -1
+
+    LOGGER.info("\n%s\n%s\n%s", LOG_BLANK_LINE, "== Завершение работы... ==", LOG_BLANK_LINE)
     return exit_code
 
 
@@ -61,4 +69,5 @@ if __name__ == "__main__":
         level=logging.DEBUG,
         format=LOG_FORMAT,
     )
+    APP_WITH_WRITE_RESPONSE = False
     raise SystemExit(main())

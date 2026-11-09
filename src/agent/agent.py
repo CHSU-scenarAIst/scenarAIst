@@ -1,5 +1,6 @@
 import logging
 import uuid
+import zlib
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -13,7 +14,7 @@ from pydantic import ValidationError
 # from langgraph.checkpoint.memory import InMemorySaver
 # from langchain_tavily import TavilySearch
 from src.agent.model import ScenarAIstModelFactory
-from src.agent.state import JsonResponse, NodeEnum, OrchestratorState, Scenario
+from src.agent.state import JsonResponse, NodeEnum, OrchestratorState, Scenario, ScenarioStep
 
 if TYPE_CHECKING:
     from langchain_core.runnables import RunnableConfig
@@ -25,42 +26,41 @@ LOGGER = logging.getLogger(__name__)
 class ScenarAIstAgent:
     """Сборщик агента-Сценариста с инструментами и источниками знаний."""
 
-    def __init__(self, cfg: ScenarAIstModelFactory) -> None:
-        self._cfg = cfg
-        self._run_cfg: RunnableConfig = {
+    def __init__(self, model: ScenarAIstModelFactory) -> None:
+        self._model = model
+        self._cfg: RunnableConfig = {
             "configurable": {
                 "thread_id": uuid.uuid4().hex,
             }
         }
-        self._tools_llm = self._cfg.chat.bind_tools(self._cfg.tools)
+
+        # ? Текущий Сценарий (очередь Шагов), доступный инструментам агента
+        self._scenario = Scenario()
 
         # ? SQLite/Postgres Checkpointer
         # self.checkpointer = InMemorySaver()
         self._checkpointer = None
 
-        # ? Инструменты агента (бесполезно)
-        tools: list[BaseTool] = []
-        self._tools_prompt = ""
-        try:
-            self._tools_prompt = """
-                При работе с tools всегда считай их результат истинным и окончательным.
-                С помощью tools ты можешь выполнять следующие действия со Сценариями:
-                    TODO как
-                    f1) создавать - {self.add_action} ,
-                    2) изменять - ... ,
-                    3) удалять - ... .
-            """
-            ...
-        #     tavily = TavilyConfig(cfg)
-        #     web_search = TavilySearch(
-        #         tavily_api_key=tavily.api_key,
-        #         max_results=tavily.top_k,
-        #         topic="general",
-        #     )
-        #     tools = [web_search]
-        except Exception as e:
-            LOGGER.error("Ошибка при создании инструментов", exc_info=e)
-        self._tool_node = ToolNode(tools)
+        self._tools: list[BaseTool] = [
+            tool(self.get_scenario),
+            tool(self.add_action),
+            tool(self.update_action),
+            tool(self.delete_action),
+        ]
+        self._tools_llm = self._model.chat.bind_tools(self._tools)
+        self._tool_node = ToolNode(self._tools)
+
+        (name_get, name_add, name_update, name_delete) = (tool_item.name for tool_item in self._tools)
+        self._tools_prompt = (
+            "При работе с tools всегда считай их результат истинным и окончательным."
+            " С помощью tools ты можешь управлять текущим Сценарием:"
+            f"  1) получить текущий Сценарий целиком - '{name_get}',"
+            f"  2) добавлять Шаги в Сценарий - '{name_add}',"
+            f"  3) изменять существующие Шаги - '{name_update}',"
+            f"  4) удалять Шаги по их hash-id - '{name_delete}'."
+            f" Прежде чем менять Сценарий, всегда получай его актуальное состояние"
+            f" через {name_get}, чтобы знать существующие hash-id Шагов."
+        )
 
     def build(self) -> None:
         """Сборка LLM-агента."""
@@ -70,7 +70,7 @@ class ScenarAIstAgent:
         builder.add_node(NodeEnum.CHAT, self._chat_node)
         builder.add_node(NodeEnum.FORMAT, self._format_node)
 
-        if self._cfg.retrievers:
+        if self._model.retrievers:
             builder.add_edge(START, NodeEnum.RETRIEVE)
             builder.add_node(NodeEnum.RETRIEVE, self._retrieve_node)
             builder.add_edge(NodeEnum.RETRIEVE, NodeEnum.CHAT)
@@ -78,7 +78,7 @@ class ScenarAIstAgent:
             builder.add_edge(START, NodeEnum.CHAT)
 
         conditional_edges = [NodeEnum.FORMAT.value]
-        if self._cfg.tools:
+        if self._tools:
             conditional_edges.append(NodeEnum.TOOLS.value)
             builder.add_node(NodeEnum.TOOLS, self._tools_node)
             builder.add_edge(NodeEnum.TOOLS, NodeEnum.CHAT)
@@ -103,7 +103,7 @@ class ScenarAIstAgent:
 
         system_prompt = (
             "<prompt>"
-            + self._cfg.system_prompt
+            + self._model.system_prompt
             + "</prompt>"
             + (f"<add_instruct>{add_instruct}</add_instruct>" if add_instruct else "")
             + f"<time_now>{datetime.now(UTC):%B %d, %Y}.</time_now>"
@@ -117,20 +117,21 @@ class ScenarAIstAgent:
             "query": text,
             "system_prompt": system_prompt,
             "sources": {},
+            "scenario": self._scenario,
             "add_instruct": add_instruct,
             "steps_count": 0,
         }
         LOGGER.debug("Начальный OrchestratorState -- %s", state)
-        response = self.agent.invoke(input=state, config=self._run_cfg)
+        response = self.agent.invoke(input=state, config=self._cfg)
         result = response["result"]
         return JsonResponse.model_validate(result)
 
-    # TODO
+    # ? NOTTODO доделать
     # ! [AI Note] Не добавлять в документацию
     def _retrieve_node(self, state: OrchestratorState) -> dict[str, Any]:
         """Узел поиска релевантных документов по запросу."""
         query = state["query"]
-        docs = [doc for r in self._cfg.retrievers for doc in r.invoke(query)]
+        docs = [doc for r in self._model.retrievers for doc in r.invoke(query)]
         LOGGER.info(
             "Контекст собран из %d документов:\n%s",
             len(docs),
@@ -160,7 +161,7 @@ class ScenarAIstAgent:
         system_prompt += f"<context>{docs}</context>"
         response = self._tools_llm.invoke(
             input=[SystemMessage(system_prompt), *messages],
-            # config=self._run_cfg,
+            # config=self._cfg,
         )
         LOGGER.debug("%s -- %s", self._chat_node, response.content)
         return {
@@ -175,7 +176,7 @@ class ScenarAIstAgent:
         last_content = messages[-1].content if messages else ""
         tool_calls = getattr(last_content, "tool_calls", [])
         step = state["steps_count"]
-        if tool_calls and self._cfg.tools and step < self._cfg.max_steps:
+        if tool_calls and self._tools and step < self._model.max_steps:
             LOGGER.debug("%s -- step %s -- %s", self._router_node, step, NodeEnum.TOOLS)
             return NodeEnum.TOOLS
         LOGGER.debug("%s -- step %s -- %s", self._router_node, step, NodeEnum.FORMAT)
@@ -203,28 +204,126 @@ class ScenarAIstAgent:
             answer=last_content,
             add_instruct=state["add_instruct"],
             sources=state["sources"],
-            scenario=state["scenario"],
+            scenario=state.get("scenario"),
         )
 
         LOGGER.debug("%s:\n%s", self._format_node, result)
         return {"result": result}
 
-    @tool
-    async def get_scenario(self) -> Scenario:
-        # TODO - Инструмент возвращения всего сценария с order в списке
-        ...
+    def get_scenario(self) -> Scenario:
+        """Возвращает текущий Сценарий целиком."""
+        steps = [
+            step.model_copy(update={"order": order})
+            for order, step in enumerate(self._scenario.steps, start=1)
+        ]
+        LOGGER.debug("%s -- %d Шагов", self.get_scenario, len(steps))
+        return Scenario(steps=steps)
 
-    @tool
-    async def add_action(self, actions) -> bool:
-        # TODO - Инструмент добавления в сценарий [(hash-id после которого вставить, шаг), ...]
-        ...
+    def add_action(self, steps: list[tuple[str, ScenarioStep]]) -> bool:
+        """
+        Добавляет Шаги в Сценарий.
+        Args:
+            steps: Список пар (hash-id Шага, после которого вставить, новый Шаг).
+                Пустая строка вместо hash-id означает добавление в конец Сценария.
+        """
+        used_ids: set[str] = set()
 
-    @tool
-    async def update_action(self, actions) -> bool:
-        # TODO - Инструмент изменения шагов [(hash-id, действие), ...]
-        ...
+        # ? Сначала валидация всех Шагов (атомарность), потом вставка
+        parsed: list[tuple[str, ScenarioStep]] = []
+        for raw_after_id, step in steps:
+            after_id = str(raw_after_id)
+            if after_id and self._find_index(after_id) is None:
+                LOGGER.warning(
+                    "%s -- Шаг с hash-id '%s' не найден, вставка отменена",
+                    self.add_action,
+                    after_id,
+                )
+                return False
+            parsed.append((after_id, self._with_unique_hash_id(step, used_ids)))
 
-    @tool
-    async def delete_action(self, action_ids) -> bool:
-        # TODO - Инструмент удаления шагов [hash-id, ...]
-        ...
+        inserted_after: dict[str, int] = {}
+        for after_id, step in parsed:
+            if after_id:
+                # ? Смещение сохраняет порядок пар при нескольких
+                #     вставках после одного и того же hash-id
+                shift = inserted_after.get(after_id, 0)
+                inserted_after[after_id] = shift + 1
+                self._scenario.steps.insert(self._find_index(after_id) + 1 + shift, step)
+            else:
+                self._scenario.steps.append(step)
+
+        LOGGER.info("%s -- добавлено Шагов: %d", self.add_action, len(parsed))
+        return True
+
+    def update_action(self, steps: list[tuple[str, ScenarioStep]]) -> bool:
+        """
+        Изменяет существующие Шаги Сценария.
+        Args:
+            steps: Список пар (hash-id изменяемого Шага, новая версия Шага).
+        """
+        # ? Сначала валидация всех Шагов (атомарность), потом замена
+        parsed: list[tuple[int, ScenarioStep]] = []
+        for raw_hash_id, new_step in steps:
+            hash_id = str(raw_hash_id)
+            index = self._find_index(hash_id)
+            if index is None:
+                LOGGER.warning(
+                    "%s -- Шаг с hash-id '%s' не найден, замена отменена",
+                    self.update_action,
+                    hash_id,
+                )
+                return False
+            # ? hash-id новой версии принудительно совпадает со старым,
+            #     чтобы не ломать ссылки на Шаг
+            parsed.append((index, new_step.model_copy(update={"hash_id": hash_id})))
+
+        for index, new_step in parsed:
+            self._scenario.steps[index] = new_step
+
+        LOGGER.info("%s -- изменено Шагов: %d", self.update_action, len(parsed))
+        return True
+
+    def delete_action(self, step_ids: list[str]) -> bool:
+        """
+        Удаляет Шаги из Сценария по их hash-id.
+        Args:
+            step_ids: Список hash-id удаляемых Шагов.
+        """
+        ids = {str(step_id) for step_id in step_ids}
+        missing = [hash_id for hash_id in ids if self._find_index(hash_id) is None]
+        if missing:
+            LOGGER.warning(
+                "%s -- Шаги с hash-id %s не найдены, удаление отменено",
+                self.delete_action,
+                missing,
+            )
+            return False
+        self._scenario.steps = [step for step in self._scenario.steps if step.hash_id not in ids]
+        LOGGER.info("%s -- удалено Шагов: %d", self.delete_action, len(ids))
+        return True
+
+    # ! [AI Note] Не добавлять в документацию
+    def _find_index(self, hash_id: str) -> int | None:
+        """Возвращает позицию Шага с данным hash-id в очереди Сценария."""
+        for index, step in enumerate(self._scenario.steps):
+            if step.hash_id == hash_id:
+                return index
+        return None
+
+    # ! [AI Note] Не добавлять в документацию
+    def _with_unique_hash_id(self, step: ScenarioStep, used_ids: set[str]) -> ScenarioStep:
+        """Гарантирует уникальный hash-id Шага (генерирует 6-значный при отсутствии или коллизии)."""
+        if step.hash_id and step.hash_id not in used_ids and self._find_index(step.hash_id) is None:
+            used_ids.add(step.hash_id)
+            return step
+
+        # ? Детерминированный 6-значный hash-id из содержимого Шага
+        payload = step.model_dump_json().encode()
+        salt = 0
+        while True:
+            hash_id = f"{zlib.crc32(payload + salt.to_bytes(4, 'big')) % 1_000_000:06d}"
+            salt += 1
+            if hash_id not in used_ids and self._find_index(hash_id) is None:
+                used_ids.add(hash_id)
+                LOGGER.debug("%s -- сгенерирован hash-id '%s'", self._with_unique_hash_id, hash_id)
+                return step.model_copy(update={"hash_id": hash_id})

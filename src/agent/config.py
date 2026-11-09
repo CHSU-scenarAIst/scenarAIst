@@ -1,6 +1,6 @@
 """Конфигурация работы программы."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
 
 class CompletionConfig(BaseModel):
@@ -9,7 +9,7 @@ class CompletionConfig(BaseModel):
     provider: str = Field(description="Провайдер LLM.")
 
     # ! TODO скрывать в `...` в логах
-    api_key: str = Field(repr=False, description="Ключ API для доступа к провайдеру.")
+    api_key: SecretStr = Field(repr=False, description="Ключ API для доступа к провайдеру.")
     verify_ssl_certs: bool = Field(default=False, description="Проверять ли SSL-сертификаты.")
     base_url: str | None = Field(default=None, description="Путь API для OpenAI-провайдеров.")
     model: str | None = Field(default=None, description="Название модели чата.")
@@ -26,7 +26,10 @@ class CompletionConfig(BaseModel):
             которая включает информацию о ситуации, окружении, задействованных лицах,
             порядке действий и возможных вариантах выбора.
 
-            Все данные для генерации ты обязан брать из документации в твоём распоряжении.
+            Все данные для генерации ты обязан брать из документации в твоём распоряжении,
+            придумывать факты из головы запрещено. Если нет документации, ты обязан не генерировать Сценарий.
+
+            Возможности общения на разные темы у тебя остаётся.
         """,
         description="Системный промпт.",
     )
@@ -36,6 +39,8 @@ class CollectionConfig(BaseModel):
     """Конфигурация одной коллекции документов для векторного поиска."""
 
     path: str = Field(description="Путь к папке с документами коллекции.")
+    # ? NOTTODO а что если имя коллекции будует создаваться само, если есть изменения в коллекции - менять имя
+    # TODO хранить хеш сумму всей коллекции в таблице
     name: str = Field(description="Имя таблицы коллекции в векторном хранилище.")
 
     top_k: int = Field(default=5, ge=1, description="Сколько наиболее близких чанков возвращать.")
@@ -49,7 +54,7 @@ class EmbeddingConfig(BaseModel):
     provider: str = Field(description="Провайдер эмбеддингов: 'openai' и совместимые.")
 
     # ! TODO скрывать в `...` в логах
-    api_key: str = Field(default="None", repr=False, description="Ключ API провайдера эмбеддингов.")
+    api_key: SecretStr = Field(default="None", repr=False, description="Ключ API провайдера эмбеддингов.")
     collections: list[CollectionConfig] = Field(description="Список коллекций документов.")
     verify_ssl_certs: bool = Field(default=False, description="Проверять ли SSL-сертификаты.")
     base_url: str | None = Field(default=None, description="Путь API для OpenAI-провайдеров.")
@@ -63,6 +68,3 @@ class EmbeddingConfig(BaseModel):
 # class TavilyConfig(BaseModel):
 #     api_key: str = Field(repr=False)
 #     top_k: int = 3
-#
-# def from_cfg(self, cfg) -> Self:
-#     return self.model_validate(cfg["tavily"])

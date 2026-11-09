@@ -28,6 +28,12 @@ class ScenarioStep(BaseModel):
     subject: str = Field(..., description="TODO")
     object: str = Field(..., description="TODO")
     action: Action = Field(..., description="Действие над объектом.")
+    order: int | None = Field(
+        default=None,
+        description="Порядковый номер Шага в очереди Сценария."
+        " Не хранится в самой очереди (порядок задаётся индексом списка),"
+        " заполняется при выдаче Сценария инструментом get_scenario.",
+    )
 
 
 class Scenario(BaseModel):

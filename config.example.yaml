@@ -31,8 +31,7 @@ embeddings:
 
   # обязательно
   collections:
-    - name: Инструкции
-      path: ./docs/instruct
+    - path: ./docs/instruct
 
       # по умолчанию
       top_k: 5

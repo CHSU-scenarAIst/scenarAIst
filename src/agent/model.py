@@ -26,22 +26,19 @@ LOGGER = logging.getLogger(__name__)
 class ScenarAIstModelFactory:
     """Фабрика провайдеров LLM и обработчиков эмбеддингов."""
 
-    def __init__(self, cfg: dict[str, Any]) -> None:
+    def __init__(self, cfg: dict[str, Any]):
         try:
-            chat_cfg = CompletionConfig.model_validate(cfg["completion"])
-            LOGGER.debug(chat_cfg.model_dump_json())
+            self.chat_cfg = CompletionConfig.model_validate(cfg["completion"])
         except Exception as e:
             raise TypeError("Ошибка конфигурации модели") from e
 
         try:
-            provider = Providers(chat_cfg.provider.strip().lower())
+            provider = Providers(self.chat_cfg.provider.strip().lower())
         except Exception as e:
             provider = cfg.get("completion", {}).get("provider", "?")
             raise TypeError(f"Ошибка загрузки 'completion' -> 'provider': '{provider}'") from e
 
-        self.chat = _CHAT_FACTORIES[provider](chat_cfg)
-        self.system_prompt = chat_cfg.system_prompt
-        self.max_steps = chat_cfg.max_steps
+        self.chat = _CHAT_FACTORIES[provider](self.chat_cfg)
 
         self.retrievers = []
         try:
@@ -51,11 +48,11 @@ class ScenarAIstModelFactory:
             LOGGER.debug("Нет внешних данных для подключения: 'embeddings'")
         else:
             try:
-                embed = _EMBEDDING_FACTORIES[embed_cfg.provider.strip().lower()](embed_cfg)
-                sqlite_db = SQLiteVecFactory(embed_cfg, embed)
+                embeddings = _EMBEDDING_FACTORIES[embed_cfg.provider.strip().lower()](embed_cfg)
+                sqlite_db = SQLiteVecFactory(embed_cfg, embeddings)
                 self.retrievers = sqlite_db.retrievers
             except Exception as e:
-                LOGGER.exception("Ошибка загрузки конфигурации эмбеддингов", exc_info=e)
+                LOGGER.error("Ошибка загрузки конфигурации эмбеддингов", exc_info=e)
 
 
 class SQLiteVecFactory:

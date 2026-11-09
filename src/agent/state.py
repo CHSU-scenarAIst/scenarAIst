@@ -1,6 +1,8 @@
 # ! [AI Note] Считай что это часть модуля agent.agent.py без отдельного файла.
 
+import operator
 from enum import StrEnum
+from typing import Annotated
 
 from langchain_core.documents import Document
 from langgraph.graph import MessagesState
@@ -23,17 +25,11 @@ class Action(StrEnum):
 class ScenarioStep(BaseModel):
     """Структура ответа LLM-агента."""
 
-    # - Номер шага: 6-значный hash-id
-    hash_id: str = Field(..., description="Уникальный идентификатор шага.")
-    subject: str = Field(..., description="TODO")
-    object: str = Field(..., description="TODO")
-    action: Action = Field(..., description="Действие над объектом.")
-    order: int | None = Field(
-        default=None,
-        description="Порядковый номер Шага в очереди Сценария."
-        " Не хранится в самой очереди (порядок задаётся индексом списка),"
-        " заполняется при выдаче Сценария инструментом get_scenario.",
-    )
+    hash_id: str = Field(description="Уникальный идентификатор шага.")
+    subject: str = Field(description="TODO")
+    object: str = Field(description="TODO")
+    action: Action = Field(description="Действие над объектом.")
+    order: int | None = Field(default=None, description="Порядковый номер Шага в очереди Сценария.")
 
 
 class Scenario(BaseModel):
@@ -45,15 +41,14 @@ class Scenario(BaseModel):
 class JsonResponse(BaseModel):
     """Структура общения между Сценаристом и LLM."""
 
-    query: str = Field(..., description="Исходный запрос Сценариста.")
+    query: str = Field(description="Исходный запрос Сценариста.")
     answer: str = Field(default="", description="Итоговый ответ LLM-агента.")
-    sources: dict[int, dict[str, str]] = Field(default_factory=dict, description="Источники данных.")
-    scenario: Scenario | None = Field(default_factory=None)
+    sources: dict[int, dict[str, str]] = Field(description="Источники данных.")
     add_instruct: str = Field(default="", description="Дополнительные инструкции, установленные для ответа.")
+    scenario: Scenario | None = Field(default=None, description="Сценарий.")
 
 
 # ! [AI Note] Не добавлять в документацию
-# - В state хранить весь сценарий
 class OrchestratorState(MessagesState, total=False):
     """Состояние графа оркестратора."""
 
@@ -62,8 +57,8 @@ class OrchestratorState(MessagesState, total=False):
     sources: dict[int, dict[str, str]]
     scenario: Scenario
     add_instruct: str
-    docs: list[Document]
-    steps_count: int
+    docs: set[Document]
+    steps_count: Annotated[int, operator.add]
     result: JsonResponse
 
 

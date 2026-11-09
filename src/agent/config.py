@@ -7,30 +7,27 @@ class CompletionConfig(BaseModel):
     """Конфигурация модели генерации (LLM-чата)."""
 
     provider: str = Field(description="Провайдер LLM.")
-
-    # ! TODO скрывать в `...` в логах
     api_key: SecretStr = Field(repr=False, description="Ключ API для доступа к провайдеру.")
+
     verify_ssl_certs: bool = Field(default=False, description="Проверять ли SSL-сертификаты.")
-    base_url: str | None = Field(default=None, description="Путь API для OpenAI-провайдеров.")
-    model: str | None = Field(default=None, description="Название модели чата.")
+    base_url: str = Field(default="", description="Путь API для OpenAI-провайдеров.")
+    model: str = Field(default="", description="Название модели чата.")
     temperature: float = Field(default=0.1, description="Температура выборки токенов (0..1).")
     max_tokens: int = Field(default=10000, description="Максимальное число токенов в одном ответе модели.")
     timeout: int = Field(default=60, description="Время ожидания ответа от запроса к API, в секундах.")
     max_steps: int = Field(default=20, ge=1, description="Максимальное число шагов агента.")
     system_prompt: str = Field(
         default="""
-            Цель твоего существования - обработка инструкций поведения персонала на производстве,
+            - Цель твоего существования - обработка инструкций поведения персонала на производстве,
             которые будут использоваться в VR-тренажёрах. Инструкции персонала называются Сценариями.
-
-            Сценарий в VR-тренажёре — это структурированная последовательность атомарных действий персонала,
+            - Сценарий в VR-тренажёре — это структурированная последовательность атомарных действий персонала,
             которая включает информацию о ситуации, окружении, задействованных лицах,
             порядке действий и возможных вариантах выбора.
-
-            Все данные для генерации ты обязан брать из документации в твоём распоряжении,
-            придумывать факты из головы запрещено. Если нет документации, ты обязан не генерировать Сценарий.
-
-            Возможности общения на разные темы у тебя остаётся.
         """,
+        # - Все данные для генерации ты обязан брать из документации в твоём распоряжении,
+        # придумывать факты из головы запрещено.
+        # - Если нет данных для генерации, ты обязан сообщить об этом.
+        # - Возможности общения на разные темы у тебя остаются.
         description="Системный промпт.",
     )
 
@@ -39,9 +36,6 @@ class CollectionConfig(BaseModel):
     """Конфигурация одной коллекции документов для векторного поиска."""
 
     path: str = Field(description="Путь к папке с документами коллекции.")
-    # ? NOTTODO а что если имя коллекции будует создаваться само, если есть изменения в коллекции - менять имя
-    # TODO хранить хеш сумму всей коллекции в таблице
-    name: str = Field(description="Имя таблицы коллекции в векторном хранилище.")
 
     top_k: int = Field(default=5, ge=1, description="Сколько наиболее близких чанков возвращать.")
     chunk_size: int = Field(default=512, ge=1, description="Размер чанка (в символах).")
@@ -53,14 +47,13 @@ class EmbeddingConfig(BaseModel):
 
     provider: str = Field(description="Провайдер эмбеддингов: 'openai' и совместимые.")
 
-    # ! TODO скрывать в `...` в логах
     api_key: SecretStr = Field(default="None", repr=False, description="Ключ API провайдера эмбеддингов.")
-    collections: list[CollectionConfig] = Field(description="Список коллекций документов.")
+    collections: list[CollectionConfig] = Field(default_factory=list, description="Список путей к папкам.")
     verify_ssl_certs: bool = Field(default=False, description="Проверять ли SSL-сертификаты.")
-    base_url: str | None = Field(default=None, description="Путь API для OpenAI-провайдеров.")
-    model: str | None = Field(default=None, description="Название модели эмбеддингов.")
+    base_url: str = Field(default="", description="Путь API для OpenAI-провайдеров.")
+    model: str = Field(default="", description="Название модели эмбеддингов.")
     dim: int = Field(default=1024, ge=1, description="Размерность вектора эмбеддинга.")
-    db_path: str = Field(default="./responses/rag.sqlite3", description="Путь к файлу векторной базы данных.")
+    db_path: str = Field(default="./rag.sqlite3", description="Путь к файлу векторной базы данных.")
     batch_size: int = Field(default=4, ge=1, description="Сколько документов обрабатывается за один запрос.")
     timeout: int = Field(default=60, description="Время ожидания ответа от запроса к API, в секундах.")
 

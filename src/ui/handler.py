@@ -1,3 +1,5 @@
+"""Обработчик сигналов UI."""
+
 import json
 import logging
 import uuid
@@ -50,19 +52,25 @@ class HandlerBackend(QObject):
         self.responseReady.emit(json_text)
         self.queryProcessed.emit(uid)
 
+    @Slot(dict)
+    def changeOne(self, query: dict) -> None:  # noqa: N802
+        # TODO
+        ...
+
     @Slot(str, result=list)
     def readLinesFromFile(self, path: str) -> list[str]:  # noqa: N802
-        """Чтение задач (1 задача = 1 строка) из текстового файла."""
+        """Чтение задач (1 задача = 1 строка) из 'csv' файла."""
         file_path = Path(path)
         if not file_path.exists():
             LOGGER.error("Файл задач не найден: %s", file_path)
             return []
+        # TODO возврат структуры "Задача,Максимум_шагов"
         with file_path.open(encoding="utf-8") as fh:
             return [line.strip() for line in fh if line.strip()]
 
     @Slot(str, str)
     def saveToJson(self, file_path: str, current_response: str) -> None:  # noqa: N802
-        """Сохранение текста в файл в формате JSON."""
+        """Сохранение текста в файл в формате Json."""
         self._save(file_path, current_response)
 
     # ! [AI Note] Не добавлять в документацию
@@ -85,8 +93,9 @@ class HandlerBackend(QObject):
             json.dump(json_data, fh, ensure_ascii=False, indent=2)
 
 
-# TODO Асинхронная обработка запросов с кругом загрузки/обработки из точек
 class UserInterface:
+    """Пользовательский интерфейс."""
+
     def __init__(self, argv: list[str], invoker: Invoke, write_response: bool):
         qml_dir = Path(__file__).parent / "qml"
         qml_main_path = qml_dir / "Main.qml"

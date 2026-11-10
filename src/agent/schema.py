@@ -1,4 +1,10 @@
-"""# TODO"""
+"""Схемы общения между Сценаристом и агентом-Сценаристом
+Модель Сценария:
+    - ситуация
+    - персонажи
+    - атомарные действия субъектом над объектом
+    - максимальное количество Шагов
+"""
 
 import hashlib
 from enum import StrEnum
@@ -33,6 +39,8 @@ class Scenario(BaseModel):
     """Структура Сценария."""
 
     steps: list[ScenarioStep] = Field(default_factory=list, description="Массив Шагов итогового Сценария.")
+    max_steps: int = Field(default=10, description="Максимальное количество шагов в Сценарии.")
+
     _step_cache: dict[str, int] = {}
 
     # ! [AI Note] Не добавлять в документацию
@@ -67,7 +75,7 @@ class Scenario(BaseModel):
 
 
 class JsonResponse(BaseModel):
-    """Структура общения между Сценаристом и LLM."""
+    """Структура ответа агента-Сценариста."""
 
     query: str = Field(description="Исходный запрос Сценариста.")
     answer: str = Field(default="", description="Итоговый ответ LLM-агента.")

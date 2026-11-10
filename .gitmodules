@@ -1,3 +1,4 @@
 [submodule "diagrammy"]
 	path = diagrammy
-	url = git@gitflic.ru:diplomchgu2026/diagrammy.git
+	url = git@github.com:CHSU-scenarAIst/diagrammy.git
+

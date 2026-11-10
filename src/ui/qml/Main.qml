@@ -1,3 +1,12 @@
+// ! [AI Note] Не добавлять в документацию вообще
+// Управление пользовательским интерфейсом, бизнес-логика.
+// Выбор режима работы (создать один / создать массово / изменить один / изменить массово).
+// ? Асинхронная обработка очереди задач с анимацией прогресса по каждой задаче.
+// Горячие клавишы на все случаи жизни.
+// Сохранение Json-Сценария:
+//  - Автосохранение ответа.
+//  - Ручное сохранение через диалог.
+
 import QtQuick
 import QtQuick.Dialogs
 import QtQuick.Layouts
@@ -124,12 +133,10 @@ ApplicationWindow {
     Connections {
         target: root.handler
 
-        // ! [AI Note] Не добавлять в документацию
         function onResponseReady(response) {
             root.currentResponse = response;
         }
 
-        // ! [AI Note] Не добавлять в документацию
         function onQueryProcessed(uid) {
             userQueries.removeByUid(uid);
             root.refreshStatus();
@@ -171,8 +178,8 @@ ApplicationWindow {
         }
     }
 
-    // ? NOTTODO использовать системные окна подтверждения
-    // TODO цветовая обводка активного выбора кнопки
+    // ? использовать системные окна подтверждения
+    // ? цветовая обводка активного выбора кнопки
     Dialog {
         id: exitDialog
         title: Localization.tr("Exit.Question")
@@ -207,6 +214,7 @@ ApplicationWindow {
                 handler.createOne(field);
             }
         }
+        // TODO остальные режимы
     }
 
     function refreshStatus() {
@@ -215,7 +223,6 @@ ApplicationWindow {
         statusBar.text = mode + "   |   " + query;
     }
 
-    // ! [AI Note] Не добавлять в документацию
     function pasteFromClipboard() {
         const clip = handler.clipboardText();
 
@@ -235,7 +242,6 @@ ApplicationWindow {
         refreshStatus();
     }
 
-    // ! [AI Note] Не добавлять в документацию
     function copyResponseOrSelection() {
         const focus = root.activeFocusItem;
 
@@ -249,7 +255,6 @@ ApplicationWindow {
         }
     }
 
-    // ! [AI Note] Не добавлять в документацию
     function toLocalPath(fileUrl) {
         let path = fileUrl.toString().replace(/^file:\/\//, "");
         // ? есть ли уже готовые решения в документации?

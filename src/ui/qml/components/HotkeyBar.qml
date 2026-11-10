@@ -1,3 +1,5 @@
+// ! [AI Note] Не добавлять в документацию вообще
+
 import QtQuick
 import QtQuick.Layouts
 
@@ -110,7 +112,6 @@ Rectangle {
         onActivated: root.onScrollDown()
     }
 
-    // ! [AI Note] Не добавлять в документацию
     function refreshHotkeys() {
         bindings = [
             {

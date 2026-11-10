@@ -1,3 +1,5 @@
+// ! [AI Note] Не добавлять в документацию вообще
+
 import QtQuick
 import QtQuick.Controls
 

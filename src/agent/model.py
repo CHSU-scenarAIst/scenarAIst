@@ -1,4 +1,13 @@
-"""Фабрики провайдеров LLM и обработчиков эмбеддингов."""
+"""Фабрики провайдеров LLM и обработчиков эмбеддингов.
+Индексация документов в векторную БД, получение контекста из векторного поиска:
+    - TODO Загрузка и чанкинг документов: pdf, txt, md, csv, docx, xls, xlsx.
+    - SQLite
+    - Инкрементальное обновление индекса при изменении папки
+Поддержка моделей через разных провайдеров:
+    - OpenAI-совместимый
+    - GigaChat
+    - TODO llama.cpp
+"""
 
 import hashlib
 import logging
@@ -26,33 +35,33 @@ LOGGER = logging.getLogger(__name__)
 class ScenarAIstModelFactory:
     """Фабрика провайдеров LLM и обработчиков эмбеддингов."""
 
-    def __init__(self, cfg: dict[str, Any]):
+    def __init__(self, raw_cfg: dict[str, Any]):
         try:
-            self.chat_cfg = CompletionConfig.model_validate(cfg["completion"])
+            self.chat_cfg = CompletionConfig.model_validate(raw_cfg["completion"])
         except Exception as e:
-            raise TypeError("Ошибка конфигурации модели") from e
+            raise TypeError("Ошибка конфигурации модели.") from e
 
         try:
             provider = Providers(self.chat_cfg.provider.strip().lower())
         except Exception as e:
-            provider = cfg.get("completion", {}).get("provider", "?")
-            raise TypeError(f"Ошибка загрузки 'completion' -> 'provider': '{provider}'") from e
+            provider = raw_cfg.get("completion", {}).get("provider", "?")
+            raise TypeError(f"Ошибка загрузки 'completion' -> 'provider': '{provider}'.") from e
 
         self.chat = _CHAT_FACTORIES[provider](self.chat_cfg)
 
         self.retrievers = []
         try:
-            embed_cfg = EmbeddingConfig.model_validate(cfg["embeddings"])
+            embed_cfg = EmbeddingConfig.model_validate(raw_cfg["embeddings"])
             LOGGER.debug(embed_cfg.model_dump_json())
         except Exception:
-            LOGGER.debug("Нет внешних данных для подключения: 'embeddings'")
+            LOGGER.debug("Нет внешних данных для подключения: 'embeddings'.")
         else:
             try:
                 embeddings = _EMBEDDING_FACTORIES[embed_cfg.provider.strip().lower()](embed_cfg)
                 sqlite_db = SQLiteVecFactory(embed_cfg, embeddings)
                 self.retrievers = sqlite_db.retrievers
             except Exception as e:
-                LOGGER.error("Ошибка загрузки конфигурации эмбеддингов", exc_info=e)
+                LOGGER.error("Ошибка загрузки конфигурации эмбеддингов.", exc_info=e)
 
 
 class SQLiteVecFactory:

@@ -1,3 +1,11 @@
+"""Сборка LLM-агента с инструментами и структурированным выводом.
+Получение Json-Сценария (back_request).
+JSON ответ агента:
+    - Ручная сборка ответа в Json
+    - Инструменты патчинга (частичного изменения) для редактирования Сценария
+    - TODO? Structured output вместо ручной сборки
+"""
+
 import logging
 import operator
 import uuid
@@ -7,8 +15,7 @@ from typing import TYPE_CHECKING, Annotated, Any
 
 from langchain.messages import HumanMessage, SystemMessage
 from langchain.tools import InjectedState, tool
-from langgraph.graph import END, START, MessagesState
-from langgraph.graph.state import StateGraph
+from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.types import Command
 from pydantic import ValidationError

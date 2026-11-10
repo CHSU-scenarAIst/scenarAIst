@@ -1,3 +1,5 @@
+// ! [AI Note] Не добавлять в документацию вообще
+
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
@@ -99,8 +101,8 @@ Item {
                     onClicked: root.removeByUid(queriesModel.get(delegate.index).uid)
                 }
 
-                // TODO при добавлении должен работать при 0 стартовых полей
-                // TODO при удалении должен ставить фокус на последнее поле
+                // ? при добавлении должен работать при 0 стартовых полей
+                // ? при удалении должен ставить фокус на последнее поле
                 Component.onCompleted: {
                     if (root.autofocusLast) {
                         field.forceActiveFocus();
@@ -180,7 +182,6 @@ Item {
         return _copy(field);
     }
 
-    // ! [AI Note] Не добавлять в документацию
     function setCursor() {
         root.autofocusLast = true;
         Qt.callLater(() => {
@@ -189,18 +190,15 @@ Item {
         });
     }
 
-    // ! [AI Note] Не добавлять в документацию
-    // TODO вместо count() вернуть итератор iter()
+    // ? вместо count() вернуть итератор iter()
     function count() {
         return queriesModel.count;
     }
 
-    // ! [AI Note] Не добавлять в документацию
     function clear() {
         queriesModel.clear();
     }
 
-    // ! [AI Note] Не добавлять в документацию
     function _copy(field) {
         return {
             uid: String(field.uid ?? ""),
@@ -208,7 +206,6 @@ Item {
         };
     }
 
-    // ! [AI Note] Не добавлять в документацию
     function _newId(text) {
         const now = new Date();
         const pad = n => (n < 10 ? "0" : "") + n;
@@ -218,7 +215,6 @@ Item {
         return date + "_" + time + "-" + hash;
     }
 
-    // ! [AI Note] Не добавлять в документацию
     function _hash6(input) {
         let hash = 2166136261;
         for (let i = 0; i < input.length; i++) {

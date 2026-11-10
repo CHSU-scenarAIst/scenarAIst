@@ -1,4 +1,4 @@
-"""Главный пакет scenarAIst. Пакет источников сценарAIста: пакеты agent и ui сходятся в __main__."""
+"""Главный пакет scenarAIst."""
 
 from importlib.metadata import version
 

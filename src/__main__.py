@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from src.agent.agent import ScenarAIstAgent
 from src.agent.model import ScenarAIstModelFactory
-from src.ui.handler import Invoke, UserInterface
+from src.ui.handler import InvokeAgent, UserInterface
 
 LOG_FILE = "scenarAIst.log"
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
@@ -52,7 +52,7 @@ def main() -> int:
     return exit_code
 
 
-class ImplInvoke(Invoke):
+class ImplInvoke(InvokeAgent):
     """Реализация интерфейса `Invoke`."""
 
     def __init__(self, agent: ScenarAIstAgent):

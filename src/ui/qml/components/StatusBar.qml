@@ -1,4 +1,4 @@
-// ! [AI Note] Не добавлять в документацию вообще
+// ! """Компонент отображения строки состояния работы приложения."""
 
 import QtQuick
 import QtQuick.Controls
@@ -6,7 +6,7 @@ import QtQuick.Controls
 Rectangle {
     id: root
 
-    property string text
+    property string text // * Состояние работы приложения.
 
     Label {
         anchors.fill: parent

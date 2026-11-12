@@ -1,13 +1,15 @@
 """Схемы общения между Сценаристом и агентом-Сценаристом
 Модель Сценария:
-    - ситуация
     - персонажи
+    - объекты
+    - ситуация
     - атомарные действия субъектом над объектом
     - максимальное количество Шагов
 """
 
 import hashlib
 from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -16,37 +18,59 @@ class Action(StrEnum):
     """Стандартизация Действий персонала производства."""
 
     USE = "Использовать"
-    TAKEN = "Взять"
+    TAKE = "Взять"
     ENABLE = "Включить"
     DISABLE = "Выключить"
-    # Воткнуть
-    # Нажать
-    # TODO
+    PUSH = "Нажать"
+    PLUG_IN = "Воткнуть"
+    PULL = "Потянуть"
+    SWIPE = "Провести"
+    START = "Запустить"
+    STOP = "Остановить"
+    PUT = "Положить"
+    UNPLUG = "Вытащить"
+    ROTATE = "Повернуть"
+    OPEN = "Открыть"
+    CLOSE = "Закрыть"
+    CHECK = "Проверить"
+    INSPECT = "Осмотреть"
+    CLEAN = "Очистить"
+    ADJUST = "Отрегулировать"
+    INSTALL = "Установить"
+    REMOVE = "Снять"
+    WAIT = "Подождать"
+    SCAN = "Отсканировать"
+    CONFIRM = "Подтвердить"
 
 
-# ? переделать под формат шагов Сценария
 class ScenarioStep(BaseModel):
     """Структура Шага в Сценарии."""
 
     id: str = Field(description="Уникальный идентификатор шага.")
-    subject: str = Field(description="# TODO")
-    object: str = Field(description="# TODO")
+    subject: str = Field(description="Субъект, который проводит Действие.")
+    object: str = Field(description="Объект, над которым проводится Действие.")
     action: Action = Field(description="Действие над объектом.")
-    order: int | None = Field(default=None, description="Порядковый номер Шага в очереди Сценария.")
+    # ? предусловие
+    # ? постусловие
 
 
 class Scenario(BaseModel):
-    """Структура Сценария."""
+    """Структура итогового Сценария."""
 
-    steps: list[ScenarioStep] = Field(default_factory=list, description="Массив Шагов итогового Сценария.")
-    max_steps: int = Field(default=10, description="Максимальное количество шагов в Сценарии.")
+    steps: list[ScenarioStep] = Field(default_factory=list, description="Массив Шагов Сценария.")
 
+    # ! [AI Note] Не добавлять в документацию
     _step_cache: dict[str, int] = {}
+
+    # ! [AI Note] Не добавлять в документацию
+    def serialize_steps(self) -> list[dict[str, Any]]:
+        """Сериализует список шагов с автоматическим добавлением order."""
+        return [{**step.model_dump(), "order": order} for order, step in enumerate(self.steps, start=1)]
 
     # ! [AI Note] Не добавлять в документацию
     def rebuild(self) -> None:
         """Перестраивает карту индексов шагов."""
-        self._step_cache = {step.id: i for i, step in enumerate(self.steps) if step.id}
+        self._step_cache = {step.id: i for i, step in enumerate(self.steps, start=1) if step.id}
 
     # ! [AI Note] Не добавлять в документацию
     def find(self, id: str) -> int | None:
@@ -78,7 +102,27 @@ class JsonResponse(BaseModel):
     """Структура ответа агента-Сценариста."""
 
     query: str = Field(description="Исходный запрос Сценариста.")
-    answer: str = Field(default="", description="Итоговый ответ LLM-агента.")
+    answer: str | None = Field(default=None, description="Необязательные пояснения.")
     sources: dict[int, dict[str, str]] = Field(description="Источники данных.")
     add_instruct: str = Field(default="", description="Дополнительные инструкции, установленные для ответа.")
-    scenario: Scenario | None = Field(default=None, description="Сценарий.")
+    scenario: Scenario | None = Field(default=None, description="Итоговый Сценарий от LLM-агента.")
+
+
+# ! [AI Note] Не добавлять в документацию
+class InsertStepItem(BaseModel):
+    after_id: str | None = Field(
+        default=None,
+        description="ID шага, после которого нужно вставить новый Шаг, или None для вставки в конец.",
+    )
+    step: ScenarioStep
+
+
+# ! [AI Note] Не добавлять в документацию
+class UpdateStepItem(BaseModel):
+    step_id: str | None = Field(default=None, description="ID шага, который нужно обновить.")
+    new_step: ScenarioStep = Field(description="Новый Шаг.")
+
+
+# ! [AI Note] Не добавлять в документацию
+class DeleteStepItem(BaseModel):
+    step_id: str | None = Field(default=None, description="ID шага, который нужно удалить.")

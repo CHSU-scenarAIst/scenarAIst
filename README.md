@@ -28,14 +28,16 @@
 ## Использовать
 
 ```sh
-### Установить `uv`
+# Установить `uv`
+## wget
 wget -qO- https://astral.sh/uv/install.sh | sh
+## curl
 curl -LsSf https://astral.sh/uv/install.sh | sh
+## windows
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ###
 
-git clone https://github.com/CHSU-scenarAIst/scenarAIst
-cd scenaraist
+git clone https://github.com/CHSU-scenarAIst/scenarAIst && cd scenaraist
 uv sync
 
 scenaraist      # Запуск с логированием
@@ -44,18 +46,11 @@ uv run -m src   # Запуск без логирования
 
 ## Модели
 
+- GigaChat: [Studio - Личный кабинет технологических продуктов Сбера](https://developers.sber.ru/studio/workspaces/)
+- Z.ai: `https://docs.z.ai/guides/overview/pricing#other-pricing`
 - OpenRouter: API не работает в РФ
 - DeepSeek Open Platform: требует деньги
 - OfoxAI: нет бесплатных вариантов
-- GigaChat: [Studio - Личный кабинет технологических продуктов Сбера](https://developers.sber.ru/studio/workspaces/)
-
-  | GigaChat Model   |
-  | ---------------- |
-  | GigaChat-2       |
-  | GigaChat-2-Pro   |
-  | GigaChat-2-Max   |
-  | GigaChat-3-Ultra |
-
 - ProxyAPI: РФ, требует деньги
 - AITunnel: РФ, требует деньги
 - RouterAI: РФ, требует деньги
@@ -73,7 +68,7 @@ uv run -m src   # Запуск без логирования
 
 - [LangGraph](https://docs.langchain.com/oss/python/langgraph/overview)
 - [LangChain](https://docs.langchain.com/oss/python/langchain/overview)
-=- [sqlite-vec](https://alexgarcia.xyz/sqlite-vec/python.html)
+- [sqlite-vec](https://alexgarcia.xyz/sqlite-vec/python.html)
 - [LangChain - Tavily Docs](https://docs.tavily.com/documentation/integrations/langchain)
 - [Tavily API Platform](https://app.tavily.com/home)
 
@@ -122,7 +117,7 @@ UseTabs=false
 Придумать документацию к вымышленным приборам, провести тесты:
 
 - [ ] Создание метрики точности
-- [ ] Прогон агента на инструкциях 5 типов оборудования
+- [ ] Прогон агента-Сценариста на инструкциях 5 типов оборудования
 - [ ] Сравнение ответов по структуре/смыслу и расчёт метрики точности
 - [ ] Может ли LLM написать длинный Сценарий без инструментов?
 - [ ] Может ли LLM написать длинный Сценарий с помощью инструментов?

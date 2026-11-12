@@ -1,4 +1,4 @@
-// ! [AI Note] Не добавлять в документацию вообще
+// ! """Компонент обработки сочетаний горячих клавиш."""
 
 import QtQuick
 import QtQuick.Layouts
@@ -7,19 +7,22 @@ import QtQuick.Layouts
 Rectangle {
     id: root
 
-    property var bindings: []
+    required property var onAdd     // * Обработчик события добавления задачи.
+    required property var onDelete  // * Обработчик события удаления задачи.
+    required property var onLoad    // * Обработчик события загрузки задач из файла.
+    required property var onExit    // * Обработчик события выхода из приложения.
+    required property var onSend    // * Обработчик события запуска обработчика задач.
+    required property var onMode    // * Обработчик события смены режима работы.
+    required property var onSave    // * Обработчик события сохранения ответа агента-Сценариста в файл.
 
-    required property var onNew
-    required property var onDelete
-    required property var onLoad
-    required property var onExit
-    required property var onSend
-    required property var onPaste
-    required property var onMode
+    property var bindings: []       // * Список горячих клавиш.
+
+    // ! [AI Note] Не_добавлять_в / удалить_из документации
     required property var onCopy
-    required property var onSave
+    required property var onPaste
     required property var onScrollUp
     required property var onScrollDown
+    // !
 
     RowLayout {
         anchors.fill: parent
@@ -49,7 +52,7 @@ Rectangle {
     Shortcut {
         sequence: "Ctrl+E"
         context: Qt.ApplicationShortcut
-        onActivated: root.onNew()
+        onActivated: root.onAdd()
     }
 
     Shortcut {
@@ -112,6 +115,8 @@ Rectangle {
         onActivated: root.onScrollDown()
     }
 
+    // * Обновить список горячих клавиш.
+    // ? если обработчик события не null, то добавить в список горячих клавиш
     function refreshHotkeys() {
         bindings = [
             {

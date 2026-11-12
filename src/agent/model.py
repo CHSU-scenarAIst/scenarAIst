@@ -1,19 +1,15 @@
 """Фабрики провайдеров LLM и обработчиков эмбеддингов.
-Индексация документов в векторную БД, получение контекста из векторного поиска:
-    - TODO Загрузка и чанкинг документов: pdf, txt, md, csv, docx, xls, xlsx.
-    - SQLite
-    - Инкрементальное обновление индекса при изменении папки
-Поддержка моделей через разных провайдеров:
-    - OpenAI-совместимый
-    - GigaChat
-    - TODO llama.cpp
+- Индексация документов в векторную БД, получение контекста из векторного поиска
+- TODO Загрузка и чанкинг документов: pdf, txt, md, csv, docx, xls, xlsx.
+- SQLite
+- Инкрементальное обновление индекса при изменении папки
+- Поддержка моделей через OpenAI-совместимый, GigaChat, TODO llama.cpp
 """
 
 import hashlib
 import logging
 import sqlite3
 from collections.abc import Iterator
-from enum import StrEnum
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -27,7 +23,7 @@ from langchain_gigachat import GigaChat
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from src.agent.config import CompletionConfig, EmbeddingConfig
+from src.agent.config import CompletionConfig, EmbeddingConfig, Providers
 
 LOGGER = logging.getLogger(__name__)
 
@@ -52,9 +48,9 @@ class ScenarAIstModelFactory:
         self.retrievers = []
         try:
             embed_cfg = EmbeddingConfig.model_validate(raw_cfg["embeddings"])
-            LOGGER.debug(embed_cfg.model_dump_json())
+            LOGGER.info(embed_cfg.model_dump_json())
         except Exception:
-            LOGGER.debug("Нет внешних данных для подключения: 'embeddings'.")
+            LOGGER.info("Нет внешних данных для подключения: 'embeddings'.")
         else:
             try:
                 embeddings = _EMBEDDING_FACTORIES[embed_cfg.provider.strip().lower()](embed_cfg)
@@ -81,18 +77,13 @@ class SQLiteVecFactory:
         conn.enable_load_extension(False)
 
         for c in embed_cfg.collections:
-            path_obj = Path(c.path)
-            if not path_obj.exists():
-                LOGGER.warning(f"Путь к коллекции не найден: '{c.path}'")
-                continue
-
             current_hash = self._calculate_hash(c.path)
             active_table = self._get_active_table(conn, c.path, current_hash)
 
             if active_table is None:
                 short_hash = current_hash[:8]
-                new_table = f"{c.name}_{short_hash}"
-                LOGGER.debug(f"Изменения или новая коллекция в '{c.path}' -> '{new_table}'...")
+                new_table = f"{c.path.name}_{short_hash}"
+                LOGGER.info(f"Изменения или новая коллекция в '{c.path}' -> '{new_table}'...")
 
                 docs = list(self._iter_documents(c.path, c.chunk_size, c.chunk_overlap))
                 db = SQLiteVec.from_documents(
@@ -104,7 +95,7 @@ class SQLiteVecFactory:
 
                 self._update_meta_and_cleanup(conn, c.path, current_hash, new_table)
             else:
-                LOGGER.debug(f"Коллекция '{c.path}' не изменилась, таблица '{active_table}'.")
+                LOGGER.info(f"Коллекция '{c.path}' не изменилась, таблица '{active_table}'.")
                 db = SQLiteVec(
                     table=active_table,
                     connection=conn,
@@ -177,7 +168,7 @@ class SQLiteVecFactory:
         if old_table_name and old_table_name != table:
             try:
                 conn.execute(f"DROP TABLE IF EXISTS {old_table_name}")
-                LOGGER.debug("Старая таблица '%s' удалена.", old_table_name)
+                LOGGER.info("Старая таблица '%s' удалена.", old_table_name)
             except Exception as e:
                 LOGGER.warning("Не удалось удалить старую таблицу '%s'", old_table_name, exc_info=e)
 
@@ -222,7 +213,7 @@ def _create_openai_compatible_chat(cfg: CompletionConfig) -> BaseChatModel:
     return ChatOpenAI(
         api_key=cfg.api_key.get_secret_value(),
         base_url=cfg.base_url,
-        model=cfg.model or "z-ai/glm-4.7-flash:free",
+        model=cfg.model,
         temperature=cfg.temperature,
         max_completion_tokens=cfg.max_tokens,
         timeout=cfg.timeout,
@@ -233,7 +224,7 @@ def _create_openai_compatible_chat(cfg: CompletionConfig) -> BaseChatModel:
 def _create_gigachat_chat(cfg: CompletionConfig) -> BaseChatModel:
     return GigaChat(
         credentials=cfg.api_key.get_secret_value(),
-        model=cfg.model or "GigaChat-2",
+        model=cfg.model,
         verify_ssl_certs=cfg.verify_ssl_certs,
         max_tokens=cfg.max_tokens,
         timeout=cfg.timeout,
@@ -245,19 +236,11 @@ def _create_openai_embeddings(cfg: EmbeddingConfig) -> Embeddings:
     return OpenAIEmbeddings(
         api_key=cfg.api_key.get_secret_value(),
         base_url=cfg.base_url,
-        model=cfg.model or "text-embedding-multilingual-e5-large-instruct",
+        model=cfg.model,
         dimensions=cfg.dim,
         chunk_size=cfg.batch_size,
         timeout=cfg.timeout,
     )
-
-
-# ! [AI Note] Не добавлять в документацию
-class Providers(StrEnum):
-    """Текстовое перечисление провайдеров LLM."""
-
-    OPENAI = "openai"
-    GIGACHAT = "gigachat"
 
 
 # ! [AI Note] Не добавлять в документацию

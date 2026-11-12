@@ -1,4 +1,4 @@
-// ! [AI Note] Не добавлять в документацию вообще
+// ! """Компонент отображения ответов агента-Сценариста."""
 
 import QtQuick
 import QtQuick.Controls
@@ -7,9 +7,11 @@ import QtQuick.Layouts
 Item {
     id: root
 
-    property string text
+    property string text // * Ответ агента-Сценариста.
 
+    // ! [AI Note] Не_добавлять_в / удалить_из документации
     signal copyRequested
+    // !
 
     ColumnLayout {
         anchors.fill: parent
@@ -71,6 +73,7 @@ Item {
         }
     }
 
+    // ! [AI Note] Не_добавлять_в / удалить_из документации
     function scrollBy(delta) {
         const flickable = scroll.contentItem as Flickable;
         if (!flickable) {
@@ -78,4 +81,5 @@ Item {
         }
         flickable.contentY = Math.max(0, Math.min(flickable.contentHeight - flickable.height, flickable.contentY + delta));
     }
+    // !
 }

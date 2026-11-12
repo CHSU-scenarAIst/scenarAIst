@@ -1,11 +1,4 @@
-// ! [AI Note] Не добавлять в документацию вообще
-// Управление пользовательским интерфейсом, бизнес-логика.
-// Выбор режима работы (создать один / создать массово / изменить один / изменить массово).
-// ? Асинхронная обработка очереди задач с анимацией прогресса по каждой задаче.
-// Горячие клавишы на все случаи жизни.
-// Сохранение Json-Сценария:
-//  - Автосохранение ответа.
-//  - Ручное сохранение через диалог.
+// ! """Управление пользовательским интерфейсом, бизнес-логика."""
 
 import QtQuick
 import QtQuick.Dialogs
@@ -15,6 +8,7 @@ import QtQuick.Window
 
 import "./components"
 
+// ? Асинхронная обработка очереди задач с анимацией прогресса по каждой задаче.
 ApplicationWindow {
     id: root
 
@@ -28,6 +22,7 @@ ApplicationWindow {
 
     property var handler: handlerBackend // qmllint disable unqualified
     property int currentMode: 0
+    // * Режимы работы (создать один / создать массово / изменить один / изменить массово).
     property var modes: {
         0: "Mode.CreateOne",
         1: "Mode.CreateSome",
@@ -65,7 +60,7 @@ ApplicationWindow {
             Layout.fillHeight: true
             spacing: 8
 
-            LlmResponse {
+            AgentResponse {
                 id: llmResponse
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -107,7 +102,7 @@ ApplicationWindow {
             implicitHeight: 30
             color: "#000000"
 
-            onNew: () => {
+            onAdd: () => {
                 userQueries.addQuery("");
                 root.refreshStatus();
             }
@@ -130,6 +125,7 @@ ApplicationWindow {
         }
     }
 
+    // * Обработчик сигналов из пользовательского интерфейса.
     Connections {
         target: root.handler
 
@@ -148,6 +144,7 @@ ApplicationWindow {
         hotkeyBar.refreshHotkeys();
     }
 
+    // * Ручное сохранение через диалог.
     FileDialog {
         id: saveDialog
         title: Localization.tr("Save.Response")
@@ -196,6 +193,7 @@ ApplicationWindow {
         onAccepted: Qt.quit()
     }
 
+    // * Отправить задачи на обработку.
     function send() {
         if (root.currentMode === 0) {
             const field = userQueries.getFirst();
@@ -214,7 +212,7 @@ ApplicationWindow {
                 handler.createOne(field);
             }
         }
-        // TODO остальные режимы
+    // TODO остальные режимы
     }
 
     function refreshStatus() {
@@ -223,6 +221,7 @@ ApplicationWindow {
         statusBar.text = mode + "   |   " + query;
     }
 
+    // ! [AI Note] Не добавлять в документацию
     function pasteFromClipboard() {
         const clip = handler.clipboardText();
 
@@ -242,6 +241,7 @@ ApplicationWindow {
         refreshStatus();
     }
 
+    // ! [AI Note] Не добавлять в документацию
     function copyResponseOrSelection() {
         const focus = root.activeFocusItem;
 
@@ -255,6 +255,7 @@ ApplicationWindow {
         }
     }
 
+    // ! [AI Note] Не добавлять в документацию
     function toLocalPath(fileUrl) {
         let path = fileUrl.toString().replace(/^file:\/\//, "");
         // ? есть ли уже готовые решения в документации?

@@ -1,4 +1,4 @@
-// ! [AI Note] Не добавлять в документацию вообще
+// ! """Компонент управления списком пользовательских запросов."""
 
 pragma ComponentBehavior: Bound
 import QtQuick
@@ -8,9 +8,10 @@ import QtQuick.Layouts
 Item {
     id: root
 
+    // ! [AI Note] Не_добавлять_в / удалить_из документации
     signal runRequested
-
     property bool autofocusLast: false
+    // !
 
     ListModel {
         id: queriesModel
@@ -144,7 +145,7 @@ Item {
         setCursor();
     }
 
-    // ? NOTTODO оптимизировать
+    // ? оптимизировать
     function removeByUid(uid) {
         if (uid === undefined || uid === null) {
             return;
@@ -182,17 +183,18 @@ Item {
         return _copy(field);
     }
 
+    // ? вместо count() вернуть итератор iter()
+    function count() {
+        return queriesModel.count;
+    }
+
+    // ! [AI Note] Не_добавлять_в / удалить_из документации
     function setCursor() {
         root.autofocusLast = true;
         Qt.callLater(() => {
             queriesView.positionViewAtEnd();
             root.autofocusLast = false;
         });
-    }
-
-    // ? вместо count() вернуть итератор iter()
-    function count() {
-        return queriesModel.count;
     }
 
     function clear() {
@@ -223,4 +225,5 @@ Item {
         }
         return ("000000" + (hash >>> 0).toString(16)).slice(-6);
     }
+    // !
 }

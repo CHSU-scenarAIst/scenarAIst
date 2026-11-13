@@ -47,9 +47,9 @@ class Step(BaseModel):
     """Структура Шага в Сценарии."""
 
     id: str = Field(description="Уникальный идентификатор шага.")
-    subject: str = Field(description="Субъект, который проводит Действие.")
-    object: str = Field(description="Объект, над которым проводится Действие.")
-    action: Action = Field(description="Действие над объектом.")
+    subject: str = Field(description="Название/UID Субъекта.")
+    object: str = Field(description="Название/UID Объекта.")
+    action: Action = Field(description="Действие Субъекта над Объектом.")
     # ? предусловие
     # ? постусловие
 

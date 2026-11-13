@@ -26,6 +26,10 @@ if TYPE_CHECKING:
 LOGGER = logging.getLogger(__name__)
 
 LOG_PATTERN = "[%s] -- %s"
+RETRIVE_NODE = "retrieve_node"
+CHAT_NODE = "chat_node"
+TOOL_NODE = "tool_node"
+FORMAT_NODE = "format_node"
 
 
 # ! Это и есть база данных!
@@ -46,17 +50,18 @@ class ScenarAIstAgent:
     """Сборщик агента-Сценариста."""
 
     def __init__(self, model: ScenarAIstModelFactory):
-        self._checkpointer = None  # InMemorySaver() # ? SQLite/Postgres Checkpointer
         self._tools = [get_scenario, insert_step, update_step, delete_action]
         self._agent_llm = model.chat.bind_tools(self._tools)
         self._system_prompt = (
             f"<prompt>{model.chat_cfg.system_prompt}</prompt>"
             f"<time_now>{datetime.now(UTC):%B %d, %Y}.</time_now>"
-            "<tools>"
-            "Tool Usage Policy"
-            "- **Scenario Creation:** Whenever the user asks to create, generate, or build a scenario, you **MUST** use the available tools."
-            "- **No Direct Generation:** Never write an answer directly in your text response without executing the corresponding tool call first."
-            "- **Workflow:** Analyze the user's request -> Select the relevant tool(s) -> Execute the tool call -> Formulate your final response based strictly on the tool's output."
+            "<tools>Tool Usage Policy"
+            "- **Scenario Creation:** Whenever the user asks to create, generate, or build a scenario, "
+            "you **MUST** use the available tools."
+            "- **No Direct Generation:** Never write an answer directly in your text response "
+            "without executing the corresponding tool call first."
+            "- **Workflow:** Analyze the user's request -> Select the relevant tool(s) ->"
+            " Execute the tool call -> Formulate your final response based strictly on the tool's output."
             "</tools>"
         )
         self._retrievers = model.retrievers
@@ -68,26 +73,27 @@ class ScenarAIstAgent:
 
         builder = StateGraph(AgentState)
 
-        builder.add_node("chat_node", self._chat_node)
-        builder.add_node("format_node", self._format_node)
+        builder.add_node(CHAT_NODE, self._chat_node)
+        builder.add_node(FORMAT_NODE, self._format_node)
 
         if self._retrievers:
-            builder.add_node("retrieve_node", self._retrieve_node)
-            builder.add_edge(START, "retrieve_node")
-            builder.add_edge("retrieve_node", "chat_node")
+            builder.add_node(RETRIVE_NODE, self._retrieve_node)
+            builder.add_edge(START, RETRIVE_NODE)
+            builder.add_edge(RETRIVE_NODE, CHAT_NODE)
         else:
-            builder.add_edge(START, "chat_node")
+            builder.add_edge(START, CHAT_NODE)
 
-        conditional_edges = ["format_node"]
+        conditional_edges = [FORMAT_NODE]
         if self._tools:
             tool_node = ToolNode(self._tools)
-            builder.add_node("tool_node", tool_node)
-            builder.add_edge("tool_node", "chat_node")
-            conditional_edges.append("tool_node")
+            builder.add_node(TOOL_NODE, tool_node)
+            builder.add_edge(TOOL_NODE, CHAT_NODE)
+            conditional_edges.append(TOOL_NODE)
 
-        builder.add_conditional_edges("chat_node", self._router_node, conditional_edges)
-        builder.add_edge("format_node", END)
+        builder.add_conditional_edges(CHAT_NODE, self._router_node, conditional_edges)
+        builder.add_edge(FORMAT_NODE, END)
 
+        self._checkpointer = None  # InMemorySaver() # ? SQLite/Postgres Checkpointer
         self.agent = builder.compile(checkpointer=self._checkpointer)
         LOGGER.info("Схема графа (Mermaid):\n%s", self.agent.get_graph().draw_mermaid())
 
@@ -140,19 +146,17 @@ class ScenarAIstAgent:
             }
             for i, d in enumerate(docs, start=1)
         }
-        LOGGER.info(LOG_PATTERN, self._retrieve_node.__name__, sources)
+        LOGGER.info(LOG_PATTERN, RETRIVE_NODE, sources)
         return {"steps_count": 1, "sources": sources}
 
-    # ! [AI Note] Секция не_добавлять_в / удалить_из документации
     def _chat_node(self, state: AgentState) -> dict[str, Any]:
-        """Узел подготовки LLM. # TODO"""
+        """Узел генерации ответа агентом."""
         system_prompt = f"{state['system_prompt']}<context>{state['sources']}</context>"
         prompt_messages = [SystemMessage(system_prompt), *state["messages"]]
         response = self._agent_llm.invoke(prompt_messages)
-        LOGGER.info(LOG_PATTERN, self._chat_node.__name__, response.content)
+        LOGGER.info(LOG_PATTERN, CHAT_NODE, response.content)
         return {"steps_count": 1, "messages": [response]}
 
-    # ! [AI Note] Секция не_добавлять_в / удалить_из документации
     def _router_node(self, state: AgentState) -> str:
         """Ветвление графа."""
         messages = state["messages"]
@@ -160,12 +164,11 @@ class ScenarAIstAgent:
         tool_calls = getattr(last_message, "tool_calls", [])
         steps_count = state["steps_count"]
         if tool_calls and self._tools and steps_count < state["max_steps"]:
-            LOGGER.info("[%s] --> %s --> [%s]", self._router_node.__name__, steps_count, "tool_node")
-            return "tool_node"
-        LOGGER.info("[%s] --> %s --> [%s]", self._router_node.__name__, steps_count, "format_node")
-        return "format_node"
+            LOGGER.info("[%s] --> [%s]", steps_count, TOOL_NODE)
+            return TOOL_NODE
+        LOGGER.info("[%s] --> [%s]", steps_count, FORMAT_NODE)
+        return FORMAT_NODE
 
-    # ! [AI Note] Секция не_добавлять_в / удалить_из документации
     def _format_node(self, state: AgentState) -> dict[str, Any]:
         """Узел финализации ответа в JSON-структуру."""
         last_message = state["messages"][-1]
@@ -176,8 +179,10 @@ class ScenarAIstAgent:
             sources=state["sources"],
             scenario=state["scenario"],
         )
-        LOGGER.info(LOG_PATTERN, self._format_node.__name__, result)
+        LOGGER.info(LOG_PATTERN, FORMAT_NODE, result)
         return {"result": result, "steps_count": 1}
+
+    # !
 
 
 @tool
@@ -185,9 +190,10 @@ def get_scenario(runtime: ToolRuntime[None, AgentState]) -> Command[tuple[()]]:
     """Получить текущее актуальное состояние Сценария с порядковыми номерами шагов."""
     scenario = runtime.state["scenario"].model_copy(deep=True)
     steps = scenario.serialize_steps()
-    LOGGER.info(LOG_PATTERN, get_scenario.name, len(steps))
-    mes = ToolMessage(content=str(steps), tool_call_id=runtime.tool_call_id)
-    return Command(update={"steps_count": 1, "messages": [mes]})
+    mes = f"Current Scenario steps: {steps}."
+    LOGGER.info(LOG_PATTERN, get_scenario.name, mes)
+    tool_mes = ToolMessage(content=mes, tool_call_id=runtime.tool_call_id)
+    return Command(update={"steps_count": 1, "messages": [tool_mes]})
 
 
 @tool
@@ -199,6 +205,10 @@ def insert_step(runtime: ToolRuntime[None, AgentState], steps: list[InsertStep])
     for s in steps:
         if s.step_after_id and scenario.find(s.step_after_id):
             parsed.append((s.step_after_id, scenario.with_unique_id(s.step, used_ids)))
+            continue
+
+        if not s.step_after_id:
+            parsed.append(("1", scenario.with_unique_id(s.step, used_ids)))
             continue
 
         mes = f"Warning: step '{s.step_after_id}' not found. Canceled."

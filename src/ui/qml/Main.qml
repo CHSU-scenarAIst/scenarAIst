@@ -8,20 +8,15 @@ import QtQuick.Window
 
 import "./components"
 
-// ? Асинхронная обработка очереди задач с анимацией прогресса по каждой задаче.
 ApplicationWindow {
     id: root
 
-    title: Localization.tr("Main.Title")
-    visible: true
-    width: 1200
-    height: 700
-    minimumWidth: 900
-    minimumHeight: 500
-    color: "#e8e8e8"
+    // * Обработчик сигналов пользовательского интерфейса
+    property var handler: handlerBackend    // qmllint disable unqualified
 
-    property var handler: handlerBackend // qmllint disable unqualified
+    // * Текущий режим работы программы
     property int currentMode: 0
+
     // * Режимы работы (создать один / создать массово / изменить один / изменить массово).
     property var modes: {
         0: "Mode.CreateOne",
@@ -29,7 +24,8 @@ ApplicationWindow {
         2: "Mode.ChangeOne",
         3: "Mode.ChangeSome"
     }
-    readonly property int modesLength: Object.keys(modes).length
+
+    // * Текущий ответ агента-Сценариста
     property string currentResponse: ""
 
     ColumnLayout {
@@ -40,6 +36,12 @@ ApplicationWindow {
             Layout.fillWidth: true
             implicitHeight: 30
             color: "#000000"
+
+            text: {
+                const mode = Localization.tr("Hotkeys.Mode") + ": " + Localization.tr(root.modes[root.currentMode]);
+                const query = Localization.tr("Query.Count") + ": " + userQueries.queryCount;
+                return mode + "   |   " + query;
+            }
         }
 
         ComboBox {
@@ -50,7 +52,7 @@ ApplicationWindow {
 
             onActivated: index => {
                 Localization.language = index === 0 ? "ru" : "en";
-                root.refreshStatus();
+
                 hotkeyBar.refreshHotkeys();
             }
         }
@@ -91,7 +93,6 @@ ApplicationWindow {
                 onClicked: {
                     root.currentResponse = "";
                     userQueries.clear();
-                    root.refreshStatus();
                 }
             }
         }
@@ -102,21 +103,14 @@ ApplicationWindow {
             implicitHeight: 30
             color: "#000000"
 
-            onAdd: () => {
-                userQueries.addQuery("");
-                root.refreshStatus();
-            }
-            onDelete: () => {
-                userQueries.removeLast();
-                root.refreshStatus();
-            }
+            onAdd: () => userQueries.addQuery("")
+            onDelete: () => userQueries.removeLast()
             onLoad: () => loadDialog.open()
             onExit: () => exitDialog.open()
             onSend: () => root.send()
             onPaste: () => root.pasteFromClipboard()
             onMode: () => {
                 root.currentMode = (root.currentMode + 1) % root.modesLength;
-                root.refreshStatus();
             }
             onCopy: () => root.copyResponseOrSelection()
             onSave: () => saveDialog.open()
@@ -125,26 +119,10 @@ ApplicationWindow {
         }
     }
 
-    // * Обработчик сигналов из пользовательского интерфейса.
-    Connections {
-        target: root.handler
-
-        function onResponseReady(response) {
-            root.currentResponse = response;
-        }
-
-        function onQueryProcessed(uid) {
-            userQueries.removeByUid(uid);
-            root.refreshStatus();
-        }
-    }
-
     Component.onCompleted: {
-        root.refreshStatus();
         hotkeyBar.refreshHotkeys();
     }
 
-    // * Ручное сохранение через диалог.
     FileDialog {
         id: saveDialog
         title: Localization.tr("Save.Response")
@@ -162,21 +140,19 @@ ApplicationWindow {
         id: loadDialog
         title: Localization.tr("Load.Tasks")
         fileMode: FileDialog.OpenFile
-        nameFilters: ["Text files (*.txt)", "All files (*)"]
+        nameFilters: ["Text files (*.csv)", "All files (*)"]
 
         onAccepted: {
             const path = root.toLocalPath(selectedFile);
             const lines = root.handler.readLinesFromFile(path);
+            // TODO "Задача,Максимум_шагов"
             for (const line of lines) {
                 userQueries.addQuery(line);
             }
             root.currentMode = 1;
-            root.refreshStatus();
         }
     }
 
-    // ? использовать системные окна подтверждения
-    // ? цветовая обводка активного выбора кнопки
     Dialog {
         id: exitDialog
         title: Localization.tr("Exit.Question")
@@ -193,7 +169,7 @@ ApplicationWindow {
         onAccepted: Qt.quit()
     }
 
-    // * Отправить задачи на обработку.
+    // * """Отправить задачи на обработку."""
     function send() {
         if (root.currentMode === 0) {
             const field = userQueries.getFirst();
@@ -202,7 +178,7 @@ ApplicationWindow {
             }
         } else if (root.currentMode === 1) {
             const fields = [];
-            for (let i = 0; i < userQueries.count(); i++) {
+            for (let i = 0; i < userQueries.queryCount; i++) {
                 const field = userQueries.get(i);
                 if (field && field.text.trim() !== "") {
                     fields.push(field);
@@ -215,13 +191,29 @@ ApplicationWindow {
     // TODO остальные режимы
     }
 
-    function refreshStatus() {
-        const mode = Localization.tr("Hotkeys.Mode") + ": " + Localization.tr(root.modes[root.currentMode]);
-        const query = Localization.tr("Query.Count") + ": " + userQueries.count();
-        statusBar.text = mode + "   |   " + query;
+    // ! [AI Note] Секция не_добавлять_в / удалить_из документации
+    title: Localization.tr("Main.Title")
+    visible: true
+    width: 1200
+    height: 700
+    minimumWidth: 900
+    minimumHeight: 500
+    color: "#e8e8e8"
+
+    readonly property int modesLength: Object.keys(modes).length
+
+    Connections {
+        target: root.handler
+
+        function onResponseReady(response) {
+            root.currentResponse = response;
+        }
+
+        function onQueryProcessed(uid) {
+            userQueries.removeByUid(uid);
+        }
     }
 
-    // ! [AI Note] Не добавлять в документацию
     function pasteFromClipboard() {
         const clip = handler.clipboardText();
 
@@ -237,11 +229,8 @@ ApplicationWindow {
         } else {
             userQueries.addQuery(clip);
         }
-
-        refreshStatus();
     }
 
-    // ! [AI Note] Не добавлять в документацию
     function copyResponseOrSelection() {
         const focus = root.activeFocusItem;
 
@@ -255,7 +244,6 @@ ApplicationWindow {
         }
     }
 
-    // ! [AI Note] Не добавлять в документацию
     function toLocalPath(fileUrl) {
         let path = fileUrl.toString().replace(/^file:\/\//, "");
         // ? есть ли уже готовые решения в документации?
@@ -266,4 +254,5 @@ ApplicationWindow {
 
         return path;
     }
+    // !
 }

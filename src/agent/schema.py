@@ -43,7 +43,7 @@ class Action(StrEnum):
     CONFIRM = "Подтвердить"
 
 
-class ScenarioStep(BaseModel):
+class Step(BaseModel):
     """Структура Шага в Сценарии."""
 
     id: str = Field(description="Уникальный идентификатор шага.")
@@ -57,28 +57,28 @@ class ScenarioStep(BaseModel):
 class Scenario(BaseModel):
     """Структура итогового Сценария."""
 
-    steps: list[ScenarioStep] = Field(default_factory=list, description="Массив Шагов Сценария.")
+    steps: list[Step] = Field(default_factory=list, description="Массив Шагов Сценария.")
 
-    # ! [AI Note] Не добавлять в документацию
+    # ! [AI Note] Секция не_добавлять_в / удалить_из документации
     _step_cache: dict[str, int] = {}
 
-    # ! [AI Note] Не добавлять в документацию
+    # ! [AI Note] Секция не_добавлять_в / удалить_из документации
     def serialize_steps(self) -> list[dict[str, Any]]:
         """Сериализует список шагов с автоматическим добавлением order."""
         return [{**step.model_dump(), "order": order} for order, step in enumerate(self.steps, start=1)]
 
-    # ! [AI Note] Не добавлять в документацию
+    # ! [AI Note] Секция не_добавлять_в / удалить_из документации
     def rebuild(self) -> None:
         """Перестраивает карту индексов шагов."""
         self._step_cache = {step.id: i for i, step in enumerate(self.steps, start=1) if step.id}
 
-    # ! [AI Note] Не добавлять в документацию
+    # ! [AI Note] Секция не_добавлять_в / удалить_из документации
     def find(self, id: str) -> int | None:
         """Возвращает позицию Шага с данным id за O(1)."""
         return self._step_cache.get(id)
 
-    # ! [AI Note] Не добавлять в документацию
-    def with_unique_id(self, step: ScenarioStep, used_ids: set[str]) -> ScenarioStep:
+    # ! [AI Note] Секция не_добавлять_в / удалить_из документации
+    def with_unique_id(self, step: Step, used_ids: set[str]) -> Step:
         """Генерирует и гарантирует уникальный id Шага."""
         if step.id and step.id not in used_ids:
             used_ids.add(step.id)
@@ -108,21 +108,21 @@ class JsonResponse(BaseModel):
     scenario: Scenario | None = Field(default=None, description="Итоговый Сценарий от LLM-агента.")
 
 
-# ! [AI Note] Не добавлять в документацию
-class InsertStepItem(BaseModel):
-    after_id: str | None = Field(
+# ! [AI Note] Секция не_добавлять_в / удалить_из документации
+class InsertStep(BaseModel):
+    step_after_id: str | None = Field(
         default=None,
         description="ID шага, после которого нужно вставить новый Шаг, или None для вставки в конец.",
     )
-    step: ScenarioStep
+    step: Step
 
 
-# ! [AI Note] Не добавлять в документацию
-class UpdateStepItem(BaseModel):
-    step_id: str | None = Field(default=None, description="ID шага, который нужно обновить.")
-    new_step: ScenarioStep = Field(description="Новый Шаг.")
+# ! [AI Note] Секция не_добавлять_в / удалить_из документации
+class UpdateStep(BaseModel):
+    id: str = Field(description="ID шага, который нужно обновить.")
+    new_step: Step = Field(description="Новый Шаг.")
 
 
-# ! [AI Note] Не добавлять в документацию
-class DeleteStepItem(BaseModel):
-    step_id: str | None = Field(default=None, description="ID шага, который нужно удалить.")
+# ! [AI Note] Секция не_добавлять_в / удалить_из документации
+class DeleteStep(BaseModel):
+    id: str = Field(description="ID шага, который нужно удалить.")

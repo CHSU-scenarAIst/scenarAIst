@@ -8,10 +8,7 @@ import QtQuick.Layouts
 Item {
     id: root
 
-    // ! [AI Note] Не_добавлять_в / удалить_из документации
-    signal runRequested
-    property bool autofocusLast: false
-    // !
+    readonly property int queryCount: queriesModel.count // * Число задач.
 
     ListModel {
         id: queriesModel
@@ -40,7 +37,7 @@ Item {
         }
 
         ListView {
-            id: queriesView
+            id: listView
 
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -55,6 +52,7 @@ Item {
 
                 required property int index
                 required property string text
+                required property string uid
 
                 width: ListView.view ? ListView.view.width : 0
                 height: 34
@@ -99,11 +97,9 @@ Item {
                     text: "\u2715"
                     ToolTip.text: Localization.tr("Query.Delete.Tip")
                     ToolTip.visible: hovered
-                    onClicked: root.removeByUid(queriesModel.get(delegate.index).uid)
+                    onClicked: root.removeByUid(delegate.uid)
                 }
 
-                // ? при добавлении должен работать при 0 стартовых полей
-                // ? при удалении должен ставить фокус на последнее поле
                 Component.onCompleted: {
                     if (root.autofocusLast) {
                         field.forceActiveFocus();
@@ -137,6 +133,7 @@ Item {
         }
     }
 
+    // * """Добавить новую задачу."""
     function addQuery(text) {
         queriesModel.append({
             uid: _newId(text),
@@ -146,59 +143,64 @@ Item {
     }
 
     // ? оптимизировать
+    // * """Удалить задачу по ID."""
     function removeByUid(uid) {
         if (uid === undefined || uid === null) {
             return;
         }
 
         const uidStr = String(uid);
-        for (let i = 0; i < queriesModel.count; i++) {
-            if (String(queriesModel.get(i).uid) === uidStr) {
+        for (let i = 0; i < queryCount; i++) {
+            if (String(queriesModel.get(i)?.uid) === uidStr) {
                 queriesModel.remove(i, 1);
                 break;
             }
         }
     }
 
-    function removeLast() {
-        if (queriesModel.count > 0) {
-            queriesModel.remove(queriesModel.count - 1);
-        }
-        setCursor();
-    }
-
+    // * """Получить первую задачу."""
     function getFirst() {
-        for (let i = 0; i < queriesModel.count; i++) {
+        for (let i = 0; i < queryCount; i++) {
             const item = _copy(queriesModel.get(i));
             if (item && item.text && item.text.trim() !== "") {
-                return item;
+                if (item.uid !== "") {
+                    return item;
+                }
+                console.warn("Должен быть установлен: ", item.text);
             }
         }
 
         return null;
     }
 
+    // * """Получить задачу по ID."""
     function get(i) {
         const field = queriesModel.get(i);
         return _copy(field);
     }
 
-    // ? вместо count() вернуть итератор iter()
-    function count() {
-        return queriesModel.count;
+    // * """Очистить список задач."""
+    function clear() {
+        queriesModel.clear();
     }
 
-    // ! [AI Note] Не_добавлять_в / удалить_из документации
+    // ! [AI Note] Секция не_добавлять_в / удалить_из документации
+    signal runRequested
+    property bool autofocusLast: false
+
+    function removeLast() {
+        if (queryCount > 0) {
+            queriesModel.remove(queryCount - 1);
+        }
+        setCursor();
+    }
+
     function setCursor() {
         root.autofocusLast = true;
         Qt.callLater(() => {
-            queriesView.positionViewAtEnd();
+            listView.positionViewAtEnd();
             root.autofocusLast = false;
         });
-    }
-
-    function clear() {
-        queriesModel.clear();
     }
 
     function _copy(field) {
@@ -213,7 +215,7 @@ Item {
         const pad = n => (n < 10 ? "0" : "") + n;
         const date = now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
         const time = pad(now.getHours()) + "-" + pad(now.getMinutes()) + "-" + pad(now.getSeconds());
-        const hash = _hash6(String(text) + "|" + queriesModel.count);
+        const hash = _hash6(String(text) + "|" + queryCount);
         return date + "_" + time + "-" + hash;
     }
 

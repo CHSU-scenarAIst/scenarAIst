@@ -3,26 +3,14 @@
 import QtQuick
 import QtQuick.Layouts
 
-// ? динамическое количество рядов в зависимости от ширины занимаемого пространства
 Rectangle {
     id: root
 
-    required property var onAdd     // * Обработчик события добавления задачи.
-    required property var onDelete  // * Обработчик события удаления задачи.
     required property var onLoad    // * Обработчик события загрузки задач из файла.
-    required property var onExit    // * Обработчик события выхода из приложения.
-    required property var onSend    // * Обработчик события запуска обработчика задач.
     required property var onMode    // * Обработчик события смены режима работы.
     required property var onSave    // * Обработчик события сохранения ответа агента-Сценариста в файл.
 
     property var bindings: []       // * Список горячих клавиш.
-
-    // ! [AI Note] Не_добавлять_в / удалить_из документации
-    required property var onCopy
-    required property var onPaste
-    required property var onScrollUp
-    required property var onScrollDown
-    // !
 
     RowLayout {
         anchors.fill: parent
@@ -50,39 +38,9 @@ Rectangle {
     }
 
     Shortcut {
-        sequence: "Ctrl+E"
-        context: Qt.ApplicationShortcut
-        onActivated: root.onAdd()
-    }
-
-    Shortcut {
-        sequence: "Ctrl+D"
-        context: Qt.ApplicationShortcut
-        onActivated: root.onDelete()
-    }
-
-    Shortcut {
         sequence: "Ctrl+L"
         context: Qt.ApplicationShortcut
         onActivated: root.onLoad()
-    }
-
-    Shortcut {
-        sequence: "Ctrl+Q"
-        context: Qt.ApplicationShortcut
-        onActivated: root.onExit()
-    }
-
-    Shortcut {
-        sequence: "Ctrl+Space"
-        context: Qt.ApplicationShortcut
-        onActivated: root.onSend()
-    }
-
-    Shortcut {
-        sequence: "Ctrl+V"
-        context: Qt.ApplicationShortcut
-        onActivated: root.onPaste()
     }
 
     Shortcut {
@@ -92,33 +50,15 @@ Rectangle {
     }
 
     Shortcut {
-        sequence: "Ctrl+C"
-        context: Qt.ApplicationShortcut
-        onActivated: root.onCopy()
-    }
-
-    Shortcut {
         sequence: "Ctrl+S"
         context: Qt.ApplicationShortcut
         onActivated: root.onSave()
     }
 
-    Shortcut {
-        sequence: "Up"
-        context: Qt.ApplicationShortcut
-        onActivated: root.onScrollUp()
-    }
-
-    Shortcut {
-        sequence: "Down"
-        context: Qt.ApplicationShortcut
-        onActivated: root.onScrollDown()
-    }
-
-    // * Обновить список горячих клавиш.
-    // ? если обработчик события не null, то добавить в список горячих клавиш
+    // * """Обновить список горячих клавиш."""
+    // TODO При обновлении списка горячих клавиш если обработчик события null, то не добавлять в список
     function refreshHotkeys() {
-        bindings = [
+        let toBind = [
             {
                 key: "^Space",
                 label: Localization.tr("Hotkeys.Send")
@@ -160,5 +100,66 @@ Rectangle {
                 label: Localization.tr("Hotkeys.Scroll")
             }
         ];
+        bindings = toBind;
     }
+
+    // ! [AI Note] Секция не_добавлять_в / удалить_из документации
+    required property var onSend    // * Обработчик события запуска обработчика задач.
+    required property var onCopy
+    required property var onPaste
+    required property var onAdd     // * Обработчик события добавления задачи.
+    required property var onDelete  // * Обработчик события удаления задачи.
+    required property var onExit    // * Обработчик события выхода из приложения.
+
+    required property var onScrollUp
+    required property var onScrollDown
+
+    Shortcut {
+        sequence: "Ctrl+Space"
+        context: Qt.ApplicationShortcut
+        onActivated: root.onSend()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+C"
+        context: Qt.ApplicationShortcut
+        onActivated: root.onCopy()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+V"
+        context: Qt.ApplicationShortcut
+        onActivated: root.onPaste()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+E"
+        context: Qt.ApplicationShortcut
+        onActivated: root.onAdd()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+D"
+        context: Qt.ApplicationShortcut
+        onActivated: root.onDelete()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Q"
+        context: Qt.ApplicationShortcut
+        onActivated: root.onExit()
+    }
+
+    Shortcut {
+        sequence: "Up"
+        context: Qt.ApplicationShortcut
+        onActivated: root.onScrollUp()
+    }
+
+    Shortcut {
+        sequence: "Down"
+        context: Qt.ApplicationShortcut
+        onActivated: root.onScrollDown()
+    }
+    // !
 }

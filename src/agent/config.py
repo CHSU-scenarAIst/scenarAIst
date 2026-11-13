@@ -9,7 +9,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, SecretStr
 
 
-# ! [AI Note] Не добавлять в документацию
+# ! [AI Note] Секция не_добавлять_в / удалить_из документации
 class Providers(StrEnum):
     """Текстовое перечисление провайдеров LLM."""
 
@@ -21,11 +21,11 @@ class CompletionConfig(BaseModel):
     """Конфигурация модели генерации (LLM-чата)."""
 
     provider: Providers = Field(description="Провайдер LLM.")
-    api_key: SecretStr = Field(description="Ключ API для доступа к провайдеру.")
-    model: str = Field(description="Название модели чата.")
-    base_url: str = Field(default="", description="Путь API провайдера.")
 
     verify_ssl_certs: bool = Field(default=False, description="Проверять ли SSL-сертификаты.")
+    base_url: str | None = Field(default=None, description="Путь API провайдера.")
+    api_key: SecretStr = Field(default=SecretStr("SECRET"), description="Ключ API провайдера.")
+    model: str | None = Field(default=None, description="Название модели чата.")
     temperature: float = Field(default=0.1, description="Температура выборки токенов (0..1).")
     max_tokens: int = Field(default=10000, description="Максимальное число токенов в одном ответе модели.")
     timeout: int = Field(default=60, description="Время ожидания ответа от запроса к API, в секундах.")
@@ -46,10 +46,10 @@ class EmbeddingConfig(BaseModel):
     """Конфигурация LLM-эмбеддингов и векторного хранилища."""
 
     provider: Providers = Field(description="Провайдер эмбеддингов.")
-    base_url: str = Field(description="Путь API провайдера LLM-эмбеддингов.")
-    model: str = Field(description="Название LLM-эмбеддингов.")
 
-    api_key: SecretStr = Field(default="SECRET", description="Ключ API провайдера LLM-эмбеддингов.")
+    base_url: str | None = Field(default=None, description="Путь API провайдера LLM-эмбеддингов.")
+    api_key: SecretStr = Field(default=SecretStr("SECRET"), description="Ключ API провайдера эмбеддингов.")
+    model: str | None = Field(default=None, description="Название LLM-эмбеддингов.")
     collections: list[CollectionConfig] = Field(default_factory=list, description="Список путей к папкам.")
     verify_ssl_certs: bool = Field(default=False, description="Проверять ли SSL-сертификаты.")
     dim: int = Field(default=1024, ge=1, description="Размерность вектора эмбеддинга.")

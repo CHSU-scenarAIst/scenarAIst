@@ -24,8 +24,8 @@
     "editor.tabSize": 4
   },
 
-  // "qt-qml.qmlls.customExePath": "${workspaceFolder}/.venv/bin/pyside6-qmlls"
-  "qt-qml.qmlls.customExePath": "${workspaceFolder}/.venv/lib/python3.13/site-packages/PySide6/qmlls"
+  "qt-qml.qmlls.customExePath": "${workspaceFolder}/.venv/bin/pyside6-qmlls"
+  // "qt-qml.qmlls.customExePath": "${workspaceFolder}/.venv/lib/python3.13/site-packages/PySide6/qmlls"
 
   // "terminal.integrated.env.linux": {
   //   "PATH": "${workspaceFolder}/.venv/lib/python3.13/site-packages/PySide6:${env:PATH}"

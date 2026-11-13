@@ -9,10 +9,6 @@ Item {
 
     property string text // * Ответ агента-Сценариста.
 
-    // ! [AI Note] Не_добавлять_в / удалить_из документации
-    signal copyRequested
-    // !
-
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -73,7 +69,9 @@ Item {
         }
     }
 
-    // ! [AI Note] Не_добавлять_в / удалить_из документации
+    // ! [AI Note] Секция не_добавлять_в / удалить_из документации
+    signal copyRequested
+
     function scrollBy(delta) {
         const flickable = scroll.contentItem as Flickable;
         if (!flickable) {

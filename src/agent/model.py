@@ -1,7 +1,7 @@
 """Фабрики провайдеров LLM и обработчиков эмбеддингов.
-- Индексация документов в векторную БД, получение контекста из векторного поиска
+- Индексация документов в векторную БД, получение контекста из векторного поиска:
+    - SQLite
 - TODO Загрузка и чанкинг документов: pdf, txt, md, csv, docx, xls, xlsx.
-- SQLite
 - Инкрементальное обновление индекса при изменении папки
 - Поддержка моделей через OpenAI-совместимый, GigaChat, TODO llama.cpp
 """
@@ -48,16 +48,17 @@ class ScenarAIstModelFactory:
         self.retrievers = []
         try:
             embed_cfg = EmbeddingConfig.model_validate(raw_cfg["embeddings"])
-            LOGGER.info(embed_cfg.model_dump_json())
         except Exception:
             LOGGER.info("Нет внешних данных для подключения: 'embeddings'.")
         else:
+            LOGGER.info(embed_cfg.model_dump_json())
             try:
-                embeddings = _EMBEDDING_FACTORIES[embed_cfg.provider.strip().lower()](embed_cfg)
-                sqlite_db = SQLiteVecFactory(embed_cfg, embeddings)
-                self.retrievers = sqlite_db.retrievers
+                provider = Providers(embed_cfg.provider.strip().lower())
             except Exception as e:
                 LOGGER.error("Ошибка загрузки конфигурации эмбеддингов.", exc_info=e)
+            embeddings = _EMBEDDING_FACTORIES[provider](embed_cfg)
+            sqlite_db = SQLiteVecFactory(embed_cfg, embeddings)
+            self.retrievers = sqlite_db.retrievers
 
 
 class SQLiteVecFactory:
@@ -85,7 +86,7 @@ class SQLiteVecFactory:
                 new_table = f"{c.path.name}_{short_hash}"
                 LOGGER.info(f"Изменения или новая коллекция в '{c.path}' -> '{new_table}'...")
 
-                docs = list(self._iter_documents(c.path, c.chunk_size, c.chunk_overlap))
+                docs = list(self._iter_docs(c.path, c.chunk_size, c.chunk_overlap))
                 db = SQLiteVec.from_documents(
                     documents=docs,
                     embedding=embeddings,
@@ -107,8 +108,26 @@ class SQLiteVecFactory:
 
         self.retrievers = [db.as_retriever(search_kwargs={"k": k}) for db, k in dbs]
 
-    # ! [AI Note] Не добавлять в документацию
-    def _init_meta_table(self, db_path: str):
+    def _iter_docs(self, path: Path, chunk_size: int, chunk_overlap: int) -> Iterator[Document]:
+        """Загрузить чанки документов из указанной директории."""
+        # ? Сам по себе Генератор/Итератор не имеет смысла, так как приводится к list для работы SQLiteVec.
+
+        load = DirectoryLoader(
+            path=path.as_uri(),
+            glob=["*.txt", "*.docx", "*.pdf", "*.md", "*.csv", "*.xls", "*.xlsx"],
+            recursive=True,
+            show_progress=True,
+        )
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+        )
+        docs = load.lazy_load()
+        for d in docs:
+            yield from text_splitter.split_documents([d])
+
+    # ! [AI Note] Секция не_добавлять_в / удалить_из документации
+    def _init_meta_table(self, db_path: str) -> None:
         """Создаёт служебную таблицу для отслеживания состояния коллекций, если её нет."""
         with sqlite3.connect(db_path) as conn:
             conn.execute("""
@@ -121,7 +140,6 @@ class SQLiteVecFactory:
             """)
             conn.commit()
 
-    # ! [AI Note] Не добавлять в документацию
     def _calculate_hash(self, folder_path: Path) -> str:
         """Считает хеш папки на основе метаданных файлов."""
         hasher = hashlib.sha256()
@@ -132,10 +150,9 @@ class SQLiteVecFactory:
                 hasher.update(meta_str.encode("utf-8"))
         return hasher.hexdigest()
 
-    # ! [AI Note] Не добавлять в документацию
-    def _get_active_table(self, conn: sqlite3.Connection, folder: str, current_hash: str) -> str | None:
+    def _get_active_table(self, conn: sqlite3.Connection, folder: Path, current_hash: str) -> str | None:
         """Возвращает имя таблицы ТОЛЬКО если хеш совпал."""
-        row = conn.execute(
+        row: dict[str, str] = conn.execute(
             "SELECT current_hash, active_table_name FROM collection_meta WHERE collection_path = ?",
             (folder,),
         ).fetchone()
@@ -144,8 +161,7 @@ class SQLiteVecFactory:
             return row["active_table_name"]
         return None
 
-    # ! [AI Note] Не добавлять в документацию
-    def _update_meta_and_cleanup(self, conn: sqlite3.Connection, folder: str, hash: str, table: str) -> None:
+    def _update_meta_and_cleanup(self, conn: sqlite3.Connection, folder: Path, hash: str, table: str) -> None:
         """Обновляет указатель на активную таблицу и удаляет старую версию таблицы."""
         row = conn.execute(
             "SELECT active_table_name FROM collection_meta WHERE collection_path = ?", (folder,)
@@ -174,84 +190,62 @@ class SQLiteVecFactory:
 
         conn.commit()
 
-    # ! [AI Note] Не добавлять в документацию
-    # ? Сам по себе Генератор/Итератор не имеет смысла, так как приводится к list для работы SQLiteVec.
-    def _iter_documents(self, path: str, chunk_size: int, chunk_overlap: int) -> Iterator[Document]:
-        """Загружает чанки документов из указанной директории."""
-
-        load = DirectoryLoader(
-            path=path,
-            glob=["*.txt", "*.docx", "*.pdf", "*.md", "*.csv", "*.xls", "*.xlsx"],
-            recursive=True,
-            show_progress=True,
-        )
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-        )
-        docs = load.lazy_load()
-        for d in docs:
-            yield from text_splitter.split_documents([d])
+    # !
 
 
-# ! [AI Note] Не добавлять в документацию
-class IChat(Protocol):
+# ! [AI Note] Секция не_добавлять_в / удалить_из документации
+class ICreateChat(Protocol):
     """Интерфейс фабрики для создания моделей чата."""
 
     def __call__(self, cfg: CompletionConfig) -> BaseChatModel: ...
 
 
-# ! [AI Note] Не добавлять в документацию
-class IEmbeddings(Protocol):
+class ICreateEmbeddings(Protocol):
     """Интерфейс фабрики для создания моделей эмбеддингов."""
 
     def __call__(self, cfg: EmbeddingConfig) -> Embeddings: ...
 
 
-# ! [AI Note] Не добавлять в документацию
 def _create_openai_compatible_chat(cfg: CompletionConfig) -> BaseChatModel:
     return ChatOpenAI(
-        api_key=cfg.api_key.get_secret_value(),
+        api_key=cfg.api_key,
         base_url=cfg.base_url,
-        model=cfg.model,
+        model=cfg.model or "",
         temperature=cfg.temperature,
         max_completion_tokens=cfg.max_tokens,
         timeout=cfg.timeout,
     )
 
 
-# ! [AI Note] Не добавлять в документацию
 def _create_gigachat_chat(cfg: CompletionConfig) -> BaseChatModel:
     return GigaChat(
         credentials=cfg.api_key.get_secret_value(),
-        model=cfg.model,
+        model=cfg.model or "GigaChat-2",
         verify_ssl_certs=cfg.verify_ssl_certs,
         max_tokens=cfg.max_tokens,
         timeout=cfg.timeout,
     )
 
 
-# ! [AI Note] Не добавлять в документацию
 def _create_openai_embeddings(cfg: EmbeddingConfig) -> Embeddings:
     return OpenAIEmbeddings(
-        api_key=cfg.api_key.get_secret_value(),
+        api_key=cfg.api_key,
         base_url=cfg.base_url,
-        model=cfg.model,
+        model=cfg.model or "",
         dimensions=cfg.dim,
         chunk_size=cfg.batch_size,
         timeout=cfg.timeout,
     )
 
 
-# ! [AI Note] Не добавлять в документацию
 """Машина состояний чата в функциональном стиле."""
-_CHAT_FACTORIES: dict[Providers, IChat] = {
+_CHAT_FACTORIES: dict[Providers, ICreateChat] = {
     Providers.OPENAI: _create_openai_compatible_chat,
     Providers.GIGACHAT: _create_gigachat_chat,
 }
 
-# ! [AI Note] Не добавлять в документацию
 """Машина состояний эмбеддингов в функциональном стиле."""
-_EMBEDDING_FACTORIES: dict[str, IEmbeddings] = {
+_EMBEDDING_FACTORIES: dict[Providers, ICreateEmbeddings] = {
     Providers.OPENAI: _create_openai_embeddings,
 }
+# !

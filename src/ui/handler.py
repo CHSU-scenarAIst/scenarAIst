@@ -2,7 +2,6 @@
 
 import json
 import logging
-import uuid
 from pathlib import Path
 from typing import Protocol
 
@@ -27,21 +26,16 @@ class InvokeAgent(Protocol):
 class HandlerBackend(QObject):
     """Обработчик сигналов пользовательского интерфейса."""
 
-    # ! [AI Note] Не добавлять в документацию
-    queryProcessed = Signal(str)  # noqa: N815
-    # ! [AI Note] Не добавлять в документацию
-    responseReady = Signal(str)  # noqa: N815
-
     def __init__(self, write_response: bool, invoker: InvokeAgent, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._invoker = invoker
         self._write_response = write_response
 
     @Slot(dict)
-    def createOne(self, query: dict) -> None:  # noqa: N802
+    def createOne(self, query: dict[str, str]) -> None:  # noqa: N802
         """Создать один Сценарий."""
-        uid = str(query.get("uid") or uuid.uuid4().hex).strip()
-        text = str(query.get("text") or "").strip()
+        uid = str(query.get("uid")).strip()
+        text = str(query.get("text")).strip()
 
         result = self._invoker.invoke(text).model_dump_json(indent=2, ensure_ascii=False)
 
@@ -57,44 +51,46 @@ class HandlerBackend(QObject):
         self.queryProcessed.emit(uid)
 
     @Slot(dict)
-    def changeOne(self, query: dict) -> None:  # noqa: N802
+    def changeOne(self, query: dict[str, str]) -> None:  # noqa: N802
+        """Изменить один Сценарий."""
         # TODO
         ...
 
     @Slot(str, result=list)
-    def readLinesFromFile(self, path: str) -> list[str]:  # noqa: N802
+    def readLinesFromFile(self, path: Path) -> list[str]:  # noqa: N802
         """Прочитать задачи (1 задача = 1 строка) из файла."""
-        file_path = Path(path)
-        if not file_path.exists():
-            LOGGER.error("Файл задач не найден: %s", file_path)
+        if not path.exists():
+            LOGGER.error("Файл задач не найден: %s", path)
             return []
-        # TODO возврат структуры 'csv' "Задача,Максимум_шагов"
-        with file_path.open(encoding="utf-8") as fh:
+        with path.open(encoding="utf-8") as fh:
             return [line.strip() for line in fh if line.strip()]
 
     @Slot(str, str)
-    def saveToJson(self, path: str, response: str) -> None:  # noqa: N802
+    def saveToJson(self, path: Path, response: str) -> None:  # noqa: N802
         """Сохранить ответ агента-Сценариста в файл."""
         self._save_to_json(path, response)
 
-    # ! [AI Note] Не добавлять в документацию
+    # ! [AI Note] Секция не_добавлять_в / удалить_из документации
+    queryProcessed = Signal(str)  # noqa: N815
+    responseReady = Signal(str)  # noqa: N815
+
     @Slot(str)
     def copyToClipboard(self, input: str) -> None:  # noqa: N802
         """Скопировать текст в буфер обмена."""
         QGuiApplication.clipboard().setText(input)
 
-    # ! [AI Note] Не добавлять в документацию
     @Slot(result=str)
     def clipboardText(self) -> str:  # noqa: N802
         """Прочитать текст из буфера обмена."""
         return QGuiApplication.clipboard().text() or ""
 
-    # ! [AI Note] Не добавлять в документацию
-    def _save_to_json(self, path: str, data: str) -> None:
+    def _save_to_json(self, path: Path, data: str) -> None:
         """Сохранить текст в файл в формате Json."""
         json_data = json.loads(data)
         with open(path, "w", encoding="utf-8") as fh:
             json.dump(json_data, fh, ensure_ascii=False, indent=2)
+
+    # !
 
 
 class UserInterface:
@@ -104,7 +100,7 @@ class UserInterface:
         qml_dir = Path(__file__).parent / "qml"
         qml_main_path = qml_dir / "Main.qml"
 
-        # ! [AI Note] Не добавлять в документацию
+        # ! [AI Note] Секция не_добавлять_в / удалить_из документации
         def qt_message_handler(mode: QtMsgType, _context: QMessageLogContext, message: str) -> None:
             """Перехватчик потока ошибок из QML."""
 

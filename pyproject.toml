@@ -58,9 +58,8 @@ dev = [
 [tool.mypy]
 python_version = "3.13"        # Версия Python для анализа
 strict = true                  # Максимально строгий режим проверки
-warn_return_any = true         # Предупреждать при возврате Any
 warn_unused_configs = true     # Предупреждать о неиспользуемых настройках
-ignore_missing_imports = false
+ignore_missing_imports = false # Все импорты должны быть валидны
 files = ["src", "tests"]
 
 # Настройки pytest

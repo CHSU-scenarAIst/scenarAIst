@@ -11,8 +11,8 @@ repos:
       - id: detect-private-key
       - id: check-merge-conflict
       - id: mixed-line-ending
-      # - id: check-executables-have-shebangs
-      # - id: check-shebang-scripts-are-executable
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
 
   - repo: local
     hooks:
@@ -20,11 +20,15 @@ repos:
         name: Run mypy
         language: system
         entry: uv run mypy
-        pass_filenames: false
-
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.3
-    hooks:
-      - id: ruff
-        args: [--fix]
+        types: [python] # проверка только `.py` файлов
+        pass_filenames: false # false = проверка всего проекта
+      - id: ruff-check
+        name: Run ruff check
+        language: system
+        entry: uv run ruff check --fix --force-exclude
+        types_or: [python, pyi, jupyter]
       - id: ruff-format
+        name: Run ruff format
+        language: system
+        entry: uv run ruff format --force-exclude
+        types_or: [python, pyi, jupyter, markdown]

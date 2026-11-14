@@ -101,7 +101,7 @@ Item {
                 }
 
                 Component.onCompleted: {
-                    if (root.autofocusLast) {
+                    if (root._autofocusLast) {
                         field.forceActiveFocus();
                         field.cursorPosition = field.length;
                     }
@@ -139,7 +139,7 @@ Item {
             uid: _newId(text),
             text: text
         });
-        setCursor();
+        _setCursor();
     }
 
     // ? оптимизировать
@@ -186,20 +186,20 @@ Item {
 
     // ! [AI Note] Секция не_добавлять_в / удалить_из документации
     signal runRequested
-    property bool autofocusLast: false
+    property bool _autofocusLast: false
 
     function removeLast() {
         if (queryCount > 0) {
             queriesModel.remove(queryCount - 1);
         }
-        setCursor();
+        _setCursor();
     }
 
-    function setCursor() {
-        root.autofocusLast = true;
+    function _setCursor() {
+        root._autofocusLast = true;
         Qt.callLater(() => {
             listView.positionViewAtEnd();
-            root.autofocusLast = false;
+            root._autofocusLast = false;
         });
     }
 

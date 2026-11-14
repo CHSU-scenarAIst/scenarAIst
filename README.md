@@ -80,24 +80,20 @@ uv sync --dev   # Install development dependencies
 
 ### Команды
 
-| Command            | Description             |
-| ------------------ | ----------------------- |
-| `pytest`           | Run tests with coverage |
-| `ruff check --fix` | Lint the codebase       |
-| `ruff format`      | Format the codebase     |
-| `mypy`             | Type-check the codebase |
-
-### Pre-commit Hooks
-
-TODO перевести на русский, проверить работу
-To set up pre-commit hooks for automated code quality checks:
-
-```sh
-uv run pre-commit install
-pre-commit autoupdate
-```
+| Command                                        | Description                           |
+| ---------------------------------------------- | ------------------------------------- |
+| `pytest`                                       | Run tests with coverage               |
+| `ruff check --fix`                             | Lint the codebase                     |
+| `ruff format`                                  | Format the codebase                   |
+| `mypy`                                         | Type-check the codebase               |
+| `uv run pre-commit install`                    | ...                                   |
+| `uv run pre-commit autoupdate`                 | ...                                   |
+| `uv run  pre-commit validate-config`           | pre-commit                            |
+| `uv run  pre-commit run --all-files --verbose` | запуск принудительно по всему проекту |
 
 ### .qmlformat.ini
+
+TODO - нужен ли он мне?
 
 ```ini
 [General]

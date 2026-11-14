@@ -28,8 +28,8 @@ class HandlerBackend(QObject):
 
     def __init__(self, write_response: bool, invoker: InvokeAgent, parent: QObject | None = None) -> None:
         super().__init__(parent)
-        self._invoker = invoker
-        self._write_response = write_response
+        self._invoker = invoker  # * Объект вызова агента-Сценариста
+        self._write_response = write_response  # ! [AI Note] Не_добавлять_в / удалить_из документации
 
     @Slot(dict)
     def createOne(self, query: dict[str, str]) -> None:  # noqa: N802
@@ -60,7 +60,6 @@ class HandlerBackend(QObject):
     def readLinesFromFile(self, path: Path) -> list[str]:  # noqa: N802
         """Прочитать задачи (1 задача = 1 строка) из файла."""
         if not path.exists():
-            LOGGER.error("Файл задач не найден: %s", path)
             return []
         with path.open(encoding="utf-8") as fh:
             return [line.strip() for line in fh if line.strip()]
@@ -105,8 +104,9 @@ class UserInterface:
             """Перехватчик потока ошибок из QML."""
 
             out = f"{message}"
-
-            if mode in (QtMsgType.QtDebugMsg, QtMsgType.QtInfoMsg):
+            if mode == QtMsgType.QtInfoMsg:
+                LOGGER.debug(out)
+            if mode == QtMsgType.QtInfoMsg:
                 LOGGER.info(out)
             elif mode == QtMsgType.QtWarningMsg:
                 LOGGER.warning(out)
@@ -116,13 +116,11 @@ class UserInterface:
                 raise RuntimeError("Необработанное исключение из QML: %s", out)
 
         qInstallMessageHandler(qt_message_handler)
-        self._app = QGuiApplication(argv)
-        self._engine = QQmlApplicationEngine()
+        self._app = QGuiApplication(argv)  # * Объект UI
+        self._engine = QQmlApplicationEngine()  # * Объект движка UI
         self._engine.addImportPath(qml_dir)
-
-        self._handler_backend = HandlerBackend(write_response, invoker)  # нужно держать в памяти
+        self._handler_backend = HandlerBackend(write_response, invoker)  # * Объект обработчика сигналов UI
         self._engine.rootContext().setContextProperty("handlerBackend", self._handler_backend)
-
         self._engine.load(qml_main_path)
 
     def run(self) -> int:

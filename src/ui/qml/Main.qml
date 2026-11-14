@@ -103,17 +103,18 @@ ApplicationWindow {
             implicitHeight: 30
             color: "#000000"
 
-            onAdd: () => userQueries.addQuery("")
-            onDelete: () => userQueries.removeLast()
             onLoad: () => loadDialog.open()
-            onExit: () => exitDialog.open()
-            onSend: () => root.send()
-            onPaste: () => root.pasteFromClipboard()
             onMode: () => {
                 root.currentMode = (root.currentMode + 1) % root.modesLength;
             }
-            onCopy: () => root.copyResponseOrSelection()
             onSave: () => saveDialog.open()
+
+            onAdd: () => userQueries.addQuery("")
+            onDelete: () => userQueries.removeLast()
+            onExit: () => exitDialog.open()
+            onSend: () => root.send()
+            onPaste: () => root.pasteFromClipboard()
+            onCopy: () => root.copyResponseOrSelection()
             onScrollUp: () => llmResponse.scrollBy(-60)
             onScrollDown: () => llmResponse.scrollBy(60)
         }
@@ -145,6 +146,12 @@ ApplicationWindow {
         onAccepted: {
             const path = root.toLocalPath(selectedFile);
             const lines = root.handler.readLinesFromFile(path);
+            if (lines.length <= 0) {
+                console.error("Файл задач не найден или он пуст: ", path);
+                // ? сообщение об ошибке
+                return;
+            }
+
             // TODO "Задача,Максимум_шагов"
             for (const line of lines) {
                 userQueries.addQuery(line);

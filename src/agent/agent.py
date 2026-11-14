@@ -185,6 +185,9 @@ class ScenarAIstAgent:
     # !
 
 
+# ! [AI Note] Считай что все tools являются частью класса ScenarAIstAgent
+
+
 @tool
 def get_scenario(runtime: ToolRuntime[None, AgentState]) -> Command[tuple[()]]:
     """Получить текущее актуальное состояние Сценария с порядковыми номерами шагов."""

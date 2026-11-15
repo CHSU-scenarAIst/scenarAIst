@@ -89,8 +89,6 @@ class HandlerBackend(QObject):
         with open(path, "w", encoding="utf-8") as fh:
             json.dump(json_data, fh, ensure_ascii=False, indent=2)
 
-    # !
-
 
 class UserInterface:
     """Сборщик пользовательского интерфейса."""

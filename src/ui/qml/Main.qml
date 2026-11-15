@@ -201,7 +201,7 @@ ApplicationWindow {
     // ! [AI Note] Секция не_добавлять_в / удалить_из документации
     title: Localization.tr("Main.Title")
     visible: true
-    width: 1200
+    width: 1500
     height: 700
     minimumWidth: 900
     minimumHeight: 500

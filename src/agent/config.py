@@ -9,7 +9,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, SecretStr
 
 
-# ! [AI Note] Секция не_добавлять_в / удалить_из документации
+# ! [AI Note] Не_добавлять_в / удалить_из документации
 class Providers(StrEnum):
     """Текстовое перечисление провайдеров LLM."""
 
@@ -28,6 +28,7 @@ class CompletionConfig(BaseModel):
     model: str | None = Field(default=None, description="Название модели чата.")
     temperature: float = Field(default=0.1, description="Температура выборки токенов (0..1).")
     max_tokens: int = Field(default=10000, description="Максимальное число токенов в одном ответе модели.")
+    max_invokes: int = Field(default=10, description="Максимальное число вызовов в одном ответе модели.")
     timeout: int = Field(default=60, description="Время ожидания ответа от запроса к API, в секундах.")
     system_prompt: str = Field(default="You are a helpful assistant.", description="Системный промпт.")
 

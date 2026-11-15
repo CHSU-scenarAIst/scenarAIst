@@ -28,7 +28,7 @@ from src.agent.config import CompletionConfig, EmbeddingConfig, Providers
 LOGGER = logging.getLogger(__name__)
 
 
-class ScenarAIstModelFactory:
+class AgentModelFactory:
     """Фабрика провайдеров LLM и обработчиков эмбеддингов."""
 
     def __init__(self, raw_cfg: dict[str, Any]):
@@ -127,6 +127,7 @@ class SQLiteVecFactory:
             yield from text_splitter.split_documents([d])
 
     # ! [AI Note] Секция не_добавлять_в / удалить_из документации
+
     def _init_meta_table(self, db_path: str) -> None:
         """Создаёт служебную таблицу для отслеживания состояния коллекций, если её нет."""
         with sqlite3.connect(db_path) as conn:
@@ -190,10 +191,10 @@ class SQLiteVecFactory:
 
         conn.commit()
 
-    # !
-
 
 # ! [AI Note] Секция не_добавлять_в / удалить_из документации
+
+
 class ICreateChat(Protocol):
     """Интерфейс фабрики для создания моделей чата."""
 
@@ -248,4 +249,3 @@ _CHAT_FACTORIES: dict[Providers, ICreateChat] = {
 _EMBEDDING_FACTORIES: dict[Providers, ICreateEmbeddings] = {
     Providers.OPENAI: _create_openai_embeddings,
 }
-# !

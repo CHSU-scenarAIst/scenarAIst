@@ -66,10 +66,11 @@ class ScenarAIstAgent:
         self.agent = builder.compile(checkpointer=self._checkpointer)
         LOGGER.info("Схема графа (Mermaid):\n%s", self.agent.get_graph().draw_mermaid())
 
-    def invoke(self, text: str, _min_steps: int = 1) -> AgentResponse:  # TODO
+    def invoke(self, text: str, min_steps: int = -1) -> AgentResponse:  # TODO
         """API для отправки запросов LLM-агенту."""
 
-        LOGGER.info(LOG_PATTERN, "Новый запрос", text)
+        LOGGER.info("[%s] -- Новый запрос: '%s', минимум Шагов в Сценарии: '%s'", "invoke", text, min_steps)
+        self._min_steps = min_steps
         system_prompt = self._system_prompt
         add_instruct = ""
         try:
@@ -121,8 +122,11 @@ class ScenarAIstAgent:
         """Узел генерации ответа агентом."""
         prompt = [*state["messages"], HumanMessage(str(state["sources"]))]
 
-        if not state["scenario"].steps:
-            prompt.append(HumanMessage("Scenario is still empty! Use tool 'insert_step' to add some step."))
+        if self._min_steps > 0 and not state["scenario"].steps:
+            sys_mes = HumanMessage(
+                "<system>Scenario is still empty! Use tool 'insert_step' to add some step.</system>"
+            )
+            prompt.append(sys_mes)
 
         response = self._agent_llm.invoke(prompt)
         LOGGER.info(LOG_PATTERN, CHAT_NODE, str(response.content).strip())

@@ -23,5 +23,6 @@
     "editor.tabSize": 4
   },
 
-  "qt-qml.qmlls.customExePath": "${workspaceFolder}/.venv/bin/pyside6-qmlls"
+  "qt-qml.qmlls.customExePath": "${workspaceFolder}/.venv/bin/pyside6-qmlls",
+  "python-envs.defaultEnvManager": "ms-python.python:system"
 }

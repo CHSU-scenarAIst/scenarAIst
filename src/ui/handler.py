@@ -10,9 +10,9 @@ from PySide6.QtCore import QMessageLogContext, QObject, QtMsgType, Signal, Slot,
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 
-RESPONSES_DIR = Path("responses")
-
 LOGGER = logging.getLogger(__name__)
+
+RESPONSES_DIR = Path("responses")
 
 
 class InvokeAgent(Protocol):
@@ -85,9 +85,8 @@ class HandlerBackend(QObject):
 
     def _save_to_json(self, path: Path, data: str) -> None:
         """Сохранить текст в файл в формате Json."""
-        json_data = json.loads(data)
-        with open(path, "w", encoding="utf-8") as fh:
-            json.dump(json_data, fh, ensure_ascii=False, indent=2)
+        with path.open(encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
 
 
 class UserInterface:

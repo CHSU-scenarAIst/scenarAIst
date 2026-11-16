@@ -21,46 +21,46 @@ class AgentToolsBuilder:
     def build(self, data: dict[str, str]) -> list[BaseTool]:
         """Собрать инструменты агента."""
 
-        ActionEnum = StrEnum("Action", data)  # type: ignore[misc]  # noqa: N806
+        DynamicAction = StrEnum("Action", data)  # type: ignore[misc]  # noqa: N806
         DynamicStep = create_model(  # noqa: N806
             "Step",
             __base__=Step,
-            action=(ActionEnum, Field(description="Действие Субъекта над Объектом.")),
+            action=(DynamicAction, Field(description="Действие Субъекта над Объектом.")),
         )
 
         i_d = "ID шага, после которого нужно вставить Шаг, или None для вставки в конец."
-        InsertStep = create_model(  # noqa: N806
-            "InsertStep",
+        DynamicInsertStep = create_model(  # noqa: N806
+            "DynamicInsertStep",
             step_after_id=(str | None, Field(default=None, description=i_d)),
             step=(DynamicStep, Field(description="Новый Шаг для вставки.")),
         )
 
-        InsertSteps = create_model(  # noqa: N806
-            "InsertSteps",
-            steps=(list[InsertStep], Field(description="Список шагов для вставки.")),  # type: ignore
+        DynamicInsertSteps = create_model(  # noqa: N806
+            "DynamicInsertSteps",
+            steps=(list[DynamicInsertStep], Field(description="Список шагов для вставки.")),  # type: ignore
         )
 
         insert_step_tool = tool(
             name_or_callable=insert_step,
             description="Добавить Шаги в Сценарий после указанных id Шагов.",
-            args_schema=InsertSteps,
+            args_schema=DynamicInsertSteps,
         )
 
-        UpdateStep = create_model(  # noqa: N806
-            "UpdateStep",
+        DynamicUpdateStep = create_model(  # noqa: N806
+            "DynamicUpdateStep",
             id=(str, Field(description="ID шага, который нужно обновить.")),
             new_step=(DynamicStep, Field(description="Обновлённый Шаг.")),
         )
 
-        UpdateSteps = create_model(  # noqa: N806
-            "InsertSteps",
-            steps=(list[UpdateStep], Field(description="Список шагов для обновления.")),  # type: ignore
+        DynamicUpdateSteps = create_model(  # noqa: N806
+            "DynamicUpdateSteps",
+            steps=(list[DynamicUpdateStep], Field(description="Список шагов для обновления.")),  # type: ignore
         )
 
         update_step_tool = tool(
             name_or_callable=update_step,
             description="Изменить существующие Шаги Сценария.",
-            args_schema=UpdateSteps,
+            args_schema=DynamicUpdateSteps,
         )
 
         return [
@@ -154,14 +154,15 @@ def update_step(rtm: ToolRuntime[None, AgentState], steps: list[Any]) -> Command
     scenario = rtm.state["scenario"].model_copy(deep=True)
     parsed: list[tuple[int, Step]] = []
     for s in steps:
-        index = scenario.find(s.id)
+        step_id: str = s.id
+        index = scenario.find(step_id)
         if not index:
-            mes = f"Updated: {0}, '{s.id}' not found. Canceled."
+            mes = f"Updated: {0}, '{step_id}' not found. Canceled."
             LOGGER.warning(LOG_PATTERN, "update_step", mes)
             tool_mes = ToolMessage(content=mes, tool_call_id=rtm.tool_call_id)
             return Command(update={"steps_count": 1, "messages": [tool_mes]})
 
-        step = Step.model_validate(s.new_step).model_copy(update={"id": s.id})
+        step = Step.model_validate(s.new_step).model_copy(update={"id": step_id})
         parsed.append((index, step))
 
     for index, new_step in parsed:

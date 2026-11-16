@@ -31,6 +31,7 @@ class CompletionConfig(BaseModel):
     max_invokes: int = Field(default=10, description="Максимальное число вызовов в одном ответе модели.")
     timeout: int = Field(default=60, description="Время ожидания ответа от запроса к API, в секундах.")
     system_prompt: str = Field(default="You are a helpful assistant.", description="Системный промпт.")
+    actions_path: str = Field(default="./datasets/actions.yaml", description="Путь к Действиям персонала.")
 
 
 class CollectionConfig(BaseModel):

@@ -33,33 +33,27 @@ Item {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.rightMargin: 4
-
                 text: Localization.tr("Query.Copy.Text")
                 ToolTip.text: Localization.tr("Query.Copy.Tip")
                 ToolTip.visible: hovered
-
                 onClicked: root.copyRequested()
             }
         }
 
         ScrollView {
             id: scroll
-
             Layout.fillWidth: true
             Layout.fillHeight: true
-
             clip: true
 
             TextArea {
                 id: answerArea
-
                 text: root.text
                 readOnly: true
                 wrapMode: TextEdit.Wrap
                 selectByMouse: true
                 persistentSelection: true
                 padding: 8
-
                 background: Rectangle {
                     color: "#ffffff"
                     border.color: "#cccccc"
@@ -79,5 +73,4 @@ Item {
         }
         flickable.contentY = Math.max(0, Math.min(flickable.contentHeight - flickable.height, flickable.contentY + delta));
     }
-    // !
 }

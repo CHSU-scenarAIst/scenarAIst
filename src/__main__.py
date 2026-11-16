@@ -11,10 +11,8 @@ from src.ui.handler import InvokeAgent, UserInterface
 
 LOGGER = logging.getLogger(__name__)
 
-# APP_WITH_WRITE_RESPONSE = True
 
-
-def main(with_write_response: bool = True) -> int:
+def main(write_response: bool = True) -> int:
     """Запуск как приложение"""
     logging.basicConfig(
         filename="log-scenarAIst.log",
@@ -22,8 +20,8 @@ def main(with_write_response: bool = True) -> int:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
 
-    log_blank_line = "=" * 26
-    LOGGER.info("\n%s\n%s\n%s", log_blank_line, "=== Запуск СценарИИста ===", log_blank_line)
+    blank_line = "=" * 26
+    LOGGER.info("\n%s\n%s\n%s", blank_line, "=== Запуск СценарИИста ===", blank_line)
 
     try:
         with Path("config.yaml").open(encoding="utf-8") as f:
@@ -39,13 +37,13 @@ def main(with_write_response: bool = True) -> int:
         agent = ScenarAIstAgent(model, data)
         agent.build()
         invoker = ImplInvoke(agent)
-        ui = UserInterface(sys.argv, invoker, with_write_response)
+        ui = UserInterface(sys.argv, invoker, write_response)
         exit_code = ui.run()
     except Exception as e:
         LOGGER.critical(e)
         return -1
 
-    LOGGER.info("\n%s\n%s\n%s", log_blank_line, "== Завершение работы... ==", log_blank_line)
+    LOGGER.info("\n%s\n%s\n%s", blank_line, "== Завершение работы... ==", blank_line)
     return exit_code
 
 
@@ -55,8 +53,8 @@ class ImplInvoke(InvokeAgent):
     def __init__(self, agent: ScenarAIstAgent):
         self._agent = agent
 
-    def invoke(self, text: str) -> AgentResponse:
-        return self._agent.invoke(text)
+    def invoke(self, task: str, min_steps: int, add_instruct: str) -> AgentResponse:
+        return self._agent.invoke(task, min_steps, add_instruct)
 
 
 if __name__ == "__main__":
@@ -66,5 +64,4 @@ if __name__ == "__main__":
         level=logging.DEBUG,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
-    # APP_WITH_WRITE_RESPONSE = False
     raise SystemExit(main(False))

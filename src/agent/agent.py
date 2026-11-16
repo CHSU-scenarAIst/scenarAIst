@@ -4,22 +4,17 @@
 """
 
 import logging
-import uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from langchain.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
 from pydantic import ValidationError
 
-# from langgraph.checkpoint.memory import InMemorySaver
 from src.agent.model import AgentModelFactory
-from src.agent.schema import AgentResponse, AgentState, Scenario
+from src.agent.schema import AgentResponse, AgentState, BackRequest, Scenario
 from src.agent.tools import AgentToolsBuilder
-
-if TYPE_CHECKING:
-    from langchain_core.runnables import RunnableConfig
 
 LOGGER = logging.getLogger(__name__)
 
@@ -34,7 +29,7 @@ class ScenarAIstAgent:
             SYSTEM_PROMPT + "<user>" + model.chat_cfg.system_prompt + "</user>"
         )  # * Главные инструкции агента
         self._retrievers = model.retrievers  # * Обработчики эмбеддингов документов
-        self._max_invokes = model.chat_cfg.max_invokes
+        self._max_invokes = model.chat_cfg.max_invokes  # * Максимальное число вызовов в одном ответе агента.
         LOGGER.info(model.chat_cfg.model_dump_json())
 
     def build(self) -> None:
@@ -61,40 +56,40 @@ class ScenarAIstAgent:
         builder.add_conditional_edges(CHAT_NODE, self._router_node, conditional_edges)
         builder.add_edge(FORMAT_NODE, END)
 
-        # ? SQLite/Postgres Checkpointer
-        self._checkpointer = None  # InMemorySaver()  # * Хранит историю общения с агентом в ОЗУ
-        self.agent = builder.compile(checkpointer=self._checkpointer)
-        LOGGER.info("Схема графа (Mermaid):\n%s", self.agent.get_graph().draw_mermaid())
+        self.agent = builder.compile()
+        LOGGER.debug("StateGraph (mermaid)\n%s", self.agent.get_graph().draw_mermaid())
 
-    def invoke(self, text: str, min_steps: int = -1) -> AgentResponse:  # TODO
+    def invoke(self, task: str, min_steps: int, instruct: str) -> AgentResponse:
         """API для отправки запросов LLM-агенту."""
 
-        LOGGER.info("[%s] -- Новый запрос: '%s', минимум Шагов в Сценарии: '%s'", "invoke", text, min_steps)
+        LOGGER.info("[invoke] -- Task: '%.40s...', min_step: '%s', instruct: '%s'", task, min_steps, instruct)
         self._min_steps = min_steps
-        system_prompt = self._system_prompt
-        add_instruct = ""
+        scenario = Scenario()
         try:
-            back_request = AgentResponse.model_validate_json(text)
+            back_request = BackRequest.model_validate_json(task)
         except ValidationError:
-            LOGGER.info("Запрос не является обратным ответом агента-Сценариста.")
+            LOGGER.info("Task is not 'back_request'.")
+            task += f"<instruct>{instruct}</instruct>" if instruct else ""
         else:
-            text = back_request.query
-            add_instruct = back_request.add_instruct
-            system_prompt += f"<add_instruct>{add_instruct}</add_instruct>"
+            if back_request.steps:
+                task = instruct
+                scenario = Scenario(steps=back_request.steps)
+                scenario.rebuild_indexes()
+                LOGGER.info("Recived Scenario from 'back_request': %d Steps.", scenario.count())
+            else:
+                return AgentResponse(query=task, answer="Передан пустой Сценарий")
 
         state: AgentState = {
-            "messages": [SystemMessage(system_prompt), HumanMessage(text)],
-            "query": text,
+            "messages": [SystemMessage(self._system_prompt), HumanMessage(task)],
+            "query": task,
             "sources": {},
-            "scenario": Scenario(),
-            "add_instruct": add_instruct,
-            "steps_count": 0,
-            "max_invokes": self._max_invokes,
+            "scenario": scenario,
+            "invokes_count": 0,
+            "invokes_max": self._max_invokes,
         }
-        LOGGER.debug(LOG_PATTERN, "Начальный state", state)
+        LOGGER.debug(LOG_PATTERN, "Start AgentState", state)
 
-        run_cfg: RunnableConfig = {"configurable": {"thread_id": uuid.uuid4().hex}}
-        response = self.agent.invoke(input=state, config=run_cfg)
+        response = self.agent.invoke(input=state)
         result = response["result"]
         return AgentResponse.model_validate(result)
 
@@ -116,40 +111,40 @@ class ScenarAIstAgent:
             for i, d in enumerate(docs, start=1)
         }
         LOGGER.info(LOG_PATTERN, RETRIVE_NODE, sources)
-        return {"steps_count": 1, "sources": sources}
+        return {"invokes_count": 1, "sources": sources}
 
     def _chat_node(self, state: AgentState) -> dict[str, Any]:
         """Узел генерации ответа агентом."""
         prompt = [*state["messages"], HumanMessage(str(state["sources"]))]
-
-        if self._min_steps > 0 and not state["scenario"].steps:
+        if self._min_steps > state["scenario"].count():
             sys_mes = HumanMessage(
-                "<system>Scenario is still empty! Use tool 'insert_step' to add some step.</system>"
+                "<system>Scenario is not complete! Use tool 'insert_step' to add some Steps.</system>"
             )
             prompt.append(sys_mes)
 
         response = self._agent_llm.invoke(prompt)
         LOGGER.info(LOG_PATTERN, CHAT_NODE, str(response.content).strip())
-        return {"steps_count": 1, "messages": [response]}
+        return {"invokes_count": 1, "messages": [response]}
 
     def _router_node(self, state: AgentState) -> str:
         """Ветвление графа."""
         last_message = state["messages"][-1]
-        tool_calls = getattr(last_message, "tool_calls", [])
-        steps_count = state["steps_count"]
+        invokes_count = state["invokes_count"]
+        invokes_max = state["invokes_max"]
 
-        if tool_calls:
-            if self._tools and steps_count < state["max_invokes"]:
-                LOGGER.info(LOG_ROUTE, steps_count, TOOL_NODE)
+        if self._tools and getattr(last_message, "tool_calls", []):
+            if invokes_count < invokes_max:
+                LOGGER.info(LOG_ROUTE, f"{invokes_count}/{invokes_max}", TOOL_NODE)
                 return TOOL_NODE
-            LOGGER.info(LOG_ROUTE, steps_count, FORMAT_NODE)
+
+            LOGGER.info(LOG_ROUTE, f"{invokes_count}/{invokes_max}", FORMAT_NODE)
             return FORMAT_NODE
 
-        if not state["scenario"].steps:
-            LOGGER.info(LOG_ROUTE, steps_count, CHAT_NODE)
+        if self._min_steps > state["scenario"].count():
+            LOGGER.info(LOG_ROUTE, invokes_count, CHAT_NODE)
             return CHAT_NODE
 
-        LOGGER.info(LOG_ROUTE, steps_count, FORMAT_NODE)
+        LOGGER.info(LOG_ROUTE, f"{invokes_count}/{invokes_max}", FORMAT_NODE)
         return FORMAT_NODE
 
     def _format_node(self, state: AgentState) -> dict[str, Any]:
@@ -158,12 +153,11 @@ class ScenarAIstAgent:
         result = AgentResponse(
             query=state["query"],
             answer=str(last_message.content),
-            add_instruct=state["add_instruct"],
             sources=state["sources"],
-            scenario=state["scenario"],
+            steps=state["scenario"].serialize_steps(),
         )
         LOGGER.info(LOG_PATTERN, FORMAT_NODE, result)
-        return {"result": result, "steps_count": 1}
+        return {"result": result, "invokes_count": 1}
 
 
 LOG_PATTERN = "[%s] -- %s"

@@ -82,16 +82,16 @@ uv sync --dev   # Install development dependencies
 
 ### Команды
 
-| Command                                        | Description                           |
-| ---------------------------------------------- | ------------------------------------- |
-| `pytest`                                       | Run tests with coverage               |
-| `ruff check --fix`                             | Lint the codebase                     |
-| `ruff format`                                  | Format the codebase                   |
-| `mypy`                                         | Type-check the codebase               |
-| `uv run pre-commit install`                    | ...                                   |
-| `uv run pre-commit autoupdate`                 | ...                                   |
-| `uv run  pre-commit validate-config`           | pre-commit                            |
-| `uv run  pre-commit run --all-files --verbose` | запуск принудительно по всему проекту |
+| Command                                | Description                           |
+| -------------------------------------- | ------------------------------------- |
+| `pytest`                               | Run tests with coverage               |
+| `ruff check --fix`                     | Lint the codebase                     |
+| `ruff format`                          | Format the codebase                   |
+| `mypy`                                 | Type-check the codebase               |
+| `uv tool install pre-commit`           | ...                                   |
+| `pre-commit autoupdate`                | ...                                   |
+| `pre-commit validate-config`           | pre-commit                            |
+| `pre-commit run --all-files --verbose` | запуск принудительно по всему проекту |
 
 ### .qmlformat.ini
 

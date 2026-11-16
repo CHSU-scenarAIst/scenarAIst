@@ -8,9 +8,17 @@ from langchain.messages import ToolMessage
 from langchain.tools import BaseTool, tool
 from langgraph.prebuilt import ToolRuntime
 from langgraph.types import Command
-from pydantic import BaseModel, Field, create_model
 
-from src.agent.schema import AgentState, Step
+from src.agent.schema import (
+    AgentState,
+    DeleteStep,
+    InsertStep,
+    InsertSteps,
+    Step,
+    StepType,
+    UpdateStep,
+    UpdateSteps,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -21,64 +29,26 @@ class AgentToolsBuilder:
     def build(self, data: dict[str, str]) -> list[BaseTool]:
         """Собрать инструменты агента."""
 
-        DynamicAction = StrEnum("Action", data)  # type: ignore[misc]  # noqa: N806
-        DynamicStep = create_model(  # noqa: N806
-            "Step",
-            __base__=Step,
-            action=(DynamicAction, Field(description="Действие Субъекта над Объектом.")),
-        )
+        ActionT = StrEnum("Action", data)  # type: ignore[misc]  # noqa: N806
+        DynamicStep = Step[ActionT]  # noqa: N806
 
-        i_d = "ID шага, после которого нужно вставить Шаг, или None для вставки в конец."
-        DynamicInsertStep = create_model(  # noqa: N806
-            "DynamicInsertStep",
-            step_after_id=(str | None, Field(default=None, description=i_d)),
-            step=(DynamicStep, Field(description="Новый Шаг для вставки.")),
-        )
-
-        DynamicInsertSteps = create_model(  # noqa: N806
-            "DynamicInsertSteps",
-            steps=(list[DynamicInsertStep], Field(description="Список шагов для вставки.")),  # type: ignore
-        )
-
-        insert_step_tool = tool(
-            name_or_callable=insert_step,
-            description="Добавить Шаги в Сценарий после указанных id Шагов.",
-            args_schema=DynamicInsertSteps,
-        )
-
-        DynamicUpdateStep = create_model(  # noqa: N806
-            "DynamicUpdateStep",
-            id=(str, Field(description="ID шага, который нужно обновить.")),
-            new_step=(DynamicStep, Field(description="Обновлённый Шаг.")),
-        )
-
-        DynamicUpdateSteps = create_model(  # noqa: N806
-            "DynamicUpdateSteps",
-            steps=(list[DynamicUpdateStep], Field(description="Список шагов для обновления.")),  # type: ignore
-        )
-
-        update_step_tool = tool(
-            name_or_callable=update_step,
-            description="Изменить существующие Шаги Сценария.",
-            args_schema=DynamicUpdateSteps,
-        )
+        insert_step_tool = tool(name_or_callable=insert_step, args_schema=InsertSteps[DynamicStep])
+        update_step_tool = tool(name_or_callable=update_step, args_schema=UpdateSteps[DynamicStep])
 
         return [
-            get_scenario,
-            delete_step,
+            tool(get_scenario),
+            tool(delete_step),
             insert_step_tool,
             update_step_tool,
         ]
 
 
-# ! [AI Note] Секция не_добавлять_в / удалить_из документации
-
 LOG_PATTERN = "[%s] -- %s"
 
 
-@tool
-def get_scenario(rtm: ToolRuntime[None, AgentState]) -> Command[tuple[()]]:
+def get_scenario(rtm: ToolRuntime[None, AgentState]) -> Command[Any]:
     """Получить текущее актуальное состояние Сценария с порядковыми номерами шагов."""
+
     scenario = rtm.state["scenario"].model_copy(deep=True)
     steps = scenario.serialize_steps()
     mes = f"Current Scenario steps: {steps}."
@@ -87,23 +57,20 @@ def get_scenario(rtm: ToolRuntime[None, AgentState]) -> Command[tuple[()]]:
     return Command(update={"steps_count": 1, "messages": [tool_mes]})
 
 
-class DeleteStep(BaseModel):
-    id: str = Field(description="ID шага, который нужно удалить.")
-
-
-@tool
-def delete_step(rtm: ToolRuntime[None, AgentState], steps: list[DeleteStep]) -> Command[tuple[()]]:
+def delete_step(rtm: ToolRuntime[None, AgentState], steps: list[DeleteStep]) -> Command[Any]:
     """Удалить Шаги из Сценария по их ids."""
+
     scenario = rtm.state["scenario"].model_copy(deep=True)
     missing = [ds for ds in steps if scenario.find(ds.id) is None]
     if missing:
-        mes = f"Deleted: {len(steps)}, missing: {len(steps)}. Canceled."
+        mes = f"Not found: {[i.id for i in missing]} steps.id. Canceled."
         LOGGER.warning(LOG_PATTERN, "delete_step", mes)
         tool_mes = ToolMessage(content=mes, tool_call_id=rtm.tool_call_id)
         return Command(update={"steps_count": 1, "messages": [tool_mes]})
 
-    scenario.steps = [s for s in scenario.steps if s.id not in [ds.id for ds in steps]]
-    scenario.rebuild()
+    ids_to_delete = {ds.id for ds in steps}
+    scenario.steps = [s for s in scenario.steps if s.id not in ids_to_delete]
+    scenario.rebuild_indexes()
 
     mes = f"Deleted: {len(steps)}."
     LOGGER.info(LOG_PATTERN, "delete_step", mes)
@@ -111,29 +78,29 @@ def delete_step(rtm: ToolRuntime[None, AgentState], steps: list[DeleteStep]) -> 
     return Command(update={"steps_count": 1, "scenario": scenario, "messages": [tool_mes]})
 
 
-def insert_step(rtm: ToolRuntime[None, AgentState], steps: list[Any]) -> Command[tuple[()]]:
+def insert_step(rtm: ToolRuntime[None, AgentState], steps: list[InsertStep[StepType]]) -> Command[Any]:
+    "Добавить Шаги в Сценарий после указанных id Шагов."
+
     scenario = rtm.state["scenario"].model_copy(deep=True)
-    inserts: list[tuple[str | None, int, Step]] = []
-    used_ids = set(scenario._steps_cache)
+    inserts: list[tuple[str | None, int, StepType]] = []
 
     for s in steps:
-        after_id: str | None = s.step_after_id
-        step_obj: Step = s.step
+        step_obj = StepType(**s.step.model_dump())
 
-        if not after_id:
-            inserts.append((None, len(scenario.steps), step_obj.with_unique_id(used_ids)))
+        if not s.step_after_id:
+            inserts.append((None, len(scenario.steps), step_obj))
             continue
 
-        if idx := scenario.find(after_id):
-            inserts.append((after_id, idx, step_obj.with_unique_id(used_ids)))
+        if (idx := scenario.find(s.step_after_id)) is not None:
+            inserts.append((s.step_after_id, idx, step_obj))
             continue
 
-        mes = f"Warning: step '{after_id}' not found or '{step_obj} is not Step'. Canceled."
+        mes = f"Warning: step '{s.step_after_id}' not found or '{step_obj} is not Step'. Canceled."
         LOGGER.warning(LOG_PATTERN, "insert_step", mes)
         tool_mes = ToolMessage(content=mes, tool_call_id=rtm.tool_call_id)
         return Command(update={"steps_count": 1, "messages": [tool_mes]})
 
-    indexed: list[tuple[int, int, Step]] = []
+    indexed: list[tuple[int, int, StepType]] = []
 
     for order, (after_id, idx, step) in enumerate(inserts):
         target_idx = len(scenario.steps) if after_id is None else idx + 1
@@ -142,7 +109,7 @@ def insert_step(rtm: ToolRuntime[None, AgentState], steps: list[Any]) -> Command
     for target_idx, _, step in sorted(indexed, key=lambda x: (x[0], x[1]), reverse=True):
         scenario.steps.insert(target_idx, step)
 
-    scenario.rebuild()
+    scenario.rebuild_indexes()
 
     mes = f"Inserted: {len(inserts)}"
     LOGGER.info(LOG_PATTERN, "insert_step", mes)
@@ -150,23 +117,29 @@ def insert_step(rtm: ToolRuntime[None, AgentState], steps: list[Any]) -> Command
     return Command(update={"steps_count": 1, "scenario": scenario, "messages": [tool_mes]})
 
 
-def update_step(rtm: ToolRuntime[None, AgentState], steps: list[Any]) -> Command[tuple[()]]:
+def update_step(rtm: ToolRuntime[None, AgentState], steps: list[UpdateStep[StepType]]) -> Command[Any]:
+    "Изменить существующие Шаги Сценария."
+
     scenario = rtm.state["scenario"].model_copy(deep=True)
-    parsed: list[tuple[int, Step]] = []
+    parsed: list[tuple[int, StepType]] = []
     for s in steps:
-        step_id: str = s.id
-        index = scenario.find(step_id)
-        if not index:
-            mes = f"Updated: {0}, '{step_id}' not found. Canceled."
+        index = scenario.find(s.id)
+        if index is None:
+            mes = f"Updated: {0}, '{s.id}' not found. Canceled."
             LOGGER.warning(LOG_PATTERN, "update_step", mes)
             tool_mes = ToolMessage(content=mes, tool_call_id=rtm.tool_call_id)
             return Command(update={"steps_count": 1, "messages": [tool_mes]})
 
-        step = Step.model_validate(s.new_step).model_copy(update={"id": step_id})
-        parsed.append((index, step))
+        step_obj = StepType(
+            id=s.id,
+            actor=s.new_step.actor,
+            target=s.new_step.target,
+            action=s.new_step.action,
+        )
+        parsed.append((index, step_obj))
 
-    for index, new_step in parsed:
-        scenario.steps[index] = new_step
+    for index, step in parsed:
+        scenario.steps[index] = step
 
     mes = f"Updated: {len(parsed)}."
     LOGGER.info(LOG_PATTERN, "update_step", mes)

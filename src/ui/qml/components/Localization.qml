@@ -6,7 +6,6 @@ QtObject {
     id: root
 
     property string language: "ru"
-
     property var translations: ({
             "Main.Title": {
                 "en": "scenarAIst",
@@ -64,9 +63,13 @@ QtObject {
                 "en": "Save as JSON...",
                 "ru": "Сохранить как JSON..."
             },
-            "Hotkeys.Scroll": {
-                "en": "Scroll Response",
-                "ru": "Прокрутка ответа"
+            "Hotkeys.Scroll.Up": {
+                "en": "Scroll Up",
+                "ru": "Вверх"
+            },
+            "Hotkeys.Scroll.Down": {
+                "en": "Scroll Down",
+                "ru": "Вниз"
             },
             "Hotkeys.New": {
                 "en": "Add task",
@@ -134,6 +137,7 @@ QtObject {
         const entry = translations[key];
 
         if (!entry) {
+            // ? сообщение об ошибке на экран пользователя, текст из перевода
             console.warn("Missing translation:", key);
             return key;
         }
@@ -141,4 +145,3 @@ QtObject {
         return entry[language] || entry.en || key;
     }
 }
-// !

@@ -1,69 +1,62 @@
 """Схемы общения между Сценаристом и агентом-Сценаристом"""
 
-import hashlib
 import operator
-from typing import Annotated, Any, Self
+import uuid
+from enum import StrEnum
+from typing import Annotated, Any
 
 from langgraph.graph import MessagesState
 from pydantic import BaseModel, Field
 
 
-class Step(BaseModel):
+class Step[ActionT: StrEnum](BaseModel):
     """Структура Шага в Сценарии."""
 
-    id: str = Field(description="Уникальный идентификатор шага.")
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex, description="Уникальный идентификатор шага.")
     actor: str = Field(description="Название/UID персонала.")
-    target: str = Field(description="Название/UID целевого объекта.")
-    action: str = Field(description="Действие персонала над целевым объектом.")
+    target: str = Field(description="Название/UID составной части целевого объекта.")
+    action: ActionT = Field(description="Действие персонала над целевым объектом или его частью.")
     # ? предусловие
     # ? постусловие
 
-    def with_unique_id(self, used_ids: set[str]) -> Self:
-        """Генерирует и гарантирует уникальный id Шага."""
-        if self.id and self.id not in used_ids:
-            used_ids.add(self.id)
-            return self
 
-        payload = self.model_dump_json().encode("utf-8")
-        salt = 0
-        while True:
-            hasher = hashlib.sha256()
-            hasher.update(payload)
-            hasher.update(salt.to_bytes(4, "big"))
-
-            hash_id = hasher.hexdigest()[:6]
-            salt += 1
-            if hash_id not in used_ids:
-                used_ids.add(hash_id)
-                return self.model_copy(update={"hash_id": hash_id})
+StepType = Step[StrEnum]
 
 
 class Scenario(BaseModel):
     """Структура итогового Сценария."""
 
-    steps: list[Step] = Field(default_factory=list, description="Массив Шагов Сценария.")
+    steps: list[Step[StrEnum]] = Field(default_factory=list, description="Массив Шагов Сценария.")
 
     # ! [AI Note] Секция не_добавлять_в / удалить_из документации
-    _steps_cache: dict[str, int] = {}
+    _steps_indexes: dict[str, int] = {}
 
     def serialize_steps(self) -> list[dict[str, Any]]:
         return [{**s.model_dump(), "order": i} for i, s in enumerate(self.steps, start=1)]
 
-    def rebuild(self) -> None:
-        self._steps_cache = {s.id: i for i, s in enumerate(self.steps, start=1) if s.id}
+    def rebuild_indexes(self) -> None:
+        self._steps_indexes = {s.id: i for i, s in enumerate(self.steps, start=1) if s.id}
 
     def find(self, id: str) -> int | None:
-        return self._steps_cache.get(id)
+        return self._steps_indexes.get(id)
+
+    def count(self) -> int:
+        return len(self._steps_indexes)
+
+
+class BackRequest(BaseModel):
+    """Структура ответа агента-Сценариста."""
+
+    steps: list[Step[StrEnum]] = Field(description="Существующий Сценарий.")
 
 
 class AgentResponse(BaseModel):
     """Структура ответа агента-Сценариста."""
 
-    query: str = Field(description="Исходный запрос Сценариста.")
-    answer: str | None = Field(default=None, description="Необязательные пояснения.")
-    sources: dict[int, dict[str, str]] = Field(description="Источники данных.")
-    add_instruct: str = Field(default="", description="Дополнительные инструкции, установленные для ответа.")
-    scenario: Scenario | None = Field(default=None, description="Итоговый Сценарий от LLM-агента.")
+    query: str = Field(description="Исходный запрос агенту.")
+    answer: str = Field(description="Сообщение от агента.")
+    sources: dict[int, dict[str, str]] = Field(default_factory=dict, description="Источники данных.")
+    steps: list[dict[str, Any]] = Field(default_factory=list, description="Итоговый Сценарий от агента.")
 
 
 # ! База данных состояния агента-Сценариста между запусками
@@ -71,10 +64,32 @@ class AgentState(MessagesState, total=False):
     """Состояние агента-Сценариста."""
 
     query: str
-    # system_prompt: str
     sources: dict[int, dict[str, str]]
     scenario: Scenario
-    add_instruct: str
-    steps_count: Annotated[int, operator.add]
-    max_invokes: int
+    invokes_count: Annotated[int, operator.add]
+    invokes_max: int
     result: AgentResponse
+
+
+class DeleteStep(BaseModel):
+    id: str = Field(description="ID шага, который нужно удалить.")
+
+
+class InsertStep[StepT: Step[Any]](BaseModel):
+    step_after_id: str | None = Field(
+        default=None, description="ID шага, после которого нужно вставить Шаг, или None для вставки в конец."
+    )
+    step: StepT = Field(description="Новый Шаг для вставки.")
+
+
+class InsertSteps[StepT: Step[Any]](BaseModel):
+    steps: list[InsertStep[StepT]] = Field(description="Список шагов для вставки.")
+
+
+class UpdateStep[StepT: Step[Any]](BaseModel):
+    id: str = Field(description="ID шага, который нужно обновить.")
+    new_step: StepT = Field(description="Обновлённый Шаг.")
+
+
+class UpdateSteps[StepT: Step[Any]](BaseModel):
+    steps: list[UpdateStep[StepT]] = Field(description="Список шагов для обновления.")

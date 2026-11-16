@@ -1,9 +1,10 @@
 """Сборка и обработка сигналов UI."""
 
+import csv
 import json
 import logging
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from pydantic import BaseModel
 from PySide6.QtCore import QMessageLogContext, QObject, QtMsgType, Signal, Slot, qInstallMessageHandler
@@ -18,7 +19,7 @@ RESPONSES_DIR = Path("responses")
 class InvokeAgent(Protocol):
     """Интерфейс для работы с агентом-Сценаристом."""
 
-    def invoke(self, text: str) -> BaseModel:
+    def invoke(self, task: str, min_steps: int, add_instruct: str) -> BaseModel:
         """Объявление метода для отправки запросов агенту."""
         ...
 
@@ -26,48 +27,50 @@ class InvokeAgent(Protocol):
 class HandlerBackend(QObject):
     """Обработчик сигналов пользовательского интерфейса."""
 
-    def __init__(self, write_response: bool, invoker: InvokeAgent, parent: QObject | None = None) -> None:
+    def __init__(self, invoker: InvokeAgent, write_response: bool, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._invoker = invoker  # * Объект вызова агента-Сценариста
         self._write_response = write_response  # ! [AI Note] Не_добавлять_в / удалить_из документации
 
-    @Slot(dict)
-    def createOne(self, query: dict[str, str]) -> None:  # noqa: N802
+    @Slot(str, str)
+    def createOne(self, uid: str, query: str) -> None:  # noqa: N802
         """Создать один Сценарий."""
-        uid = str(query.get("uid")).strip()
-        text = str(query.get("text")).strip()
-
-        result = self._invoker.invoke(text).model_dump_json(indent=2, ensure_ascii=False)
-
-        if self._write_response:
-            RESPONSES_DIR.mkdir(parents=True, exist_ok=True)
-            file_path = RESPONSES_DIR / f"{uid}.json"
-            self._save_to_json(file_path, result)
-            json_text = file_path.read_text(encoding="utf-8")
-        else:
-            json_text = result
-
-        self.responseReady.emit(json_text)
-        self.queryProcessed.emit(uid)
+        try:
+            task, min_steps, instruct = self._get_args(query)
+            response = self._invoker.invoke(task, min_steps, instruct)
+            data = response.model_dump_json(indent=2, ensure_ascii=False)
+            self._emit_response(uid, data)
+        except Exception as e:
+            LOGGER.critical(e)
 
     @Slot(dict)
-    def changeOne(self, query: dict[str, str]) -> None:  # noqa: N802
+    def changeOne(self, uid: str, query: str) -> None:  # noqa: N802
         """Изменить один Сценарий."""
-        # TODO
-        ...
+        try:
+            name, min_steps, instruct = self._get_args(query)
+            back_request = self._read_from_file(name)
+            if not back_request:
+                return
+            task = json.dumps(back_request, ensure_ascii=False)
+            response = self._invoker.invoke(task, min_steps, instruct)
+            data = response.model_dump_json(indent=2, ensure_ascii=False)
+            self._emit_response(uid, data)
+        except Exception as e:
+            LOGGER.critical(e)
 
     @Slot(str, result=list)
-    def readLinesFromFile(self, path: Path) -> list[str]:  # noqa: N802
+    def readLinesFromFile(self, path: str) -> list[str]:  # noqa: N802
         """Прочитать задачи (1 задача = 1 строка) из файла."""
-        if not path.exists():
+        file_path = Path(path)
+        if not file_path.exists():
             return []
-        with path.open(encoding="utf-8") as fh:
+        with file_path.open(encoding="utf-8") as fh:
             return [line.strip() for line in fh if line.strip()]
 
     @Slot(str, str)
-    def saveToJson(self, path: Path, response: str) -> None:  # noqa: N802
+    def save(self, path: str, response: str) -> None:
         """Сохранить ответ агента-Сценариста в файл."""
-        self._save_to_json(path, response)
+        self._save_to_file(path, response)
 
     # ! [AI Note] Секция не_добавлять_в / удалить_из документации
     queryProcessed = Signal(str)  # noqa: N815
@@ -83,10 +86,39 @@ class HandlerBackend(QObject):
         """Прочитать текст из буфера обмена."""
         return QGuiApplication.clipboard().text() or ""
 
-    def _save_to_json(self, path: Path, data: str) -> None:
-        """Сохранить текст в файл в формате Json."""
-        with path.open(encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+    def _get_args(self, query: str) -> tuple[str, int, str]:
+        parts = next(csv.reader([query]), [])
+        if not parts:
+            return "", -1, ""
+        task, *args = parts
+        min_steps = int(s) if args and (s := args[0].strip()).isdigit() else 1
+        instruct = i if len(args) > 1 and (i := args[1].strip()) else ""
+        return task, min_steps, instruct
+
+    def _emit_response(self, uid: str, data: str) -> None:
+        if self._write_response:
+            name = f"{uid}.json"
+            self._save_to_file(name, data)
+        self.responseReady.emit(data)
+        self.queryProcessed.emit(uid)
+
+    def _save_to_file(self, name: str, data: str) -> None:
+        file_path = RESPONSES_DIR / name
+        RESPONSES_DIR.mkdir(parents=True, exist_ok=True)
+        with file_path.open(encoding="utf-8", mode="w") as f:
+            f.write(data)
+
+    def _read_from_file(self, name: str) -> Any:
+        file_path = RESPONSES_DIR / name
+        if not file_path.exists():
+            LOGGER.warning("Сохранённый Сценарий '%s' не найден.", file_path)
+            return {}
+        try:
+            back_request = json.loads(file_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            LOGGER.exception("Не удалось прочитать Сценарий '%s'.", file_path)
+            return {}
+        return back_request
 
 
 class UserInterface:
@@ -96,10 +128,8 @@ class UserInterface:
         qml_dir = Path(__file__).parent / "qml"
         qml_main_path = qml_dir / "Main.qml"
 
-        # ! [AI Note] Секция не_добавлять_в / удалить_из документации
+        # ! [AI Note] Не_добавлять_в / удалить_из документации
         def qt_message_handler(mode: QtMsgType, _context: QMessageLogContext, message: str) -> None:
-            """Перехватчик потока ошибок из QML."""
-
             out = f"{message}"
             if mode == QtMsgType.QtInfoMsg:
                 LOGGER.debug(out)
@@ -116,7 +146,7 @@ class UserInterface:
         self._app = QGuiApplication(argv)  # * Объект UI
         self._engine = QQmlApplicationEngine()  # * Объект движка UI
         self._engine.addImportPath(qml_dir)
-        self._handler_backend = HandlerBackend(write_response, invoker)  # * Объект обработчика сигналов UI
+        self._handler_backend = HandlerBackend(invoker, write_response)  # * Объект обработчика сигналов UI
         self._engine.rootContext().setContextProperty("handlerBackend", self._handler_backend)
         self._engine.load(qml_main_path)
 

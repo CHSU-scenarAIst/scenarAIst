@@ -166,7 +166,8 @@ Item {
                 if (item.uid !== "") {
                     return item;
                 }
-                console.warn("Должен быть установлен: ", item.text);
+                // ? сообщение об ошибке на экран пользователя, текст из перевода
+                console.warn("Текст должен быть установлен: поле ", i);
             }
         }
 
@@ -215,17 +216,6 @@ Item {
         const pad = n => (n < 10 ? "0" : "") + n;
         const date = now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
         const time = pad(now.getHours()) + "-" + pad(now.getMinutes()) + "-" + pad(now.getSeconds());
-        const hash = _hash6(String(text) + "|" + queryCount);
-        return date + "_" + time + "-" + hash;
+        return date + "_" + time + "-";
     }
-
-    function _hash6(input) {
-        let hash = 2166136261;
-        for (let i = 0; i < input.length; i++) {
-            hash ^= input.charCodeAt(i);
-            hash = Math.imul(hash, 16777619);
-        }
-        return ("000000" + (hash >>> 0).toString(16)).slice(-6);
-    }
-    // !
 }

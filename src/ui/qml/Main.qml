@@ -11,12 +11,10 @@ import "./components"
 ApplicationWindow {
     id: root
 
-    // * Обработчик сигналов пользовательского интерфейса
-    property var handler: handlerBackend    // qmllint disable unqualified
-
-    // * Текущий режим работы программы
+    // * Обработчик сигналов пользовательского интерфейса.
+    property var handler: handlerBackend // qmllint disable unqualified
+    // * Текущий режим работы программы.
     property int currentMode: 0
-
     // * Режимы работы (создать один / создать массово / изменить один / изменить массово).
     property var modes: {
         0: "Mode.CreateOne",
@@ -24,8 +22,7 @@ ApplicationWindow {
         2: "Mode.ChangeOne",
         3: "Mode.ChangeSome"
     }
-
-    // * Текущий ответ агента-Сценариста
+    // * Текущий ответ агента-Сценариста.
     property string currentResponse: ""
 
     ColumnLayout {
@@ -36,25 +33,15 @@ ApplicationWindow {
             Layout.fillWidth: true
             implicitHeight: 30
             color: "#000000"
-
-            text: {
-                const mode = Localization.tr("Hotkeys.Mode") + ": " + Localization.tr(root.modes[root.currentMode]);
-                const query = Localization.tr("Query.Count") + ": " + userQueries.queryCount;
-                return mode + "   |   " + query;
-            }
+            currentMode: root.modes[root.currentMode]
+            queryCount: userQueries.queryCount
         }
 
         ComboBox {
             Layout.alignment: Qt.AlignRight
-
             model: ["Русский", "English"]
             currentIndex: Localization.language === "ru" ? 0 : 1
-
-            onActivated: index => {
-                Localization.language = index === 0 ? "ru" : "en";
-
-                hotkeyBar.refreshHotkeys();
-            }
+            onActivated: index => Localization.language = index === 0 ? "ru" : "en"
         }
 
         RowLayout {
@@ -104,11 +91,8 @@ ApplicationWindow {
             color: "#000000"
 
             onLoad: () => loadDialog.open()
-            onMode: () => {
-                root.currentMode = (root.currentMode + 1) % root.modesLength;
-            }
+            onMode: () => root.currentMode = (root.currentMode + 1) % root.modesLength
             onSave: () => saveDialog.open()
-
             onAdd: () => userQueries.addQuery("")
             onDelete: () => userQueries.removeLast()
             onExit: () => exitDialog.open()
@@ -120,20 +104,15 @@ ApplicationWindow {
         }
     }
 
-    Component.onCompleted: {
-        hotkeyBar.refreshHotkeys();
-    }
-
     FileDialog {
         id: saveDialog
         title: Localization.tr("Save.Response")
         fileMode: FileDialog.SaveFile
         defaultSuffix: "json"
         nameFilters: ["JSON files (*.json)", "All files (*)"]
-
         onAccepted: {
             const path = root.toLocalPath(selectedFile);
-            root.handler.saveToJson(path, root.currentResponse);
+            root.handler.save(path, root.currentResponse);
         }
     }
 
@@ -142,17 +121,15 @@ ApplicationWindow {
         title: Localization.tr("Load.Tasks")
         fileMode: FileDialog.OpenFile
         nameFilters: ["Text files (*.csv)", "All files (*)"]
-
         onAccepted: {
             const path = root.toLocalPath(selectedFile);
             const lines = root.handler.readLinesFromFile(path);
             if (lines.length <= 0) {
+                // ? сообщение об ошибке на экран пользователя, текст из перевода
                 console.error("Файл задач не найден или он пуст: ", path);
-                // ? сообщение об ошибке
                 return;
             }
 
-            // TODO "Задача,Максимум_шагов"
             for (const line of lines) {
                 userQueries.addQuery(line);
             }
@@ -178,12 +155,12 @@ ApplicationWindow {
 
     // * """Отправить задачи на обработку."""
     function send() {
-        if (root.currentMode === 0) {
+        if (root.currentMode === 0 || root.currentMode === 2) {
             const field = userQueries.getFirst();
             if (field) {
-                handler.createOne(field);
+                root.currentMode === 0 ? handler.createOne(field.uid, field.text.trim()) : handler.changeOne(field.uid, field.text.trim());
             }
-        } else if (root.currentMode === 1) {
+        } else {
             const fields = [];
             for (let i = 0; i < userQueries.queryCount; i++) {
                 const field = userQueries.get(i);
@@ -192,10 +169,9 @@ ApplicationWindow {
                 }
             }
             for (const field of fields) {
-                handler.createOne(field);
+                root.currentMode === 1 ? handler.createOne(field.uid, field.text.trim()) : handler.changeOne(field.uid, field.text.trim());
             }
         }
-    // TODO остальные режимы
     }
 
     // ! [AI Note] Секция не_добавлять_в / удалить_из документации
@@ -261,5 +237,4 @@ ApplicationWindow {
 
         return path;
     }
-    // !
 }

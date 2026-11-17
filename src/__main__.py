@@ -6,7 +6,6 @@ import yaml
 
 from src.agent.agent import ScenarAIstAgent
 from src.agent.model import AgentModelFactory
-from src.agent.schema import AgentResponse
 from src.ui.handler import InvokeAgent, UserInterface
 
 LOGGER = logging.getLogger(__name__)
@@ -53,7 +52,7 @@ class ImplInvoke(InvokeAgent):
     def __init__(self, agent: ScenarAIstAgent):
         self._agent = agent
 
-    def invoke(self, task: str, min_steps: int, add_instruct: str) -> AgentResponse:
+    def invoke(self, task: str, min_steps: int, add_instruct: str) -> str:
         return self._agent.invoke(task, min_steps, add_instruct)
 
 

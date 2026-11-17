@@ -44,8 +44,8 @@ class AgentModelFactory:
             raise TypeError(f"Ошибка загрузки 'completion' -> 'provider': '{provider}'.") from e
 
         self.chat = _CHAT_FACTORIES[provider](self.chat_cfg)
-
         self.retrievers = []
+
         try:
             embed_cfg = EmbeddingConfig.model_validate(raw_cfg["embeddings"])
         except Exception:
@@ -109,7 +109,7 @@ class SQLiteVecFactory:
         self.retrievers = [db.as_retriever(search_kwargs={"k": k}) for db, k in dbs]
 
     def _iter_docs(self, path: Path, chunk_size: int, chunk_overlap: int) -> Iterator[Document]:
-        """Загрузить чанки документов из указанной директории."""
+        """Загрузить документы из указанной директории."""
         # ? Сам по себе Генератор/Итератор не имеет смысла, так как приводится к list для работы SQLiteVec.
 
         load = DirectoryLoader(

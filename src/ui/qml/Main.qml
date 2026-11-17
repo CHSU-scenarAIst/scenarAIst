@@ -18,11 +18,11 @@ ApplicationWindow {
     // * Режимы работы (создать один / создать массово / изменить один / изменить массово).
     property var modes: {
         0: "Mode.CreateOne",
-        1: "Mode.CreateSome",
-        2: "Mode.ChangeOne",
-        3: "Mode.ChangeSome"
+        1: "Mode.CreateSome"
+        // 2: "Mode.ChangeOne",
+        // 3: "Mode.ChangeSome"
     }
-    // * Текущий ответ агента-Сценариста.
+    // * Текущий ответ агента.
     property string currentResponse: ""
 
     ColumnLayout {
@@ -53,7 +53,7 @@ ApplicationWindow {
                 id: llmResponse
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                text: root.currentResponse
+                answer: root.currentResponse
                 onCopyRequested: root.handler.copyToClipboard(root.currentResponse)
             }
 
@@ -153,23 +153,25 @@ ApplicationWindow {
         onAccepted: Qt.quit()
     }
 
-    // * """Отправить задачи на обработку."""
+    // * Отправить задачи на обработку.
     function send() {
         if (root.currentMode === 0 || root.currentMode === 2) {
             const field = userQueries.getFirst();
             if (field) {
-                root.currentMode === 0 ? handler.createOne(field.uid, field.text.trim()) : handler.changeOne(field.uid, field.text.trim());
+                // root.currentMode === 0 ? handler.createOne(field.uid, field.text.trim()) : handler.changeOne(field.uid, field.text.trim());
+                handler.createOne(field.uid, field.text);
             }
         } else {
             const fields = [];
             for (let i = 0; i < userQueries.queryCount; i++) {
                 const field = userQueries.get(i);
-                if (field && field.text.trim() !== "") {
+                if (field && field.text !== "") {
                     fields.push(field);
                 }
             }
             for (const field of fields) {
-                root.currentMode === 1 ? handler.createOne(field.uid, field.text.trim()) : handler.changeOne(field.uid, field.text.trim());
+                // root.currentMode === 1 ? handler.createOne(field.uid, field.text.trim()) : handler.changeOne(field.uid, field.text.trim());
+                handler.createOne(field.uid, field.text);
             }
         }
     }

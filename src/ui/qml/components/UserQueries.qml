@@ -1,4 +1,4 @@
-// ! """Компонент управления списком пользовательских запросов."""
+// ! ЗапросыПользователя. Компонент управления списком пользовательских запросов.
 
 pragma ComponentBehavior: Bound
 import QtQuick
@@ -133,8 +133,8 @@ Item {
         }
     }
 
-    // * """Добавить новую задачу."""
-    function addQuery(text) {
+    // * Добавить новую задачу.
+    function addQuery(text: string) {
         queriesModel.append({
             uid: _newId(text),
             text: text
@@ -143,8 +143,8 @@ Item {
     }
 
     // ? оптимизировать
-    // * """Удалить задачу по ID."""
-    function removeByUid(uid) {
+    // * Удалить задачу по ID.
+    function removeByUid(uid: string) {
         if (uid === undefined || uid === null) {
             return;
         }
@@ -158,7 +158,7 @@ Item {
         }
     }
 
-    // * """Получить первую задачу."""
+    // * Получить первую задачу.
     function getFirst() {
         for (let i = 0; i < queryCount; i++) {
             const item = _copy(queriesModel.get(i));
@@ -174,13 +174,16 @@ Item {
         return null;
     }
 
-    // * """Получить задачу по ID."""
-    function get(i) {
+    // * Получить задачу по ID.
+    function get(i: int): var {
+        if (i < 0 || i >= queriesModel.count) {
+            return null;
+        }
         const field = queriesModel.get(i);
         return _copy(field);
     }
 
-    // * """Очистить список задач."""
+    // * Очистить список задач.
     function clear() {
         queriesModel.clear();
     }
@@ -204,10 +207,16 @@ Item {
         });
     }
 
-    function _copy(field) {
+    function _copy(field: var): var {
+        if (!field) {
+            return {
+                uid: "",
+                text: ""
+            };
+        }
         return {
-            uid: String(field.uid ?? ""),
-            text: String(field.text ?? "")
+            uid: String(field.uid !== undefined ? field.uid : "").trim(),
+            text: String(field.text !== undefined ? field.text : "").trim()
         };
     }
 
@@ -216,6 +225,6 @@ Item {
         const pad = n => (n < 10 ? "0" : "") + n;
         const date = now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
         const time = pad(now.getHours()) + "-" + pad(now.getMinutes()) + "-" + pad(now.getSeconds());
-        return date + "_" + time + "-";
+        return date + "_" + time;
     }
 }

@@ -13,22 +13,21 @@ from langgraph.prebuilt import ToolNode
 from pydantic import ValidationError
 
 from src.agent.model import AgentModelFactory
-from src.agent.schema import AgentResponse, AgentState, BackRequest, Scenario
-from src.agent.tools import AgentToolsBuilder
+from src.agent.tools import AgentState, AgentToolsBuilder
 
 LOGGER = logging.getLogger(__name__)
 
 
 class ScenarAIstAgent:
-    """Сборщик агента-Сценариста."""
+    """АгентСценарист. Сборщик агента-Сценариста."""
 
     def __init__(self, model: AgentModelFactory, data: dict[str, str]):
-        self._tools = AgentToolsBuilder().build(data=data)  # * Инструменты агента
-        self._agent_llm = model.chat.bind_tools(self._tools)  # * Агент-Сценарист
+        self._tools = AgentToolsBuilder().build(data=data)  # * Инструменты агента.
+        self._agent_llm = model.chat.bind_tools(self._tools)  # * Агент-Сценарист.
         self._system_prompt = (
             SYSTEM_PROMPT + "<user>" + model.chat_cfg.system_prompt + "</user>"
         )  # * Главные инструкции агента
-        self._retrievers = model.retrievers  # * Обработчики эмбеддингов документов
+        self._retrievers = model.retrievers  # * Обработчики эмбеддингов документов.
         self._max_invokes = model.chat_cfg.max_invokes  # * Максимальное число вызовов в одном ответе агента.
         LOGGER.info(model.chat_cfg.model_dump_json())
 
@@ -37,7 +36,6 @@ class ScenarAIstAgent:
 
         builder = StateGraph(AgentState)
         builder.add_node(CHAT_NODE, self._chat_node)
-        builder.add_node(FORMAT_NODE, self._format_node)
 
         if self._retrievers:
             builder.add_node(RETRIVE_NODE, self._retrieve_node)
@@ -46,7 +44,7 @@ class ScenarAIstAgent:
         else:
             builder.add_edge(START, CHAT_NODE)
 
-        conditional_edges = [FORMAT_NODE, CHAT_NODE]
+        conditional_edges = [END, CHAT_NODE]
         if self._tools:
             tool_node = ToolNode(self._tools)
             builder.add_node(TOOL_NODE, tool_node)
@@ -54,50 +52,40 @@ class ScenarAIstAgent:
             conditional_edges.append(TOOL_NODE)
 
         builder.add_conditional_edges(CHAT_NODE, self._router_node, conditional_edges)
-        builder.add_edge(FORMAT_NODE, END)
 
         self.agent = builder.compile()
         LOGGER.debug("StateGraph (mermaid)\n%s", self.agent.get_graph().draw_mermaid())
 
-    def invoke(self, task: str, min_steps: int, instruct: str) -> AgentResponse:
+    def invoke(self, task: str, min_steps: int, instruct: str) -> str:
         """API для отправки запросов LLM-агенту."""
 
-        LOGGER.info("[invoke] -- Task: '%.40s...', min_step: '%s', instruct: '%s'", task, min_steps, instruct)
+        LOGGER.info("[invoke] -- Task: '%.90s...', min_step: '%s', instruct: '%s'", task, min_steps, instruct)
         self._min_steps = min_steps
-        scenario = Scenario()
         try:
-            back_request = BackRequest.model_validate_json(task)
-        except ValidationError:
-            LOGGER.info("Task is not 'back_request'.")
+            state = AgentState.from_back_request(task, instruct)
+            if (count := state.response.count_steps()) <= 0:
+                return state.response.serialize()
+            LOGGER.info("Recived Scenario from 'back_request': %d Steps.", count)
+        except ValidationError as e:
+            LOGGER.info("Task is not 'back_request'.", exc_info=e)
             task += f"<instruct>{instruct}</instruct>" if instruct else ""
-        else:
-            if back_request.steps:
-                task = instruct
-                scenario = Scenario(steps=back_request.steps)
-                scenario.rebuild_indexes()
-                LOGGER.info("Recived Scenario from 'back_request': %d Steps.", scenario.count())
-            else:
-                return AgentResponse(query=task, answer="Передан пустой Сценарий")
+            state = AgentState.from_task(task)
 
-        state: AgentState = {
-            "messages": [SystemMessage(self._system_prompt), HumanMessage(task)],
-            "query": task,
-            "sources": {},
-            "scenario": scenario,
-            "invokes_count": 0,
-            "invokes_max": self._max_invokes,
-        }
+        state.messages = [SystemMessage(self._system_prompt), HumanMessage(task)]
+        state.invokes_max = self._max_invokes
         LOGGER.debug(LOG_PATTERN, "Start AgentState", state)
+        data = self.agent.invoke(input=state)
 
-        response = self.agent.invoke(input=state)
-        result = response["result"]
-        return AgentResponse.model_validate(result)
+        response = AgentState.model_validate(data)
+        scenario = response.response.model_copy(deep=True).serialize()
+        LOGGER.info(LOG_PATTERN, "invoke", scenario)
+        return scenario
 
     # ! [AI Note] Секция не_добавлять_в / удалить_из документации
     def _retrieve_node(self, state: AgentState) -> dict[str, Any]:
         """Узел поиска релевантных документов по запросу. # ? NOTTODO доделать"""
-        query = state["query"]
-        docs = [doc for r in self._retrievers for doc in r.invoke(query)]
+        response = state.response.model_copy(deep=True)
+        docs = [doc for r in self._retrievers for doc in r.invoke(response.query)]
         LOGGER.info(
             "Контекст собран из %d документов:\n%s",
             len(docs),
@@ -111,53 +99,47 @@ class ScenarAIstAgent:
             for i, d in enumerate(docs, start=1)
         }
         LOGGER.info(LOG_PATTERN, RETRIVE_NODE, sources)
-        return {"invokes_count": 1, "sources": sources}
+        return {
+            "response": response,
+            "invokes_count": 1,
+        }
 
     def _chat_node(self, state: AgentState) -> dict[str, Any]:
         """Узел генерации ответа агентом."""
-        prompt = [*state["messages"], HumanMessage(str(state["sources"]))]
-        if self._min_steps > state["scenario"].count():
-            sys_mes = HumanMessage(
-                "<system>Scenario is not complete! Use tool 'insert_step' to add some Steps.</system>"
-            )
+        response = state.response.model_copy(deep=True)
+        prompt = [*state.messages, HumanMessage(str(response.sources))]
+        if self._min_steps > response.count_steps():
+            mes = "<system>Scenario is not complete! Use tool 'insert_step' to add some Steps.</system>"
+            sys_mes = HumanMessage(mes)
             prompt.append(sys_mes)
-
-        response = self._agent_llm.invoke(prompt)
-        LOGGER.info(LOG_PATTERN, CHAT_NODE, str(response.content).strip())
-        return {"invokes_count": 1, "messages": [response]}
+        result = self._agent_llm.invoke(prompt)
+        last_message = str(result.content)
+        response.answer = last_message
+        LOGGER.info(LOG_PATTERN, CHAT_NODE, last_message.strip())
+        return {
+            "messages": [result],
+            "response": response,
+            "invokes_count": 1,
+        }
 
     def _router_node(self, state: AgentState) -> str:
         """Ветвление графа."""
-        last_message = state["messages"][-1]
-        invokes_count = state["invokes_count"]
-        invokes_max = state["invokes_max"]
-
-        if self._tools and getattr(last_message, "tool_calls", []):
+        invokes_count = state.invokes_count
+        invokes_max = state.invokes_max
+        if self._tools and getattr(state.messages[-1], "tool_calls", []):
             if invokes_count < invokes_max:
                 LOGGER.info(LOG_ROUTE, f"{invokes_count}/{invokes_max}", TOOL_NODE)
                 return TOOL_NODE
 
-            LOGGER.info(LOG_ROUTE, f"{invokes_count}/{invokes_max}", FORMAT_NODE)
-            return FORMAT_NODE
+            LOGGER.info(LOG_ROUTE, f"{invokes_count}/{invokes_max}", END)
+            return END
 
-        if self._min_steps > state["scenario"].count():
+        if self._min_steps > state.response.count_steps():
             LOGGER.info(LOG_ROUTE, invokes_count, CHAT_NODE)
             return CHAT_NODE
 
-        LOGGER.info(LOG_ROUTE, f"{invokes_count}/{invokes_max}", FORMAT_NODE)
-        return FORMAT_NODE
-
-    def _format_node(self, state: AgentState) -> dict[str, Any]:
-        """Узел финализации ответа в JSON-структуру."""
-        last_message = state["messages"][-1]
-        result = AgentResponse(
-            query=state["query"],
-            answer=str(last_message.content),
-            sources=state["sources"],
-            steps=state["scenario"].serialize_steps(),
-        )
-        LOGGER.info(LOG_PATTERN, FORMAT_NODE, result)
-        return {"result": result, "invokes_count": 1}
+        LOGGER.info(LOG_ROUTE, f"{invokes_count}/{invokes_max}", END)
+        return END
 
 
 LOG_PATTERN = "[%s] -- %s"
@@ -165,7 +147,6 @@ LOG_ROUTE = "[%s] --> [%s]"
 RETRIVE_NODE = "retrieve_node"
 CHAT_NODE = "chat_node"
 TOOL_NODE = "tool_node"
-FORMAT_NODE = "format_node"
 
 SYSTEM_PROMPT = (
     "<system>"

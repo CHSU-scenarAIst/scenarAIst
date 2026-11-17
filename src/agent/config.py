@@ -9,7 +9,6 @@ from pathlib import Path
 from pydantic import BaseModel, Field, SecretStr
 
 
-# ! [AI Note] Не_добавлять_в / удалить_из документации
 class Providers(StrEnum):
     """Текстовое перечисление провайдеров LLM."""
 
@@ -17,8 +16,10 @@ class Providers(StrEnum):
     GIGACHAT = "gigachat"
 
 
+# ! [AI Note] `CompletionConfig`, `EmbeddingConfig` и `CollectionConfig` в документации это
+# ! один класс """.КонфигурацияПрограммы. Конфигурация работы программы и LLM."""
 class CompletionConfig(BaseModel):
-    """Конфигурация модели генерации (LLM-чата)."""
+    """Конфигурация LLM генерации."""
 
     provider: Providers = Field(description="Провайдер LLM.")
 

@@ -1,4 +1,4 @@
-// ! """Компонент обработки сочетаний горячих клавиш."""
+// ! """ПанельГорячихКлавиш. Компонент обработки сочетаний горячих клавиш."""
 
 import QtQuick
 import QtQuick.Layouts
@@ -8,7 +8,7 @@ Rectangle {
 
     required property var onLoad    // * Обработчик события загрузки задач из файла.
     required property var onMode    // * Обработчик события смены режима работы.
-    required property var onSave    // * Обработчик события сохранения ответа агента-Сценариста в файл.
+    required property var onSave    // * Обработчик события сохранения ответа агента в файл.
 
     // * Список горячих клавиш.
     property var bindings: [

@@ -1,4 +1,4 @@
-// ! """Компонент отображения ответов агента-Сценариста."""
+// ! """ОтветАгента. Компонент отображения ответов агента-Сценариста."""
 
 import QtQuick
 import QtQuick.Controls
@@ -7,7 +7,7 @@ import QtQuick.Layouts
 Item {
     id: root
 
-    property string text // * Ответ агента-Сценариста.
+    property string answer // * Ответ агента.
 
     ColumnLayout {
         anchors.fill: parent
@@ -48,7 +48,7 @@ Item {
 
             TextArea {
                 id: answerArea
-                text: root.text
+                text: root.answer
                 readOnly: true
                 wrapMode: TextEdit.Wrap
                 selectByMouse: true

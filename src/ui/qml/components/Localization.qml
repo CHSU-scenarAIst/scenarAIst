@@ -95,14 +95,14 @@ QtObject {
                 "en": "Bulk creation",
                 "ru": "Массовое создание"
             },
-            "Mode.ChangeOne": {
-                "en": "...",
-                "ru": "Изменить один"
-            },
-            "Mode.ChangeSome": {
-                "en": "...",
-                "ru": "Массовое изменение"
-            },
+            // "Mode.ChangeOne": {
+            //     "en": "...",
+            //     "ru": "Изменить один"
+            // },
+            // "Mode.ChangeSome": {
+            //     "en": "...",
+            //     "ru": "Массовое изменение"
+            // },
             "Query.Add.Text": {
                 "en": "+",
                 "ru": "+"

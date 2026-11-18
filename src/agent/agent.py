@@ -1,6 +1,6 @@
 """Сборка LLM-агента с инструментами и структурированным выводом.
 - Получение Json-Сценария на вход (back_request).
-- Ручная сборка ответа в Json
+- Ручная сборка ответа в Json.
 """
 
 import logging
@@ -86,7 +86,7 @@ class ScenarAIstAgent:
 
     # ! [AI Note] Секция не_добавлять_в / удалить_из документации
     def _retrieve_node(self, state: AgentState) -> dict[str, Any]:
-        """Узел поиска релевантных документов по запросу. # ? NOTTODO доделать"""
+        # TODO доделать/проверить работу
         response = state.response.model_copy(deep=True)
         docs = [doc for r in self._retrievers for doc in r.invoke(response.query)]
         LOGGER.info(
@@ -108,7 +108,6 @@ class ScenarAIstAgent:
         }
 
     def _chat_node(self, state: AgentState) -> dict[str, Any]:
-        """Узел генерации ответа агентом."""
         response = state.response.model_copy(deep=True)
         prompt = [*state.messages, HumanMessage(str(response.sources))]
         if self._min_steps > response.count_steps():
@@ -126,7 +125,6 @@ class ScenarAIstAgent:
         }
 
     def _router_node(self, state: AgentState) -> str:
-        """Ветвление графа."""
         invokes_count = state.invokes_count
         invokes_max = state.invokes_max
         if self._tools and getattr(state.messages[-1], "tool_calls", []):

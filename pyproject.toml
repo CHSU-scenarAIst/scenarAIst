@@ -65,6 +65,7 @@ files = ["src", "tests"]
 
 # Настройки pytest
 [tool.pytest.ini_options]
+pythonpath = ["src"]
 testpaths = ["tests"]        # Где искать тесты
 python_files = ["test_*.py"] # Какие файлы считать тестами
-pythonpath = ["src"]
+addopts = "--strict-markers -ra"

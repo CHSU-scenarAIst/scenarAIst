@@ -36,28 +36,13 @@ class HandlerBackend(QObject):
         """Создать или изменить один Сценарий."""
         try:
             task, min_steps, instruct = self._get_args(query)
-
             back_request = self._read_from_file(task)
             if back_request:
                 task = back_request
-
             response = self._invoker.invoke(task, min_steps, instruct)
             self._emit_response(uid, response)
         except Exception as e:
             LOGGER.critical(e)
-
-    # @Slot(str, str)
-    # def changeOne(self, uid: str, query: str) -> None:
-    #     """Изменить один Сценарий."""
-    #     try:
-    #         name, min_steps, instruct = self._get_args(query)
-    #         back_request = self._read_from_file(name)
-    #         if not back_request:
-    #             return
-    #         response = self._invoker.invoke(back_request, min_steps, instruct)
-    #         self._emit_response(uid, response)
-    #     except Exception as e:
-    #         LOGGER.critical(e)
 
     @Slot(str, result=list)
     def readLinesFromFile(self, path: str) -> list[str]:  # noqa: N802
@@ -79,12 +64,10 @@ class HandlerBackend(QObject):
 
     @Slot(str)
     def copyToClipboard(self, input: str) -> None:  # noqa: N802
-        """Скопировать текст в буфер обмена."""
         QGuiApplication.clipboard().setText(input)
 
     @Slot(result=str)
     def clipboardText(self) -> str:  # noqa: N802
-        """Прочитать текст из буфера обмена."""
         return QGuiApplication.clipboard().text() or ""
 
     def _get_args(self, query: str) -> tuple[str, int, str]:

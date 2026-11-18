@@ -84,6 +84,7 @@ class VectoreStoreBuilder:
             yield from text_splitter.split_documents([d])
 
     # ! [AI Note] Секция не_добавлять_в / удалить_из документации
+    # TODO проверить работу
     def _calculate_hash(self, folder_path: Path) -> str:
         """Считает хеш папки на основе метаданных файлов."""
         hasher = hashlib.sha256()

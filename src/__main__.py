@@ -1,11 +1,7 @@
 import logging
 import sys
-from pathlib import Path
-
-import yaml
 
 from src.agent.agent import ScenarAIstAgent
-from src.agent.model import AgentModelFactory
 from src.ui.handler import InvokeAgent, UserInterface
 
 LOGGER = logging.getLogger(__name__)
@@ -23,18 +19,7 @@ def main(write_response: bool = True) -> int:
     LOGGER.info("\n%s\n%s\n%s", blank_line, "=== Запуск СценарИИста ===", blank_line)
 
     try:
-        with Path("config.yaml").open(encoding="utf-8") as f:
-            raw_cfg = yaml.safe_load(f)
-
-        model = AgentModelFactory(raw_cfg)
-
-        with Path(model.chat_cfg.actions_path).open(encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-        if not isinstance(data, dict) or not data:
-            raise ValueError("Файл действий должен содержать непустой словарь.")
-
-        agent = ScenarAIstAgent(model, data)
-        agent.build()
+        agent = ScenarAIstAgent().build()
         invoker = ImplInvoke(agent)
         ui = UserInterface(sys.argv, invoker, write_response)
         exit_code = ui.run()

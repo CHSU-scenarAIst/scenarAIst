@@ -13,20 +13,11 @@ from langchain.messages import ToolMessage
 from langchain.tools import BaseTool, tool
 from langgraph.prebuilt import ToolRuntime
 from langgraph.types import Command
+from pydantic import BaseModel, Field
 
 __all__ = ["AgentResponse", "AgentState"]
 
-from src.agent.schema import (
-    ST,
-    AgentResponse,
-    AgentState,
-    DeleteStepSchema,
-    InsertStepSchema,
-    InsertStepsSchema,
-    Step,
-    UpdateStepSchema,
-    UpdateStepsSchema,
-)
+from src.agent.schema import AgentResponse, AgentState, Step
 
 LOGGER = logging.getLogger(__name__)
 
@@ -52,6 +43,29 @@ class AgentToolsBuilder:
 
 
 # ! [AI Note] Секция не_добавлять_в / удалить_из документации
+class DeleteStepSchema(BaseModel):
+    id: str = Field(description="ID шага, который нужно удалить.")
+
+
+class InsertStepSchema[StepT: Step[Any]](BaseModel):
+    step_after_id: str | None = Field(
+        default=None, description="ID шага, после которого нужно вставить Шаг, или None для вставки в конец."
+    )
+    step: StepT = Field(description="Новый Шаг для вставки.")
+
+
+class InsertStepsSchema[StepT: Step[Any]](BaseModel):
+    steps: list[InsertStepSchema[StepT]] = Field(description="Список шагов для вставки.")
+
+
+class UpdateStepSchema[StepT: Step[Any]](BaseModel):
+    id: str = Field(description="ID шага, который нужно обновить.")
+    new_step: StepT = Field(description="Обновлённый Шаг.")
+
+
+class UpdateStepsSchema[StepT: Step[Any]](BaseModel):
+    steps: list[UpdateStepSchema[StepT]] = Field(description="Список шагов для обновления.")
+
 
 LOG_PATTERN = "[%s] -- %s"
 
@@ -88,14 +102,14 @@ def delete_step(rtm: ToolRuntime[None, AgentState], steps: list[DeleteStepSchema
     return Command(update={"steps_count": 1, "response": response, "messages": [tool_mes]})
 
 
-def insert_step(rtm: ToolRuntime[None, AgentState], steps: list[InsertStepSchema[ST]]) -> Command[Any]:
+def insert_step(rtm: ToolRuntime[None, AgentState], steps: list[InsertStepSchema[Step[str]]]) -> Command[Any]:
     "Добавить Шаги в Сценарий после указанных id Шагов."
 
     scenario = rtm.state.response.model_copy(deep=True)
-    inserts: list[tuple[str | None, int, ST]] = []
+    inserts: list[tuple[str | None, int, Step[str]]] = []
 
     for s in steps:
-        step_obj = ST(**s.step.model_dump())
+        step_obj = Step[str](**s.step.model_dump())
 
         if not s.step_after_id:
             inserts.append((None, len(scenario.steps), step_obj))
@@ -110,7 +124,7 @@ def insert_step(rtm: ToolRuntime[None, AgentState], steps: list[InsertStepSchema
         tool_mes = ToolMessage(content=mes, tool_call_id=rtm.tool_call_id)
         return Command(update={"steps_count": 1, "messages": [tool_mes]})
 
-    indexed: list[tuple[int, int, ST]] = []
+    indexed: list[tuple[int, int, Step[str]]] = []
     for order, (after_id, idx, step) in enumerate(inserts):
         target_idx = scenario.count_steps() if after_id is None else idx + 1
         indexed.append((target_idx, order, step))
@@ -126,11 +140,11 @@ def insert_step(rtm: ToolRuntime[None, AgentState], steps: list[InsertStepSchema
     return Command(update={"steps_count": 1, "response": scenario, "messages": [tool_mes]})
 
 
-def update_step(rtm: ToolRuntime[None, AgentState], steps: list[UpdateStepSchema[ST]]) -> Command[Any]:
+def update_step(rtm: ToolRuntime[None, AgentState], steps: list[UpdateStepSchema[Step[str]]]) -> Command[Any]:
     "Изменить существующие Шаги Сценария."
 
     response = rtm.state.response.model_copy(deep=True)
-    parsed: list[tuple[int, ST]] = []
+    parsed: list[tuple[int, Step[str]]] = []
     for s in steps:
         index = response.find(s.id)
         if index is None:
@@ -139,7 +153,7 @@ def update_step(rtm: ToolRuntime[None, AgentState], steps: list[UpdateStepSchema
             tool_mes = ToolMessage(content=mes, tool_call_id=rtm.tool_call_id)
             return Command(update={"steps_count": 1, "messages": [tool_mes]})
 
-        step_obj = ST(id=s.id, **s.new_step.model_dump())
+        step_obj = Step[str](id=s.id, **s.new_step.model_dump())
         parsed.append((index, step_obj))
 
     for index, step in parsed:

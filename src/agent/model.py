@@ -1,195 +1,106 @@
-"""Фабрики провайдеров LLM и обработчиков эмбеддингов.
-- Индексация документов в векторную БД, получение контекста из векторного поиска:
-    - SQLite
-- Загрузка и чанкинг документов: pdf, txt, md, csv, docx, xls, xlsx.
-- Инкрементальное обновление индекса при изменении папки
-- Поддержка моделей через OpenAI-совместимый (в т.ч. llama.cpp-сервер), GigaChat
+"""Сборщики LLM разных провайдеров.
+- Настройка работы программы через конфигурационный файл.
+    - Настройка модели Completion
+    - Настройка модели Embedding
 """
 
-import hashlib
 import logging
-import sqlite3
-from collections.abc import Iterator
+from enum import StrEnum
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Protocol, Self
 
-import sqlite_vec  # type: ignore[import-untyped]
+import yaml
 from langchain.chat_models import BaseChatModel
 from langchain.embeddings import Embeddings
-from langchain_community.document_loaders.directory import DirectoryLoader
-from langchain_community.vectorstores import SQLiteVec
-from langchain_core.documents import Document
 from langchain_gigachat import GigaChat
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from pydantic import BaseModel, Field, SecretStr
 
-from src.agent.config import CompletionConfig, EmbeddingConfig, Providers
+from src.agent.vec_db import CollectionConfig, VectoreStoreBuilder
 
 LOGGER = logging.getLogger(__name__)
 
 
-class AgentModelFactory:
-    """Фабрика провайдеров LLM и обработчиков эмбеддингов."""
+class AgentModelBuilder:
+    """Сборщик LLM и обработчиков эмбеддингов разных провайдеров."""
 
-    def __init__(self, raw_cfg: dict[str, Any]):
+    def __init__(self) -> None:
+        with Path("config.yaml").open(encoding="utf-8") as f:
+            raw_cfg = yaml.safe_load(f)
+
         try:
             self.chat_cfg = CompletionConfig.model_validate(raw_cfg["completion"])
         except Exception as e:
             raise TypeError("Ошибка конфигурации модели.") from e
 
-        try:
-            provider = Providers(self.chat_cfg.provider.strip().lower())
-        except Exception as e:
-            provider = raw_cfg.get("completion", {}).get("provider", "?")
-            raise TypeError(f"Ошибка загрузки 'completion' -> 'provider': '{provider}'.") from e
+        with Path(self.chat_cfg.actions_path).open(encoding="utf-8") as f:
+            actions_data = yaml.safe_load(f)
+        if not isinstance(actions_data, dict) or not actions_data:
+            raise ValueError("Файл действий должен содержать непустой словарь.")
+        self.actions_data: dict[str, str] = actions_data
 
-        self.chat = _CHAT_FACTORIES[provider](self.chat_cfg)
-        self.retrievers = []
-
+        self.embed_cfg: EmbeddingConfig | None = None
         try:
-            embed_cfg = EmbeddingConfig.model_validate(raw_cfg["embeddings"])
+            self.embed_cfg = EmbeddingConfig.model_validate(raw_cfg["embeddings"])
         except Exception:
             LOGGER.info("Нет внешних данных для подключения: 'embeddings'.")
-        else:
-            LOGGER.info(embed_cfg.model_dump_json())
-            try:
-                provider = Providers(embed_cfg.provider.strip().lower())
-            except Exception as e:
-                LOGGER.error("Ошибка загрузки конфигурации эмбеддингов.", exc_info=e)
-            embeddings = _EMBEDDING_FACTORIES[provider](embed_cfg)
-            sqlite_db = SQLiteVecFactory(embed_cfg, embeddings)
-            self.retrievers = sqlite_db.retrievers
+
+    def build(self) -> Self:
+        if (name := self.chat_cfg.provider.strip().lower()) not in CHAT_FACTORIES:
+            raise TypeError(f"Ошибка загрузки 'completion' -> 'provider': '{name}'.")
+        self.chat = CHAT_FACTORIES[name](self.chat_cfg)
+
+        self.retrievers = []
+        if self.embed_cfg:
+            if (name := self.embed_cfg.provider.strip().lower()) not in EMBEDDING_FACTORIES:
+                raise TypeError(f"Ошибка загрузки 'embeddings' -> 'provider': '{name}'.")
+            embeddings = EMBEDDING_FACTORIES[name](self.embed_cfg)
+            db = VectoreStoreBuilder(self.embed_cfg.db_path)
+            db.build(embeddings, self.embed_cfg.collections)
+            self.retrievers = db.retrivers
+        return self
 
 
-class SQLiteVecFactory:
-    """Фабрика обработчика векторного хранилища базы данных SQLite."""
+class Providers(StrEnum):
+    """Перечисление доступных провайдеров LLM."""
 
-    def __init__(self, embed_cfg: EmbeddingConfig, embeddings: Embeddings):
-        dbs: list[tuple[SQLiteVec, int]] = []
-        self._init_meta_table(embed_cfg.db_path)
+    OPENAI = "openai"
+    GIGACHAT = "gigachat"
 
-        conn = sqlite3.connect(
-            embed_cfg.db_path,
-            check_same_thread=False,
-        )
-        conn.row_factory = sqlite3.Row
-        conn.enable_load_extension(True)
-        sqlite_vec.load(conn)
-        conn.enable_load_extension(False)
 
-        for c in embed_cfg.collections:
-            current_hash = self._calculate_hash(c.path)
-            active_table = self._get_active_table(conn, c.path, current_hash)
+# ! [AI Note] `CompletionConfig`, `EmbeddingConfig` и `CollectionConfig` в документации это
+# ! один класс """.КонфигурацияПрограммы. Конфигурация работы программы и LLM."""
+class CompletionConfig(BaseModel):
+    """Конфигурация LLM генерации."""
 
-            if active_table is None:
-                short_hash = current_hash[:8]
-                new_table = f"{c.path.name}_{short_hash}"
-                LOGGER.info(f"Изменения или новая коллекция в '{c.path}' -> '{new_table}'...")
+    provider: Providers = Field(description="Провайдер LLM.")
 
-                docs = list(self._iter_docs(c.path, c.chunk_size, c.chunk_overlap))
-                db = SQLiteVec.from_documents(
-                    documents=docs,
-                    embedding=embeddings,
-                    table=new_table,
-                    db_file=embed_cfg.db_path,
-                )
+    verify_ssl_certs: bool = Field(default=False, description="Проверять ли SSL-сертификаты.")
+    base_url: str | None = Field(default=None, description="Путь API провайдера.")
+    api_key: SecretStr = Field(default=SecretStr("SECRET"), description="Ключ API провайдера.")
+    model: str | None = Field(default=None, description="Название LLM чата.")
+    temperature: float = Field(default=0.1, description="Температура выборки токенов (0..1).")
+    max_tokens: int = Field(default=10000, description="Максимальное число токенов в одном ответе агента.")
+    max_invokes: int = Field(default=30, description="Максимальное число вызовов в одном ответе агента.")
+    timeout: int = Field(default=60, description="Время ожидания ответа от запроса к API, в секундах.")
+    system_prompt: str = Field(default="You are a helpful assistant.", description="Системный промпт.")
+    actions_path: str = Field(default="./datasets/actions.yaml", description="Путь к Действиям персонала.")
 
-                self._update_meta_and_cleanup(conn, c.path, current_hash, new_table)
-            else:
-                LOGGER.info(f"Коллекция '{c.path}' не изменилась, таблица '{active_table}'.")
-                db = SQLiteVec(
-                    table=active_table,
-                    connection=conn,
-                    embedding=embeddings,
-                    db_file=embed_cfg.db_path,
-                )
 
-            dbs.append((db, c.top_k))
+class EmbeddingConfig(BaseModel):
+    """Конфигурация LLM эмбеддингов и векторного хранилища."""
 
-        self.retrievers = [db.as_retriever(search_kwargs={"k": k}) for db, k in dbs]
+    provider: Providers = Field(description="Провайдер эмбеддингов.")
 
-    def _iter_docs(self, path: Path, chunk_size: int, chunk_overlap: int) -> Iterator[Document]:
-        """Загрузить документы из указанной директории."""
-        # ? Сам по себе Генератор/Итератор не имеет смысла, так как приводится к list для работы SQLiteVec.
-
-        load = DirectoryLoader(
-            path=path.as_uri(),
-            glob=["*.txt", "*.docx", "*.pdf", "*.md", "*.csv", "*.xls", "*.xlsx"],
-            recursive=True,
-            show_progress=True,
-        )
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-        )
-        docs = load.lazy_load()
-        for d in docs:
-            yield from text_splitter.split_documents([d])
-
-    # ! [AI Note] Секция не_добавлять_в / удалить_из документации
-
-    def _init_meta_table(self, db_path: str) -> None:
-        """Создаёт служебную таблицу для отслеживания состояния коллекций, если её нет."""
-        with sqlite3.connect(db_path) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS collection_meta (
-                    collection_path TEXT PRIMARY KEY,
-                    current_hash TEXT NOT NULL,
-                    active_table_name TEXT NOT NULL,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            conn.commit()
-
-    def _calculate_hash(self, folder_path: Path) -> str:
-        """Считает хеш папки на основе метаданных файлов."""
-        hasher = hashlib.sha256()
-        for file_path in sorted(folder_path.rglob("*")):
-            if file_path.is_file():
-                stat = file_path.stat()
-                meta_str = f"{file_path.name}:{stat.st_size}:{stat.st_mtime}"
-                hasher.update(meta_str.encode("utf-8"))
-        return hasher.hexdigest()
-
-    def _get_active_table(self, conn: sqlite3.Connection, folder: Path, current_hash: str) -> str | None:
-        """Возвращает имя таблицы ТОЛЬКО если хеш совпал."""
-        row: dict[str, str] = conn.execute(
-            "SELECT current_hash, active_table_name FROM collection_meta WHERE collection_path = ?",
-            (folder,),
-        ).fetchone()
-
-        if row and row["current_hash"] == current_hash:
-            return row["active_table_name"]
-        return None
-
-    def _update_meta_and_cleanup(self, conn: sqlite3.Connection, folder: Path, hash: str, table: str) -> None:
-        """Обновляет указатель на активную таблицу и удаляет старую версию таблицы."""
-        row = conn.execute(
-            "SELECT active_table_name FROM collection_meta WHERE collection_path = ?", (folder,)
-        ).fetchone()
-
-        old_table_name = row["active_table_name"] if row else None
-
-        conn.execute(
-            """
-            INSERT INTO collection_meta (collection_path, current_hash, active_table_name, updated_at)
-            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(collection_path) DO UPDATE SET
-                current_hash=excluded.current_hash,
-                active_table_name=excluded.active_table_name,
-                updated_at=excluded.updated_at
-        """,
-            (folder, hash, table),
-        )
-
-        if old_table_name and old_table_name != table:
-            try:
-                conn.execute(f"DROP TABLE IF EXISTS {old_table_name}")
-                LOGGER.info("Старая таблица '%s' удалена.", old_table_name)
-            except Exception as e:
-                LOGGER.warning("Не удалось удалить старую таблицу '%s'", old_table_name, exc_info=e)
-
-        conn.commit()
+    base_url: str | None = Field(default=None, description="Путь API провайдера LLM эмбеддингов.")
+    api_key: SecretStr = Field(default=SecretStr("SECRET"), description="Ключ API провайдера эмбеддингов.")
+    model: str | None = Field(default=None, description="Название LLM эмбеддингов.")
+    collections: list[CollectionConfig] = Field(default_factory=list, description="Список путей к папкам.")
+    verify_ssl_certs: bool = Field(default=False, description="Проверять ли SSL-сертификаты.")
+    dim: int = Field(default=1024, ge=1, description="Размерность вектора эмбеддинга.")
+    db_path: str = Field(default="./rag.sqlite3", description="Путь к файлу векторной базы данных.")
+    batch_size: int = Field(default=4, ge=1, description="Сколько документов обрабатывается за один запрос.")
+    timeout: int = Field(default=60, description="Время ожидания ответа от запроса к API, в секундах.")
 
 
 # ! [AI Note] Секция не_добавлять_в / удалить_из документации
@@ -240,12 +151,12 @@ def _create_openai_embeddings(cfg: EmbeddingConfig) -> Embeddings:
 
 
 """Машина состояний чата в функциональном стиле."""
-_CHAT_FACTORIES: dict[Providers, ICreateChat] = {
-    Providers.OPENAI: _create_openai_compatible_chat,
-    Providers.GIGACHAT: _create_gigachat_chat,
+CHAT_FACTORIES: dict[str, ICreateChat] = {
+    Providers.OPENAI.value: _create_openai_compatible_chat,
+    Providers.GIGACHAT.value: _create_gigachat_chat,
 }
 
 """Машина состояний эмбеддингов в функциональном стиле."""
-_EMBEDDING_FACTORIES: dict[Providers, ICreateEmbeddings] = {
-    Providers.OPENAI: _create_openai_embeddings,
+EMBEDDING_FACTORIES: dict[str, ICreateEmbeddings] = {
+    Providers.OPENAI.value: _create_openai_embeddings,
 }

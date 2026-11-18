@@ -1,10 +1,8 @@
-"""Схемы общения между Сценаристом и агентом-Сценаристом."""
+"""Структура Сценария и схемы ответа агента-Сценариста."""
 
 import operator
 import uuid
-
-# from enum import StrEnum
-from typing import Annotated, Any, Self
+from typing import Annotated, Self
 
 from langchain.messages import AnyMessage
 from langgraph.graph import add_messages
@@ -18,12 +16,8 @@ class Step[ActionT: str](BaseModel):
     actor: str = Field(description="Название/UID персонала.")
     target: str = Field(description="Название/UID составной части целевого объекта.")
     action: ActionT = Field(description="Стандартное действие персонала над целевым объектом или его частью.")
-    order: int | None = Field(default=None, description="Порядковое место Шага.")
     # ? предусловие
     # ? постусловие
-
-
-ST = Step[str]
 
 
 class Scenario(BaseModel):
@@ -61,7 +55,7 @@ class AgentResponse(BaseModel):
 
     def serialize(self) -> str:
         """Вернуть Сценарий с порядковыми номерами Шагов."""
-        steps = [{**s.model_dump(), "order": i} for i, s in enumerate(self.scenario.steps, start=1)]
+        steps = [SerStep(**s.model_dump(), order=i) for i, s in enumerate(self.scenario.steps, start=1)]
         return SerializedResponse(
             query=self.query,
             answer=self.answer,
@@ -85,7 +79,7 @@ class AgentState(BaseModel):
     """СостояниеАгента. База данных состояния агента-Сценариста."""
 
     messages: Annotated[list[AnyMessage], add_messages] = Field(
-        default_factory=list, description="История сообщений."
+        default_factory=list, description="История общения с агентом."
     )
     response: AgentResponse = Field(default_factory=AgentResponse, description="Ответа агента.")
     invokes_count: Annotated[int, operator.add] = Field(default=0, description="Число вызовов агента.")
@@ -95,11 +89,10 @@ class AgentState(BaseModel):
     def from_back_request(cls, task: str, instruct: str) -> Self:
         """Создать из существующего Сценария."""
         raw = SerializedResponse.model_validate_json(task)
-        steps = [Step[str].model_validate(s) for s in raw.steps]
-        count = len(steps)
+        steps = [Step[str].model_validate(s.model_dump(exclude={"order"})) for s in raw.steps]
         response = AgentResponse(
             query=instruct,
-            answer="Передан пустой Сценарий." if count <= 0 else "",
+            answer="Передан пустой Сценарий." if not steps else "",
             sources=raw.sources,
             scenario=Scenario(steps=steps),
         )
@@ -112,32 +105,16 @@ class AgentState(BaseModel):
 
 
 # ! [AI Note] Секция не_добавлять_в / удалить_из документации
-class DeleteStepSchema(BaseModel):
-    id: str = Field(description="ID шага, который нужно удалить.")
+class SerStep(Step[str]):
+    """Шаг для контракта API с явным полем order."""
 
-
-class InsertStepSchema[StepT: Step[Any]](BaseModel):
-    step_after_id: str | None = Field(
-        default=None, description="ID шага, после которого нужно вставить Шаг, или None для вставки в конец."
-    )
-    step: StepT = Field(description="Новый Шаг для вставки.")
-
-
-class InsertStepsSchema[StepT: Step[Any]](BaseModel):
-    steps: list[InsertStepSchema[StepT]] = Field(description="Список шагов для вставки.")
-
-
-class UpdateStepSchema[StepT: Step[Any]](BaseModel):
-    id: str = Field(description="ID шага, который нужно обновить.")
-    new_step: StepT = Field(description="Обновлённый Шаг.")
-
-
-class UpdateStepsSchema[StepT: Step[Any]](BaseModel):
-    steps: list[UpdateStepSchema[StepT]] = Field(description="Список шагов для обновления.")
+    order: int
 
 
 class SerializedResponse(BaseModel):
+    """Контракт обмена данными по API."""
+
     query: str
     answer: str
     sources: dict[int, dict[str, str]]
-    steps: list[dict[str, Any]]
+    steps: list[SerStep]

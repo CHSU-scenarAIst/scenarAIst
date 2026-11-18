@@ -5,14 +5,13 @@
 
 import logging
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Self
 
 from langchain.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.prebuilt import ToolNode
-from pydantic import ValidationError
 
-from src.agent.model import AgentModelFactory
+from src.agent.model import AgentModelBuilder
 from src.agent.tools import AgentState, AgentToolsBuilder
 
 LOGGER = logging.getLogger(__name__)
@@ -21,8 +20,9 @@ LOGGER = logging.getLogger(__name__)
 class ScenarAIstAgent:
     """АгентСценарист. Сборщик агента-Сценариста."""
 
-    def __init__(self, model: AgentModelFactory, data: dict[str, str]):
-        self._tools = AgentToolsBuilder().build(data=data)  # * Инструменты агента.
+    def __init__(self) -> None:
+        model = AgentModelBuilder().build()
+        self._tools = AgentToolsBuilder().build(data=model.actions_data)  # * Инструменты агента.
         self._agent_llm = model.chat.bind_tools(self._tools)  # * Агент-Сценарист.
         self._system_prompt = (
             SYSTEM_PROMPT + "<user>" + model.chat_cfg.system_prompt + "</user>"
@@ -30,8 +30,10 @@ class ScenarAIstAgent:
         self._retrievers = model.retrievers  # * Обработчики эмбеддингов документов.
         self._max_invokes = model.chat_cfg.max_invokes  # * Максимальное число вызовов в одном ответе агента.
         LOGGER.info(model.chat_cfg.model_dump_json())
+        if ec := model.embed_cfg:
+            LOGGER.info(ec.model_dump_json())
 
-    def build(self) -> None:
+    def build(self) -> Self:
         """Сборка LLM-агента."""
 
         builder = StateGraph(AgentState)
@@ -55,6 +57,7 @@ class ScenarAIstAgent:
 
         self.agent = builder.compile()
         LOGGER.debug("StateGraph (mermaid)\n%s", self.agent.get_graph().draw_mermaid())
+        return self
 
     def invoke(self, task: str, min_steps: int, instruct: str) -> str:
         """API для отправки запросов LLM-агенту."""
@@ -66,8 +69,8 @@ class ScenarAIstAgent:
             if (count := state.response.count_steps()) <= 0:
                 return state.response.serialize()
             LOGGER.info("Recived Scenario from 'back_request': %d Steps.", count)
-        except ValidationError as e:
-            LOGGER.info("Task is not 'back_request'.", exc_info=e)
+        except Exception:
+            LOGGER.info("Task is not 'back_request'.")
             task += f"<instruct>{instruct}</instruct>" if instruct else ""
             state = AgentState.from_task(task)
 

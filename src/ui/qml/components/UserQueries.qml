@@ -190,7 +190,6 @@ Item {
 
     // ! [AI Note] Секция не_добавлять_в / удалить_из документации
     signal runRequested
-    property bool _autofocusLast: false
 
     function removeLast() {
         if (queryCount > 0) {
@@ -198,6 +197,8 @@ Item {
         }
         _setCursor();
     }
+
+    property bool _autofocusLast: false
 
     function _setCursor() {
         root._autofocusLast = true;
@@ -220,11 +221,14 @@ Item {
         };
     }
 
+    property int _idCounter: 0
+
     function _newId(text) {
         const now = new Date();
         const pad = n => (n < 10 ? "0" : "") + n;
         const date = now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate());
         const time = pad(now.getHours()) + "-" + pad(now.getMinutes()) + "-" + pad(now.getSeconds());
-        return date + "_" + time;
+        const ms = String(now.getMilliseconds()).padStart(3, "0");
+        return date + "_" + time + "-" + ms + "-" + (++_idCounter);
     }
 }

@@ -12,7 +12,10 @@ from pydantic import BaseModel, Field, PrivateAttr, model_validator
 class Step[ActionT: str](BaseModel):
     """ШагСценария"""
 
-    id: str = Field(default_factory=lambda: uuid.uuid4().hex, description="Уникальный идентификатор шага.")
+    id: str = Field(
+        default_factory=lambda: uuid.uuid4().hex,
+        description="Уникальный идентификатор шага.",
+    )
     actor: str = Field(description="Название/UID персонала.")
     target: str = Field(description="Название/UID составной части целевого объекта.")
     action: ActionT = Field(description="Стандартное действие персонала над целевым объектом или его частью.")
@@ -46,13 +49,16 @@ class AgentResponse(BaseModel):
         self._rebuild_indexes()
 
     def find(self, id: str) -> int | None:
-        """Вернуть Шаг по его ID."""
+        """Вернуть индекс Шага в списке по его ID."""
         return self._steps_indexes.get(id)
 
     def count_steps(self) -> int:
         """Вернуть число Шагов в Сценарии."""
         return len(self._steps_indexes)
 
+    # TODO проверить
+    # Если в списке случайно окажутся два шага с одинаковым id,
+    # словарь молча перезапишет индекс первого шага индексом второго.
     def serialize(self) -> str:
         """Вернуть Сценарий с порядковыми номерами Шагов."""
         steps = [SerStep(**s.model_dump(), order=i) for i, s in enumerate(self.scenario.steps, start=1)]
@@ -72,7 +78,7 @@ class AgentResponse(BaseModel):
         return self
 
     def _rebuild_indexes(self) -> None:
-        self._steps_indexes = {s.id: i for i, s in enumerate(self.scenario.steps, start=1) if s.id}
+        self._steps_indexes = {s.id: i for i, s in enumerate(self.scenario.steps) if s.id}
 
 
 class AgentState(BaseModel):

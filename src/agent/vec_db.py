@@ -14,13 +14,15 @@ from pathlib import Path
 
 import sqlite_vec  # type: ignore[import-untyped]
 from langchain.embeddings import Embeddings
-from langchain_community.document_loaders.directory import DirectoryLoader
 from langchain_community.vectorstores import SQLiteVec
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_unstructured import UnstructuredLoader
 from pydantic import BaseModel, Field
 
 LOGGER = logging.getLogger(__name__)
+
+ALLOWED_EXTS = {".txt", ".docx", ".pdf", ".md", ".csv", ".xls", ".xlsx"}
 
 
 class CollectionConfig(BaseModel):
@@ -68,20 +70,15 @@ class VectoreStoreBuilder:
     def _iter_docs(self, path: Path, chunk_size: int, chunk_overlap: int) -> Iterator[Document]:
         """Загрузить документы из указанной директории."""
         # ? Сам по себе Генератор/Итератор не имеет смысла, так как приводится к list для работы SQLiteVec.
-
-        load = DirectoryLoader(
-            path=path.as_uri(),
-            glob=["*.txt", "*.docx", "*.pdf", "*.md", "*.csv", "*.xls", "*.xlsx"],
-            recursive=True,
-            show_progress=True,
-        )
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
         )
-        docs = load.lazy_load()
-        for d in docs:
-            yield from text_splitter.split_documents([d])
+        files = [p for p in path.rglob("*") if p.is_file() and p.suffix.lower() in ALLOWED_EXTS]
+        for file_path in files:
+            loader = UnstructuredLoader(file_path=str(file_path))
+            for doc in loader.lazy_load():
+                yield from text_splitter.split_documents([doc])
 
     # ! [AI Note] Секция не_добавлять_в / удалить_из документации
     # TODO проверить работу
@@ -129,7 +126,8 @@ class VectoreStoreBuilder:
     def _update_meta_and_cleanup(self, folder: Path, hash: str, table: str) -> None:
         """Обновляет указатель на активную таблицу и удаляет старую версию таблицы."""
         row = self.conn.execute(
-            "SELECT active_table_name FROM collection_meta WHERE collection_path = ?", (folder,)
+            "SELECT active_table_name FROM collection_meta WHERE collection_path = ?",
+            (folder,),
         ).fetchone()
 
         old_table_name = row["active_table_name"] if row else None

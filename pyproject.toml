@@ -1,11 +1,10 @@
-# Настройки системы сборки пакета
 [build-system]
-requires = ["hatchling"]          # Пакеты, необходимые для сборки проекта
-build-backend = "hatchling.build" # Бэкенд сборки
+requires = ["hatchling"]            # Пакеты, необходимые для сборки проекта
+build-backend = "hatchling.build"   # Бэкенд сборки
 
 [project]
 name = "scenaraist"
-version = "0.3.0"
+version = "0.4.0"
 requires-python = ">=3.13"
 dependencies = [
     "langgraph>=1.2.16",
@@ -14,36 +13,24 @@ dependencies = [
     "langchain-gigachat>=0.5.1",
     "langchain-openai>=1.3.5",
     # "langchain-tavily>=0.2.18",
-    # "msoffcrypto-tool>=6.0.0",
-    # "networkx>=3.6.1",
-    # "openpyxl>=3.1.5",
-    # "pandas>=3.0.3",
-    # "pymupdf>=1.28.0",
-    # "sentence-transformers>=5.6.0",
-    # "unstructured[docx,md,pdf]>=0.24.1",
-    # "xlrd>=2.0.2",
     "sqlite-vec>=0.1.9",
     "pyside6>=6.10,<6.11",
     "pyyaml>=6.0.3",
+    "langchain-unstructured>=1.0.1",
 ]
-
-[project.urls]
-Repository = "https://github.com/CHSU-scenarAIst/scenarAIst"
 
 [project.scripts]
 scenaraist = "src.__main__:main"
 scenarAIst = "src.__main__:main"
 
 [tool.coverage.run]
-source = ["src"]
+source = ["src"]                    # ???
 
-# Настройки сборки wheel
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+packages = ["src"]                  # ???
 # include = ["src/ui/qml"]
 
 
-# Группы необязательных зависимостей
 [dependency-groups]
 dev = [
     "mypy>=2.2.0",                              # Статическая проверка типов
@@ -52,20 +39,55 @@ dev = [
     "pytest-cov>=7.1.0",                        # Покрытие тестами
     "ruff>=0.17.1",                             # Линтер и форматтер
     "types-python-dateutil>=2.9.0.20260807",    # Типы для python-dateutil
-    "types-pyyaml>=6.0.12.20261030",
+    "types-pyyaml>=6.0.12.20261030",            # ???
 ]
 
 # Настройки mypy
 [tool.mypy]
-python_version = "3.13"        # Версия Python для анализа
-strict = true                  # Максимально строгий режим проверки
-warn_unused_configs = true     # Предупреждать о неиспользуемых настройках
-ignore_missing_imports = false # Все импорты должны быть валидны
-files = ["src", "tests"]
+python_version = "3.13"         # Версия Python для анализа
+strict = true                   # Максимально строгий режим проверки
+warn_unused_configs = true      # Предупреждать о неиспользуемых настройках
+ignore_missing_imports = false  # Все импорты должны быть валидны
+files = ["src", "tests"]        # ???
 
 # Настройки pytest
 [tool.pytest.ini_options]
-pythonpath = ["src"]
-testpaths = ["tests"]        # Где искать тесты
-python_files = ["test_*.py"] # Какие файлы считать тестами
-addopts = "--strict-markers -ra"
+pythonpath = ["src"]                # ???
+testpaths = ["tests"]               # Где искать тесты
+python_files = ["test_*.py"]        # Какие файлы считать тестами
+addopts = "--strict-markers -ra"    # ???
+filterwarnings = [                  # ???
+    "ignore:.*langchain-community.*is being sunset.*:DeprecationWarning",
+]
+
+[tool.ruff]
+target-version = "py313"	# Версия Python, под которую проверяется код
+line-length = 110	        # Максимальная длина строки
+
+[tool.ruff.lint]
+select = [
+	"E",	    # pycodestyle errors
+	"W",	    # pycodestyle warnings
+	"F",	    # pyflakes
+	"I",    	# isort
+	"N",	    # pep8-naming
+	"UP",   	# pyupgrade
+	"S",	    # bandit security
+	"B",	    # flake8-bugbear
+	"PL",	    # Pylint
+	"SIM",	    # flake8-simplify
+	"TC",	    # flake8-type-checking
+	"C4",	    # flake8-comprehensions
+	"RET",	    # flake8-return
+	"RUF",	    # собственные правила Ruff
+	"ANN201",	# missing-return-type-undocumented-public-function
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/*" = ["RUF001", "RUF002", "RUF003",]    # Отключить проверку русского текста
+
+[tool.ruff.format]
+quote-style = "double"	            # Использовать двойные кавычки
+indent-style = "space"	            # Использовать пробелы вместо табов
+line-ending = "auto"	            # Автоматически определять окончания строк
+skip-magic-trailing-comma = false	# Всегда добавлять запятую в многострочных структурах

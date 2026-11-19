@@ -5,7 +5,14 @@ import logging
 from pathlib import Path
 from typing import Protocol
 
-from PySide6.QtCore import QMessageLogContext, QObject, QtMsgType, Signal, Slot, qInstallMessageHandler
+from PySide6.QtCore import (
+    QMessageLogContext,
+    QObject,
+    QtMsgType,
+    Signal,
+    Slot,
+    qInstallMessageHandler,
+)
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 
@@ -59,8 +66,7 @@ class HandlerBackend(QObject):
         self._save_to_file(name, response)
 
     # ! [AI Note] Секция не_добавлять_в / удалить_из документации
-    queryProcessed = Signal(str)  # noqa: N815
-    responseReady = Signal(str)  # noqa: N815
+    responseReady = Signal(str, str)  # noqa: N815
 
     @Slot(str)
     def copyToClipboard(self, input: str) -> None:  # noqa: N802
@@ -83,8 +89,7 @@ class HandlerBackend(QObject):
         if self._write_response:
             name = f"{uid}.json"
             self._save_to_file(name, response)
-        self.responseReady.emit(response)
-        self.queryProcessed.emit(uid)
+        self.responseReady.emit(uid, response)
 
     def _save_to_file(self, name: str, response: str) -> None:
         file_path = self.RESPONSES_DIR / name

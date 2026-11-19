@@ -49,7 +49,8 @@ class DeleteStepSchema(BaseModel):
 
 class InsertStepSchema[StepT: Step[Any]](BaseModel):
     step_after_id: str | None = Field(
-        default=None, description="ID шага, после которого нужно вставить Шаг, или None для вставки в конец."
+        default=None,
+        description="ID шага, после которого нужно вставить Шаг, или None для вставки в конец.",
     )
     step: StepT = Field(description="Новый Шаг для вставки.")
 
@@ -153,7 +154,8 @@ def update_step(rtm: ToolRuntime[None, AgentState], steps: list[UpdateStepSchema
             tool_mes = ToolMessage(content=mes, tool_call_id=rtm.tool_call_id)
             return Command(update={"steps_count": 1, "messages": [tool_mes]})
 
-        step_obj = Step[str](id=s.id, **s.new_step.model_dump())
+        # идентификатор задаётся ключом Шага (s.id), в данных замены он не нужен
+        step_obj = Step[str](id=s.id, **s.new_step.model_dump(exclude={"id"}))
         parsed.append((index, step_obj))
 
     for index, step in parsed:

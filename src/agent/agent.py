@@ -62,7 +62,12 @@ class ScenarAIstAgent:
     def invoke(self, task: str, min_steps: int, instruct: str) -> str:
         """API для отправки запросов LLM-агенту."""
 
-        LOGGER.info("[invoke] -- Task: '%.90s...', min_step: '%s', instruct: '%s'", task, min_steps, instruct)
+        LOGGER.info(
+            "[invoke] -- Task: '%.90s...', min_step: '%s', instruct: '%s'",
+            task,
+            min_steps,
+            instruct,
+        )
         self._min_steps = min_steps
         try:
             state = AgentState.from_back_request(task, instruct)

@@ -19,8 +19,6 @@ ApplicationWindow {
     property var modes: {
         0: "Mode.CreateOne",
         1: "Mode.CreateSome"
-        // 2: "Mode.ChangeOne",
-        // 3: "Mode.ChangeSome"
     }
     // * Текущий ответ агента.
     property string currentResponse: ""
@@ -158,7 +156,6 @@ ApplicationWindow {
         if (root.currentMode === 0 || root.currentMode === 2) {
             const field = userQueries.getFirst();
             if (field) {
-                // root.currentMode === 0 ? handler.createOne(field.uid, field.text.trim()) : handler.changeOne(field.uid, field.text.trim());
                 handler.createOne(field.uid, field.text);
             }
         } else {
@@ -170,7 +167,6 @@ ApplicationWindow {
                 }
             }
             for (const field of fields) {
-                // root.currentMode === 1 ? handler.createOne(field.uid, field.text.trim()) : handler.changeOne(field.uid, field.text.trim());
                 handler.createOne(field.uid, field.text);
             }
         }
@@ -190,12 +186,9 @@ ApplicationWindow {
     Connections {
         target: root.handler
 
-        function onResponseReady(response) {
-            root.currentResponse = response;
-        }
-
-        function onQueryProcessed(uid) {
+        function onResponseReady(uid, response) {
             userQueries.removeByUid(uid);
+            root.currentResponse = response;
         }
     }
 

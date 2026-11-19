@@ -91,7 +91,6 @@ class ScenarAIstAgent:
 
     # ! [AI Note] Секция не_добавлять_в / удалить_из документации
     def _retrieve_node(self, state: AgentState) -> dict[str, Any]:
-        # TODO доделать/проверить работу
         response = state.response.model_copy(deep=True)
         docs = [doc for r in self._retrievers for doc in r.invoke(response.query)]
         LOGGER.info(
@@ -106,6 +105,7 @@ class ScenarAIstAgent:
             }
             for i, d in enumerate(docs, start=1)
         }
+        response.sources = sources
         LOGGER.info(LOG_PATTERN, RETRIVE_NODE, sources)
         return {
             "response": response,

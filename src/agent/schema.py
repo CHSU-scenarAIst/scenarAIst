@@ -1,5 +1,6 @@
 """Структура Сценария и схемы ответа агента-Сценариста."""
 
+import logging
 import operator
 import uuid
 from typing import Annotated, Self
@@ -7,6 +8,8 @@ from typing import Annotated, Self
 from langchain.messages import AnyMessage
 from langgraph.graph import add_messages
 from pydantic import BaseModel, Field, PrivateAttr, model_validator
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Step[ActionT: str](BaseModel):
@@ -56,9 +59,6 @@ class AgentResponse(BaseModel):
         """Вернуть число Шагов в Сценарии."""
         return len(self._steps_indexes)
 
-    # TODO проверить
-    # Если в списке случайно окажутся два шага с одинаковым id,
-    # словарь молча перезапишет индекс первого шага индексом второго.
     def serialize(self) -> str:
         """Вернуть Сценарий с порядковыми номерами Шагов."""
         steps = [SerStep(**s.model_dump(), order=i) for i, s in enumerate(self.scenario.steps, start=1)]
@@ -78,7 +78,15 @@ class AgentResponse(BaseModel):
         return self
 
     def _rebuild_indexes(self) -> None:
-        self._steps_indexes = {s.id: i for i, s in enumerate(self.scenario.steps) if s.id}
+        indexes: dict[str, int] = {}
+        for i, s in enumerate(self.scenario.steps):
+            if not s.id:
+                continue
+            if s.id in indexes:
+                LOGGER.warning("Обнаружен дубликат id Шага '%s' (позиции %d и %d).", s.id, indexes[s.id], i)
+                continue
+            indexes[s.id] = i
+        self._steps_indexes = indexes
 
 
 class AgentState(BaseModel):

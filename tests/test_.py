@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -27,6 +28,7 @@ from src.agent.tools import (
     insert_step,
     update_step,
 )
+from src.agent.vec_db import VectoreStoreBuilder
 from src.ui.handler import HandlerBackend, InvokeAgent
 
 LOGGER = logging.getLogger(__name__)
@@ -113,29 +115,21 @@ def test_scenario_extension() -> None:
     check(ids == ["s1", "s2", "new"], f"Шаг не добавлен в конец Сценария: {ids}.")
 
 
-# TODO запустить тест, исправить ошибки
 def test_scenario_regeneration() -> None:
     """[Поддержка «перегенерации»]: замену выбранных Шагов (update_step)."""
     rtm = make_tool_runtime(make_steps(2))
     replacement = Step[str](actor="Обновлённый", target="Объект", action="TAKE")
-    try:
-        result = update_step(rtm, [UpdateStepSchema(id="s1", new_step=replacement)])
-    except TypeError as e:
-        raise AssertionError(f"update_step завершился ошибкой (дефект реализации): {e}") from e
+    result = update_step(rtm, [UpdateStepSchema(id="s1", new_step=replacement)])
     replaced = get_update(result)["response"].steps[0]
     check(replaced.id == "s1", "Шаг 's1' не заменён.")
     check(replaced.actor == "Обновлённый", "Атрибуты Шага не обновлены.")
 
 
-# TODO запустить тест, исправить ошибки
 def test_scenario_regeneration_replaces_only_selected_step() -> None:
     """[Перегенерация заменяет только выбранные Шаги]: остальные сохраняются."""
     rtm = make_tool_runtime(make_steps(3))
     replacement = Step[str](actor="Обновлённый", target="Объект", action="TAKE")
-    try:
-        result = update_step(rtm, [UpdateStepSchema(id="s2", new_step=replacement)])
-    except TypeError as e:
-        raise AssertionError(f"update_step завершился ошибкой (дефект реализации): {e}") from e
+    result = update_step(rtm, [UpdateStepSchema(id="s2", new_step=replacement)])
     ids = [s.id for s in get_update(result)["response"].steps]
     check(ids == ["s1", "s2", "s3"], f"Состав Сценария изменён некорректно: {ids}.")
 
@@ -197,8 +191,39 @@ def test_unique_step_ids() -> None:
     check(len(ids) == check_unique_step_id, "Идентификаторы Шагов не уникальны.")
 
 
+def test_duplicate_step_ids_keep_first_index() -> None:
+    """[Надёжность]: дубликат id Шага не искажает индекс первого вхождения."""
+    steps = make_steps(3)
+    steps[2].id = "s1"  # дубликат id первого Шага
+    response = AgentResponse(scenario=Scenario(steps=steps))
+    check(
+        response.find("s1") == 0,
+        "При дубликате id индекс первого вхождения потерян.",
+    )
+    check(
+        response.steps[0].id == "s1" and response.steps[2].id == "s1",
+        "Шаги с дубликатом id изменены при индексации.",
+    )
+
+
+def test_folder_hash_detects_content_change() -> None:
+    """[Переиндексирование векторного хранилища]: хеш папки изменяется при изменении содержимого файлов."""
+    builder = VectoreStoreBuilder(db_path=":memory:")
+    with tempfile.TemporaryDirectory() as tmp:
+        folder = Path(tmp)
+        (folder / "doc.txt").write_text("исходный текст", encoding="utf-8")
+        hash_before = builder._calculate_hash(folder)
+        (folder / "doc.txt").write_text("новый текст!!", encoding="utf-8")
+        stat = (folder / "doc.txt").stat()
+        os.utime(folder / "doc.txt", ns=(stat.st_atime_ns, stat.st_mtime_ns))
+        check(
+            builder._calculate_hash(folder) != hash_before,
+            "Хеш папки не изменился при изменении содержимого файла.",
+        )
+
+
 def test_load_tasks_from_file() -> None:
-    """Управление данными файлового хранилища - чтение задач из файла (1 задача = 1 строка)."""
+    """[Управление данными файлового хранилища]: чтение задач из файла (1 задача = 1 строка)."""
     with tempfile.TemporaryDirectory() as tmp:
         file = Path(tmp) / "tasks.csv"
         file.write_text("Создай сценарий, 5, инструкция\n\nВторая задача\n", encoding="utf-8")
@@ -211,14 +236,14 @@ def test_load_tasks_from_file() -> None:
 
 
 def test_load_tasks_missing_file() -> None:
-    """Надёжность: обработка ошибок - отсутствие файла задач не приводит к сбою."""
+    """[Надёжность] - обработка ошибок: отсутствие файла задач не приводит к сбою."""
     handler = make_handler(tempfile.mkdtemp())
     lines = handler.readLinesFromFile("no_such_file.csv")
     check(lines == [], "Отсутствующий файл задач должен возвращать пустой список.")
 
 
 def test_query_arguments_parsing() -> None:
-    """Взаимодействие мышью и клавиатурой - запрос формата CSV разбирается в параметры агента."""
+    """[Взаимодействие мышью и клавиатурой] - запрос формата CSV разбирается в параметры агента."""
     handler = make_handler(tempfile.mkdtemp())
     cases = [
         ("Создай сценарий, 5, инструкция", ("Создай сценарий", 5, "инструкция")),
@@ -268,7 +293,7 @@ def test_saved_scenario_read_from_storage() -> None:
 
 
 def test_missing_scenario_read_from_storage() -> None:
-    """[Надёжность]: обработка ошибок - отсутствие Сценария в хранилище не приводит к сбою."""
+    """[Надёжность] - обработка ошибок: отсутствие Сценария в хранилище не приводит к сбою."""
     handler = make_handler(tempfile.mkdtemp())
     back_request = handler._read_from_file("no_such.json")
     check(back_request == "", "Отсутствующий Сценарий должен возвращать пустую строку.")

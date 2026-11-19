@@ -81,15 +81,16 @@ class VectoreStoreBuilder:
                 yield from text_splitter.split_documents([doc])
 
     # ! [AI Note] Секция не_добавлять_в / удалить_из документации
-    # TODO проверить работу
     def _calculate_hash(self, folder_path: Path) -> str:
-        """Считает хеш папки на основе метаданных файлов."""
+        """Считает хеш папки на основе относительных путей и содержимого файлов."""
         hasher = hashlib.sha256()
         for file_path in sorted(folder_path.rglob("*")):
-            if file_path.is_file():
-                stat = file_path.stat()
-                meta_str = f"{file_path.name}:{stat.st_size}:{stat.st_mtime}"
-                hasher.update(meta_str.encode("utf-8"))
+            if not file_path.is_file():
+                continue
+            hasher.update(file_path.relative_to(folder_path).as_posix().encode("utf-8"))
+            with file_path.open("rb") as f:
+                for chunk in iter(lambda: f.read(65536), b""):
+                    hasher.update(chunk)
         return hasher.hexdigest()
 
     def _get_vector_db(self, folder: Path, hash: str, size: int, overlap: int) -> SQLiteVec:
@@ -140,7 +141,7 @@ class VectoreStoreBuilder:
                 current_hash=excluded.current_hash,
                 active_table_name=excluded.active_table_name,
                 updated_at=excluded.updated_at
-        """,
+            """,
             (folder, hash, table),
         )
 

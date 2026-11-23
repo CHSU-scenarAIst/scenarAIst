@@ -15,7 +15,7 @@ ApplicationWindow {
     property var handler: handlerBackend // qmllint disable unqualified
     // * Текущий режим работы программы.
     property int currentMode: 0
-    // * Режимы работы (создать один / создать массово / изменить один / изменить массово).
+    // * Режимы генерации (создать один / создать массово / изменить один / изменить массово).
     property var modes: {
         0: "Mode.CreateOne",
         1: "Mode.CreateSome"
@@ -109,8 +109,8 @@ ApplicationWindow {
         defaultSuffix: "json"
         nameFilters: ["JSON files (*.json)", "All files (*)"]
         onAccepted: {
-            const path = root.toLocalPath(selectedFile);
-            root.handler.save(path, root.currentResponse);
+            const name = root.toLocalPath(selectedFile);
+            root.handler.save("", name, root.currentResponse);
         }
     }
 
@@ -156,7 +156,12 @@ ApplicationWindow {
         if (root.currentMode === 0 || root.currentMode === 2) {
             const field = userQueries.getFirst();
             if (field) {
-                handler.createOne(field.uid, field.text);
+                let [task, minSteps, instruct] = handler.readAsCSV(field.text);
+                const backRequest = handler.readAsBackRequest(task);
+                if (backRequest) {
+                    task = backRequest;
+                }
+                handler.createOne(field.uid, task, minSteps, instruct);
             }
         } else {
             const fields = [];
@@ -167,7 +172,12 @@ ApplicationWindow {
                 }
             }
             for (const field of fields) {
-                handler.createOne(field.uid, field.text);
+                let [task, minSteps, instruct] = handler.readAsCSV(field.text);
+                const backRequest = handler.readAsBackRequest(task);
+                if (backRequest) {
+                    task = backRequest;
+                }
+                handler.createOne(field.uid, task, minSteps, instruct);
             }
         }
     }
@@ -186,9 +196,12 @@ ApplicationWindow {
     Connections {
         target: root.handler
 
-        function onResponseReady(uid, response) {
+        function onResponseReady(uid, response, write_response) {
             userQueries.removeByUid(uid);
             root.currentResponse = response;
+            if (write_response) {
+                root.handler.save("responses", uid, root.currentResponse);
+            }
         }
     }
 

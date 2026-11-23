@@ -6,9 +6,13 @@ import QtQuick.Layouts
 Rectangle {
     id: root
 
-    required property var onLoad    // * Обработчик события загрузки задач из файла.
-    required property var onMode    // * Обработчик события смены режима работы.
-    required property var onSave    // * Обработчик события сохранения ответа агента в файл.
+    property var onLoad             // * Обработчик события загрузки задач из файла.
+    property var onMode             // * Обработчик события смены режима работы.
+    property var onSave             // * Обработчик события сохранения ответа агента в файл.
+    property var onSend             // * Обработчик события запуска обработчика задач.
+    property var onAdd              // * Обработчик события добавления задачи.
+    property var onDelete           // * Обработчик события удаления задачи.
+    property var onExit             // * Обработчик события выхода из приложения.
 
     // * Список горячих клавиш.
     property var bindings: [
@@ -116,12 +120,8 @@ Rectangle {
     }
 
     // ! [AI Note] Секция не_добавлять_в / удалить_из документации
-    property var onSend    // * Обработчик события запуска обработчика задач.
     property var onCopy
     property var onPaste
-    property var onAdd     // * Обработчик события добавления задачи.
-    property var onDelete  // * Обработчик события удаления задачи.
-    property var onExit    // * Обработчик события выхода из приложения.
     property var onScrollUp
     property var onScrollDown
 }

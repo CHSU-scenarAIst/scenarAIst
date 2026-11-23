@@ -16,8 +16,6 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
 
-LOGGER = logging.getLogger(__name__)
-
 
 class InvokeAgent(Protocol):
     """ВызовАгента. Интерфейс для работы с агентом-Сценаристом."""
@@ -36,20 +34,12 @@ class HandlerBackend(QObject):
         super().__init__(parent)
         self._invoker = invoker  # * Объект вызова агента-Сценариста.
         self._write_response = write_response  # ! [AI Note] Не_добавлять_в / удалить_из документации
-        self.RESPONSES_DIR = Path("responses")  # ! [AI Note] Не_добавлять_в / удалить_из документации
 
-    @Slot(str, str)
-    def createOne(self, uid: str, query: str) -> None:  # noqa: N802
+    @Slot(str, str, str, str)
+    def createOne(self, uid: str, task: str, min_steps: str, instruct: str) -> None:  # noqa: N802
         """Создать или изменить один Сценарий."""
-        try:
-            task, min_steps, instruct = self._get_args(query)
-            back_request = self._read_from_file(task)
-            if back_request:
-                task = back_request
-            response = self._invoker.invoke(task, min_steps, instruct)
-            self._emit_response(uid, response)
-        except Exception as e:
-            LOGGER.critical(e)
+        response = self._invoker.invoke(task, int(min_steps), instruct)
+        self.responseReady.emit(uid, response, self._write_response)
 
     @Slot(str, result=list)
     def readLinesFromFile(self, path: str) -> list[str]:  # noqa: N802
@@ -60,13 +50,43 @@ class HandlerBackend(QObject):
         with file_path.open(encoding="utf-8") as fh:
             return [line.strip() for line in fh if line.strip()]
 
-    @Slot(str, str)
-    def save(self, name: str, response: str) -> None:
+    @Slot(str, str, str)
+    def save(self, path: str, name: str, response: str) -> None:
         """Сохранить ответ агента в файл."""
-        self._save_to_file(name, response)
+        path_dir = Path(path)
+        file_path = path_dir / f"{name}.json"
+        path_dir.mkdir(parents=True, exist_ok=True)
+        with file_path.open(encoding="utf-8", mode="w") as f:
+            f.write(response)
+
+    @Slot(str, result="QVariantList")
+    def readAsCSV(self, text: str) -> list[str | int]:  # noqa: N802
+        """Прочитать задачу как строку CSV."""
+        parts = next(csv.reader([text]), [])
+        if not parts:
+            return ["", -1, ""]
+        task, *args = parts
+        min_steps = int(s) if args and (s := args[0].strip()).isdigit() else -1
+        instruct = i if len(args) > 1 and (i := args[1].strip()) else ""
+        return [task, min_steps, instruct]
+
+    @Slot(str, result=str)
+    def readAsBackRequest(self, path: str) -> str:  # noqa: N802
+        """Прочитать существующий Сценарий."""
+        file_path = Path(path)
+        if not file_path.exists():
+            LOGGER.warning("Сохранённый Сценарий '%s' не найден.", file_path)
+            return ""
+        # TODO упростить
+        try:
+            back_request = file_path.read_text(encoding="utf-8")
+        except Exception as e:
+            LOGGER.exception("Не удалось прочитать Сценарий '%s'.", file_path, exc_info=e)
+            return ""
+        return back_request
 
     # ! [AI Note] Секция не_добавлять_в / удалить_из документации
-    responseReady = Signal(str, str)  # noqa: N815
+    responseReady = Signal(str, str, bool)  # noqa: N815
 
     @Slot(str)
     def copyToClipboard(self, input: str) -> None:  # noqa: N802
@@ -76,38 +96,8 @@ class HandlerBackend(QObject):
     def clipboardText(self) -> str:  # noqa: N802
         return QGuiApplication.clipboard().text() or ""
 
-    def _get_args(self, query: str) -> tuple[str, int, str]:
-        parts = next(csv.reader([query]), [])
-        if not parts:
-            return "", -1, ""
-        task, *args = parts
-        min_steps = int(s) if args and (s := args[0].strip()).isdigit() else -1
-        instruct = i if len(args) > 1 and (i := args[1].strip()) else ""
-        return task, min_steps, instruct
 
-    def _emit_response(self, uid: str, response: str) -> None:
-        if self._write_response:
-            name = f"{uid}.json"
-            self._save_to_file(name, response)
-        self.responseReady.emit(uid, response)
-
-    def _save_to_file(self, name: str, response: str) -> None:
-        file_path = self.RESPONSES_DIR / name
-        self.RESPONSES_DIR.mkdir(parents=True, exist_ok=True)
-        with file_path.open(encoding="utf-8", mode="w") as f:
-            f.write(response)
-
-    def _read_from_file(self, name: str) -> str:
-        file_path = self.RESPONSES_DIR / name
-        if not file_path.exists():
-            LOGGER.warning("Сохранённый Сценарий '%s' не найден.", file_path)
-            return ""
-        try:
-            back_request = file_path.read_text(encoding="utf-8")
-        except Exception as e:
-            LOGGER.exception("Не удалось прочитать Сценарий '%s'.", file_path, exc_info=e)
-            return ""
-        return back_request
+LOGGER = logging.getLogger(__name__)
 
 
 class UserInterface:

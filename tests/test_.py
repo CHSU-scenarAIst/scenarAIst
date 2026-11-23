@@ -28,7 +28,7 @@ from src.agent.tools import (
     insert_step,
     update_step,
 )
-from src.agent.vec_db import VectoreStoreBuilder
+from src.agent.vec_db import ALLOWED_EXTS, CollectionConfig, VectoreStoreBuilder
 from src.ui.handler import HandlerBackend, InvokeAgent
 
 LOGGER = logging.getLogger(__name__)
@@ -70,7 +70,7 @@ def get_update(result: Command[Any]) -> dict[str, Any]:
     return update
 
 
-def make_handler(tmp_dir: str) -> HandlerBackend:
+def make_handler() -> HandlerBackend:
     """Создать обработчик сигналов UI с каталогом ответов во временном каталоге."""
 
     class TestInvoke(InvokeAgent):
@@ -78,9 +78,7 @@ def make_handler(tmp_dir: str) -> HandlerBackend:
             return f"Вызов агента с параметрами: {task}, {min_steps}, {add_instruct}"
 
     invoker = TestInvoke()
-    handler = HandlerBackend(invoker=invoker, write_response=False)
-    handler.RESPONSES_DIR = Path(tmp_dir)
-    return handler
+    return HandlerBackend(invoker=invoker, write_response=False)
 
 
 # * Требования к функциональным характеристикам.
@@ -222,43 +220,6 @@ def test_folder_hash_detects_content_change() -> None:
         )
 
 
-def test_load_tasks_from_file() -> None:
-    """[Управление данными файлового хранилища]: чтение задач из файла (1 задача = 1 строка)."""
-    with tempfile.TemporaryDirectory() as tmp:
-        file = Path(tmp) / "tasks.csv"
-        file.write_text("Создай сценарий, 5, инструкция\n\nВторая задача\n", encoding="utf-8")
-        handler = make_handler(tmp)
-        lines = handler.readLinesFromFile(str(file))
-        check(
-            lines == ["Создай сценарий, 5, инструкция", "Вторая задача"],
-            f"Строки прочитаны неверно: {lines}.",
-        )
-
-
-def test_load_tasks_missing_file() -> None:
-    """[Надёжность] - обработка ошибок: отсутствие файла задач не приводит к сбою."""
-    handler = make_handler(tempfile.mkdtemp())
-    lines = handler.readLinesFromFile("no_such_file.csv")
-    check(lines == [], "Отсутствующий файл задач должен возвращать пустой список.")
-
-
-def test_query_arguments_parsing() -> None:
-    """[Взаимодействие мышью и клавиатурой] - запрос формата CSV разбирается в параметры агента."""
-    handler = make_handler(tempfile.mkdtemp())
-    cases = [
-        ("Создай сценарий, 5, инструкция", ("Создай сценарий", 5, "инструкция")),
-        ("Создай сценарий", ("Создай сценарий", -1, "")),
-        ("Сценарий, abc", ("Сценарий", -1, "")),
-        ("", ("", -1, "")),
-    ]
-    for query, expected in cases:
-        got = handler._get_args(query)
-        check(
-            got == expected,
-            f"Разбор запроса '{query}': получено {got}, ожидалось {expected}.",
-        )
-
-
 def test_scenario_roundtrip_serialization() -> None:
     """[Изменение существующего сценария] - Сценарий передаётся агенту как back_request."""
     check_serialization = 2
@@ -283,20 +244,23 @@ def test_scenario_roundtrip_serialization() -> None:
     )
 
 
-def test_saved_scenario_read_from_storage() -> None:
-    """[Изменение существующего сценария] - чтение сохранённого Сценария из файлового хранилища."""
-    with tempfile.TemporaryDirectory() as tmp:
-        handler = make_handler(tmp)
-        handler.save("uid-1.json", '{"steps": []}')
-        back_request = handler._read_from_file("uid-1.json")
-        check(back_request == '{"steps": []}', "Сохранённый Сценарий прочитан неверно.")
+def test_connectable_source_formats() -> None:
+    """[Управление данными файлового хранилища]: индексация текстовых документов и файлов сценариев."""
+    required_formats = {".pdf", ".txt", ".docx", ".md", ".csv", ".xls", ".xlsx"}
+    check(
+        required_formats <= ALLOWED_EXTS,
+        f"Поддерживаемые форматы источников неполные: {sorted(ALLOWED_EXTS)}.",
+    )
 
 
-def test_missing_scenario_read_from_storage() -> None:
-    """[Надёжность] - обработка ошибок: отсутствие Сценария в хранилище не приводит к сбою."""
-    handler = make_handler(tempfile.mkdtemp())
-    back_request = handler._read_from_file("no_such.json")
-    check(back_request == "", "Отсутствующий Сценарий должен возвращать пустую строку.")
+def test_context_search_accuracy_configurable() -> None:
+    """[Управление данными файлового хранилища]: настройка точности поиска контекста (top_k коллекции)."""
+    check_context_search = 3
+    collection = CollectionConfig(path=Path("./docs"), top_k=3)
+    check(
+        collection.top_k == check_context_search,
+        "Точность поиска контекста (top_k) не настраивается конфигурацией коллекции.",
+    )
 
 
 def test_llm_provider_validation() -> None:

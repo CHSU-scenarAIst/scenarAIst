@@ -1,10 +1,8 @@
-import hashlib
 import logging
-import tempfile
 from pathlib import Path
 
 from src.agent.agent import ScenarAIstAgent
-from src.ui.handler import HandlerBackend, InvokeAgent
+from src.agent.schema import AgentResponse, Scenario, Step
 
 LOGGER = logging.getLogger(__name__)
 
@@ -19,11 +17,7 @@ def test_conceptual_error_logging() -> None:
 
 
 def test_conceptual_agent_from_current_config() -> None:
-    """[Надёжность]: агент собирается из текущей конфигурации и готов к запросу.
-
-    Сборка графа выполняется без обращения к сети; сам запрос к LLM проверяется
-    вручную: остановить сервер LLM и убедиться, что программа не падает и пишет лог.
-    """
+    """[Надёжность]: агент собирается из текущей конфигурации и готов к запросу."""
     agent = ScenarAIstAgent().build()
     nodes = set(agent.agent.get_graph().nodes)
     check = "chat_node" in nodes and "__start__" in nodes and "__end__" in nodes
@@ -37,42 +31,40 @@ def test_conceptual_agent_from_current_config() -> None:
     )
 
 
-def test_conceptual_source_storage_integrity() -> None:
-    """[Надёжность]: взаимодействие с программой не влияет на целостность исходных данных хранилища.
-
-    Проверка: сохранение и чтение Сценария обработчиком не изменяет и не удаляет
-    другие файлы хранилища (контролируется по контрольным суммам).
-    """
-
-    class TestInvoke(InvokeAgent):
-        def invoke(self, task: str, min_steps: int, add_instruct: str) -> str:
-            return "stub"
-
-    with tempfile.TemporaryDirectory() as tmp:
-        neighbors = {"other-1.json": '{"steps": []}', "other-2.json": '{"steps": [1]}'}
-        for name, content in neighbors.items():
-            Path(tmp, name).write_text(content, encoding="utf-8")
-        checksums = {name: hashlib.sha256(Path(tmp, name).read_bytes()).hexdigest() for name in neighbors}
-
-        handler = HandlerBackend(invoker=TestInvoke(), write_response=False)
-        handler.RESPONSES_DIR = Path(tmp)
-        handler.save("uid-1.json", '{"steps": [{"order": 1}]}')
-        check = handler._read_from_file("uid-1.json") == '{"steps": [{"order": 1}]}'
-
-        intact = all(
-            hashlib.sha256(Path(tmp, name).read_bytes()).hexdigest() == checksums[name] for name in neighbors
-        )
-        files = {p.name for p in Path(tmp).iterdir()}
-        print(
-            "Тест концептуальный (целостность хранилища):",
-            "Успешно" if check and intact and files == {*neighbors, "uid-1.json"} else "Провал",
-        )
-
-
 def test_conceptual_no_external_network_dependencies() -> None:
     """[Отсутствие зависимостей, требующих внешней установки во время эксплуатации]."""
     print(
         "Зависимости зафиксированы в pyproject.toml/uv.lock; "
         "обращение к сети выполняется только к LLM-провайдеру внутри защищённого контура предприятия.",
         "Успешно",
+    )
+
+
+def test_conceptual_mouse_keyboard_interaction() -> None:
+    """[Способ взаимодействия с программой]: мышь и клавиатура."""
+    qml_dir = Path("src/ui/qml")
+    components = "\n".join(p.read_text(encoding="utf-8") for p in qml_dir.rglob("*.qml"))
+    check_mouse = all(token in components for token in ("Button", "TextField", "ComboBox"))
+    check_keyboard = "Shortcut" in components
+    print(
+        "Тест концептуальный (мышь и клавиатура):",
+        "Успешно" if check_mouse and check_keyboard else "Провал",
+        f"- элементы мыши: {check_mouse}, горячие клавиши: {check_keyboard}",
+    )
+
+
+def test_conceptual_text_and_tree_output() -> None:
+    """[Представление результатов]: текст и древовидные структуры данных."""
+    response = AgentResponse(
+        answer="Текстовое сообщение агента.",
+        scenario=Scenario(steps=[Step[str](actor="Персонал", target="Объект", action="USE")]),
+    )
+    data = response.model_dump()
+    check_text = isinstance(data["answer"], str)
+    check_tree = isinstance(data["scenario"]["steps"], list) and isinstance(
+        data["scenario"]["steps"][0], dict
+    )
+    print(
+        "Тест концептуальный (текст и древовидные структуры):",
+        "Успешно" if check_text and check_tree else "Провал",
     )

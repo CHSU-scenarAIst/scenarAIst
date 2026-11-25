@@ -23,7 +23,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class AgentToolsBuilder:
-    """Сборщик инструментов для агента-Сценариста."""
+    """Сборщик инструментов для ИИ-Сценариста."""
 
     def build(self, data: dict[str, str]) -> list[BaseTool]:
         """Собрать инструменты агента."""

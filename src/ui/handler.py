@@ -101,7 +101,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class UserInterface:
-    """ПользовательскийИнтерфейс. Сборщик пользовательского интерфейса."""
+    """ИнтерфейсПользователя. Сборщик пользовательского интерфейса."""
 
     # ! [AI Note] Не_добавлять_в / удалить_из документации параметры `argv`, `write_response`
     def __init__(self, argv: list[str], invoker: InvokeAgent, write_response: bool):

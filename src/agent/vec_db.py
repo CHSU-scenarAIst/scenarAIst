@@ -26,9 +26,11 @@ ALLOWED_EXTS = {".txt", ".docx", ".pdf", ".md", ".csv", ".xls", ".xlsx"}
 
 
 class CollectionConfig(BaseModel):
-    """Конфигурация одной коллекции документов для векторного поиска."""
+    """Конфигурация 3/3. Конфигурация одной коллекции документов для векторного поиска."""
 
-    path: Path = Field(description="Путь к папке с документами коллекции.")
+    path: Path = Field(
+        description="Путь к папке с документами коллекции.",
+    )  # ! [AI Note] В документации тип `str`.
 
     top_k: int = Field(default=5, ge=1, description="Сколько наиболее близких чанков возвращать.")
     chunk_size: int = Field(default=512, ge=1, description="Размер чанка (в символах).")
@@ -36,10 +38,10 @@ class CollectionConfig(BaseModel):
 
 
 class VectoreStoreBuilder:
-    """Сборщик обработчика векторного хранилища."""
+    """ВекторноеХранилище. Обработчики векторного хранилища."""
 
     def __init__(self, db_path: str):
-        self.db_path = db_path
+        self.db_path = db_path  # * Путь сохранения векторного хранилища.
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS collection_meta (
@@ -52,6 +54,7 @@ class VectoreStoreBuilder:
             conn.commit()
 
     def build(self, embeddings: Embeddings, collections: list[CollectionConfig]) -> None:
+        """Собрать обработчики векторного хранилища."""
         self.embeddings = embeddings
         self.conn = sqlite3.connect(database=self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
@@ -65,6 +68,7 @@ class VectoreStoreBuilder:
             sqlite_db = self._get_vector_db(c.path, current_hash, c.chunk_size, c.chunk_overlap)
             dbs.append((sqlite_db, c.top_k))
 
+        # * Обработчики эмбеддингов.
         self.retrivers = [db.as_retriever(search_kwargs={"k": k}) for db, k in dbs]
 
     def _iter_docs(self, path: Path, chunk_size: int, chunk_overlap: int) -> Iterator[Document]:

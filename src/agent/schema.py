@@ -13,7 +13,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Step[ActionT: str](BaseModel):
-    """ШагСценария"""
+    """ШагСценария. Атомарная единица Сценария."""
 
     id: str = Field(
         default_factory=lambda: uuid.uuid4().hex,
@@ -21,19 +21,21 @@ class Step[ActionT: str](BaseModel):
     )
     actor: str = Field(description="Название/UID персонала.")
     target: str = Field(description="Название/UID составной части целевого объекта.")
-    action: ActionT = Field(description="Стандартное действие персонала над целевым объектом или его частью.")
+    action: ActionT = Field(
+        description="Стандартное поведение сотрудника над целевым объектом.",
+    )  # ! [AI Note] В документации тип `str`.
     # ? предусловие
     # ? постусловие
 
 
 class Scenario(BaseModel):
-    """Сценарий"""
+    """Сценарий. Структура итогового Сценария."""
 
     steps: list[Step[str]] = Field(default_factory=list, description="Массив Шагов Сценария.")
 
 
 class AgentResponse(BaseModel):
-    """ОтветАгента"""
+    """ОтветАгента. Структура выходного ответа."""
 
     query: str = Field(default="", description="Исходный запрос агенту.")
     answer: str = Field(default="", description="Сообщение от агента.")
@@ -90,7 +92,7 @@ class AgentResponse(BaseModel):
 
 
 class AgentState(BaseModel):
-    """СостояниеАгента. База данных состояния агента-Сценариста."""
+    """СостояниеАгента. База данных состояния ИИ-Сценариста."""
 
     messages: Annotated[list[AnyMessage], add_messages] = Field(
         default_factory=list, description="История общения с агентом."
@@ -114,6 +116,7 @@ class AgentState(BaseModel):
 
     @classmethod
     def from_task(cls, task: str) -> Self:
+        """Создать из параметров генерации."""
         response = AgentResponse(query=task)
         return cls(response=response)
 

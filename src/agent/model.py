@@ -22,23 +22,26 @@ LOGGER = logging.getLogger(__name__)
 
 
 class AgentModelBuilder:
-    """Сборщик LLM и обработчиков эмбеддингов разных провайдеров."""
+    """Сборщик модели ИИ и обработчиков эмбеддингов."""
 
     def __init__(self) -> None:
         with Path("config.yaml").open(encoding="utf-8") as f:
             raw_cfg = yaml.safe_load(f)
 
         try:
+            # * Объект конфигурации модели генерации.
             self.chat_cfg = CompletionConfig.model_validate(raw_cfg["completion"])
         except Exception as e:
-            raise TypeError("Ошибка конфигурации модели.") from e
+            raise TypeError("Ошибка конфигурации модели генерации.") from e
 
         with Path(self.chat_cfg.actions_path).open(encoding="utf-8") as f:
             actions_data = yaml.safe_load(f)
         if not isinstance(actions_data, dict) or not actions_data:
             raise ValueError("Файл действий должен содержать непустой словарь.")
-        self.actions_data: dict[str, str] = actions_data
 
+        # * Список стандартизированных действий сотрудников.
+        self.actions_data: dict[str, str] = actions_data
+        # * Объект конфигурации модели эмбеддингов.
         self.embed_cfg: EmbeddingConfig | None = None
         try:
             self.embed_cfg = EmbeddingConfig.model_validate(raw_cfg["embeddings"])
@@ -46,10 +49,13 @@ class AgentModelBuilder:
             LOGGER.info("Нет внешних данных для подключения: 'embeddings'.")
 
     def build(self) -> Self:
+        """Собрать ИИ-модель."""
         if (name := self.chat_cfg.provider.strip().lower()) not in CHAT_FACTORIES:
             raise TypeError(f"Ошибка загрузки 'completion' -> 'provider': '{name}'.")
-        self.chat = CHAT_FACTORIES[name](self.chat_cfg)
 
+        # * ИИ-модель генерации.
+        self.chat = CHAT_FACTORIES[name](self.chat_cfg)
+        # * Обработчики эмбеддингов
         self.retrievers = []
         if self.embed_cfg:
             if (name := self.embed_cfg.provider.strip().lower()) not in EMBEDDING_FACTORIES:
@@ -61,6 +67,7 @@ class AgentModelBuilder:
         return self
 
 
+# ! [AI Note] Не_добавлять_в / удалить_из документации этот класс
 class Providers(StrEnum):
     """Перечисление доступных провайдеров LLM."""
 
@@ -69,15 +76,18 @@ class Providers(StrEnum):
 
 
 # ! [AI Note] `CompletionConfig`, `EmbeddingConfig` и `CollectionConfig` в документации это
-# ! один класс """.КонфигурацияПрограммы. Конфигурация работы программы и LLM."""
+# ! один класс """.Конфигурация. Конфигурация работы программы и МоделиИИ."""
 class CompletionConfig(BaseModel):
-    """Конфигурация LLM генерации."""
+    """Конфигурация 1/3. Конфигурация LLM генерации."""
 
-    provider: Providers = Field(description="Провайдер LLM.")
+    provider: Providers = Field(description="Провайдер LLM.")  # ! [AI Note] В документации тип `str`.
 
     verify_ssl_certs: bool = Field(default=False, description="Проверять ли SSL-сертификаты.")
     base_url: str | None = Field(default=None, description="Путь API провайдера.")
-    api_key: SecretStr = Field(default=SecretStr("SECRET"), description="Ключ API провайдера.")
+    api_key: SecretStr = Field(
+        default=SecretStr("SECRET"),
+        description="Ключ API провайдера.",
+    )  # ! [AI Note] В документации тип `str`.
     model: str | None = Field(default=None, description="Название LLM чата.")
     temperature: float = Field(default=0.1, description="Температура выборки токенов (0..1).")
     max_tokens: int = Field(default=10000, description="Максимальное число токенов в одном ответе агента.")
@@ -88,12 +98,15 @@ class CompletionConfig(BaseModel):
 
 
 class EmbeddingConfig(BaseModel):
-    """Конфигурация LLM эмбеддингов и векторного хранилища."""
+    """Конфигурация 2/3. Конфигурация LLM эмбеддингов и векторного хранилища."""
 
-    provider: Providers = Field(description="Провайдер эмбеддингов.")
+    provider: Providers = Field(description="Провайдер эмбеддингов.")  # ! [AI Note] В документации тип `str`.
 
     base_url: str | None = Field(default=None, description="Путь API провайдера LLM эмбеддингов.")
-    api_key: SecretStr = Field(default=SecretStr("SECRET"), description="Ключ API провайдера эмбеддингов.")
+    api_key: SecretStr = Field(
+        default=SecretStr("SECRET"),
+        description="Ключ API провайдера эмбеддингов.",
+    )  # ! [AI Note] В документации тип `str`.
     model: str | None = Field(default=None, description="Название LLM эмбеддингов.")
     collections: list[CollectionConfig] = Field(default_factory=list, description="Список путей к папкам.")
     verify_ssl_certs: bool = Field(default=False, description="Проверять ли SSL-сертификаты.")

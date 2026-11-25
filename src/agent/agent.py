@@ -18,7 +18,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class ScenarAIstAgent:
-    """АгентСценарист. Сборщик агента-Сценариста."""
+    """АгентСценарист. Модель ИИ-Сценариста."""
 
     def __init__(self) -> None:
         model = AgentModelBuilder().build()
@@ -30,11 +30,11 @@ class ScenarAIstAgent:
         self._retrievers = model.retrievers  # * Обработчики эмбеддингов документов.
         self._max_invokes = model.chat_cfg.max_invokes  # * Максимальное число вызовов в одном ответе агента.
         LOGGER.info(model.chat_cfg.model_dump_json())
-        if ec := model.embed_cfg:
-            LOGGER.info(ec.model_dump_json())
+        if e_cfg := model.embed_cfg:
+            LOGGER.info(e_cfg.model_dump_json())
 
     def build(self) -> Self:
-        """Сборка LLM-агента."""
+        """Сборка ИИ-агента."""
 
         builder = StateGraph(AgentState)
         builder.add_node(CHAT_NODE, self._chat_node)
@@ -60,7 +60,7 @@ class ScenarAIstAgent:
         return self
 
     def invoke(self, task: str, min_steps: int, instruct: str) -> str:
-        """API для отправки запросов LLM-агенту."""
+        """API для отправки запросов ИИ-агенту."""
 
         LOGGER.info(
             "[invoke] -- Task: '%.90s...', min_step: '%s', instruct: '%s'",
@@ -68,7 +68,7 @@ class ScenarAIstAgent:
             min_steps,
             instruct,
         )
-        self._min_steps = min_steps
+        self._min_steps = min_steps  # * Минимальное число Шагов в Сценарии.
         try:
             state = AgentState.from_back_request(task, instruct)
             if (count := state.response.count_steps()) <= 0:
